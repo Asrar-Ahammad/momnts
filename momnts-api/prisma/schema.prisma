@@ -1,0 +1,132 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+// Get a free hosted Postgres database in seconds: `npx create-db`
+
+generator client {
+  provider        = "prisma-client-js"
+  output          = "../generated/prisma"
+  previewFeatures = ["postgresqlExtensions"]
+}
+
+datasource db {
+  provider   = "postgresql"
+  extensions = [vector]
+}
+
+model User {
+  id               String                      @id @default(uuid())
+  name             String
+  email            String                      @unique
+  password_hash    String
+  selfie_url       String?
+  selfie_embedding Unsupported("vector(512)")?
+  created_at       DateTime                    @default(now())
+
+  events           Event[]
+  event_access     EventAccess[]
+  photos           Photo[]
+  claimed_profiles FaceProfile[]  @relation("UserClaimedProfiles")
+  refreshTokens    RefreshToken[]
+}
+
+model Event {
+  id                    String   @id @default(uuid())
+  user_id               String
+  name                  String
+  location              String
+  date                  DateTime
+  invite_code           String   @unique
+  is_active             Boolean  @default(true)
+  attendee_upload_limit Int      @default(10)
+  created_at            DateTime @default(now())
+
+  user User @relation(fields: [user_id], references: [id], onDelete: Cascade)
+
+  event_access  EventAccess[]
+  photos        Photo[]
+  face_profiles FaceProfile[]
+}
+
+enum Role {
+  ORGANIZER
+  ATTENDEE
+}
+
+model EventAccess {
+  id           String   @id @default(uuid())
+  event_id     String
+  user_id      String
+  role         Role
+  upload_count Int      @default(0)
+  joined_at    DateTime @default(now())
+
+  event Event @relation(fields: [event_id], references: [id], onDelete: Cascade)
+  user  User  @relation(fields: [user_id], references: [id], onDelete: Cascade)
+
+  @@unique([event_id, user_id])
+}
+
+model Photo {
+  id           String   @id @default(uuid())
+  event_id     String
+  user_id      String
+  uploaded_at  DateTime @default(now())
+  processed    Boolean  @default(false)
+  is_visible   Boolean  @default(true)
+  original_url String
+  display_url  String
+  thumb_url    String
+  width        Int?
+  height       Int?
+
+  event Event @relation(fields: [event_id], references: [id], onDelete: Cascade)
+  user  User  @relation(fields: [user_id], references: [id], onDelete: Cascade)
+
+  photo_faces PhotoFace[]
+}
+
+model FaceProfile {
+  id               String                     @id @default(uuid())
+  event_id         String
+  embedding_vector Unsupported("vector(512)")
+  claimed_by       String?
+  is_claimed       Boolean                    @default(false)
+  created_at       DateTime                   @default(now())
+
+  event   Event @relation(fields: [event_id], references: [id], onDelete: Cascade)
+  claimed User? @relation("UserClaimedProfiles", fields: [claimed_by], references: [id])
+
+  photo_faces PhotoFace[]
+}
+
+model PhotoFace {
+  id              String  @id @default(uuid())
+  photo_id        String
+  face_profile_id String?
+  bbox_x          Int
+  bbox_y          Int
+  bbox_w          Int
+  bbox_h          Int
+  confidence      Float
+
+  photo        Photo        @relation(fields: [photo_id], references: [id], onDelete: Cascade)
+  face_profile FaceProfile? @relation(fields: [face_profile_id], references: [id])
+}
+
+model Blacklist {
+  id         String   @id @default(uuid())
+  token      String   @unique
+  expires_at DateTime
+  created_at DateTime @default(now())
+}
+
+model RefreshToken {
+  id         String   @id @default(uuid())
+  token      String   @unique
+  user_id    String
+  expires_at DateTime
+  created_at DateTime @default(now())
+
+  user User @relation(fields: [user_id], references: [id], onDelete: Cascade)
+}

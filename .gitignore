@@ -1,0 +1,5 @@
+*/venv
+*w/node_modules
+.DS_Store
+/generated
+/AGENT.md
