@@ -12,10 +12,21 @@ export const EventListItem = ({ event }: EventListItemProps) => {
   const navigate = useNavigate()
   const isOrganizer = event.user_role === 'ORGANIZER'
 
+  const handleKeyDown = (e: React.KeyboardEvent) => {
+    if (e.key === 'Enter' || e.key === ' ') {
+      e.preventDefault()
+      navigate(`/events/${event.id}`)
+    }
+  }
+
   return (
     <div
       onClick={() => navigate(`/events/${event.id}`)}
-      className="group cursor-pointer w-full bg-white dark:bg-neutral-900 rounded-2xl p-4 border border-neutral-100 dark:border-neutral-800 hover:shadow-lg transition-all duration-300 flex flex-col md:flex-row items-center gap-4"
+      onKeyDown={handleKeyDown}
+      tabIndex={0}
+      role="button"
+      aria-label={`View details for event: ${event.name}`}
+      className="group cursor-pointer w-full bg-white dark:bg-neutral-900 rounded-2xl p-4 border border-neutral-100 dark:border-neutral-800 hover:shadow-lg transition-all duration-300 flex flex-col md:flex-row items-center gap-4 focus:outline-none focus:ring-2 focus:ring-neutral-400 dark:focus:ring-neutral-500"
     >
       <div className="flex-1 flex flex-col md:flex-row md:items-center gap-4 w-full">
         <div className="flex-1 text-left">

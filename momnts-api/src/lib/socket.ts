@@ -1,6 +1,7 @@
 import { Server as SocketIOServer } from 'socket.io'
 import type { Server as HTTPServer } from 'http'
 import Redis from 'ioredis'
+import jwt from 'jsonwebtoken'
 
 let io: SocketIOServer | null = null
 
@@ -14,6 +15,31 @@ export function initSocketIO(httpServer: HTTPServer) {
       origin: process.env.CLIENT_APP_URL || 'http://localhost:5173',
       credentials: true,
     },
+  })
+
+  // Middleware to authenticate socket connections
+  io.use((socket, next) => {
+    try {
+      const cookieHeader = socket.handshake.headers.cookie
+      if (!cookieHeader) return next() // Allow unauthenticated for general events
+      
+      const cookies = Object.fromEntries(
+        cookieHeader.split(';').map(c => {
+          const [key, ...value] = c.trim().split('=')
+          return [key, value.join('=')]
+        })
+      )
+      
+      const token = cookies.accessToken
+      if (token && process.env.JWT_SECRET) {
+        const decoded = jwt.verify(token, process.env.JWT_SECRET) as { id: string }
+        socket.data.userId = decoded.id
+      }
+      next()
+    } catch (err) {
+      console.error('[WS] Auth middleware error:', err)
+      next() // Still allow connection, but without userId
+    }
   })
 
   io.on('connection', (socket) => {
@@ -32,8 +58,16 @@ export function initSocketIO(httpServer: HTTPServer) {
 
     // User joins their own private room for notifications
     socket.on('join-user', (userId: string) => {
-      socket.join(`user:${userId}`)
-      console.log(`[WS] ${socket.id} joined private room user:${userId}`)
+      const authUserId = socket.data.userId
+      
+      if (!authUserId || authUserId !== userId) {
+        console.warn(`[WS] Unauthorized join-user attempt: socket ${socket.id} tried joining user:${userId}`)
+        socket.emit('join-error', { message: 'Unauthorized' })
+        return
+      }
+
+      socket.join(`user:${authUserId}`)
+      console.log(`[WS] ${socket.id} joined private room user:${authUserId}`)
     })
 
     socket.on('disconnect', () => {

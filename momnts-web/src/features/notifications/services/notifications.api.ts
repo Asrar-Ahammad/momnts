@@ -12,6 +12,21 @@ export interface NotificationData {
   created_at: string
 }
 
+async function handleError(response: Response, fallback: string) {
+  let message: string;
+  try {
+    const error = await response.json();
+    message = error.message || JSON.stringify(error);
+  } catch {
+    try {
+      message = await response.text() || fallback;
+    } catch {
+      message = fallback;
+    }
+  }
+  throw new Error(message);
+}
+
 export const notificationsApi = {
   async getNotifications(): Promise<NotificationData[]> {
     const response = await fetch(`${API_URL}/api/notifications`, {
@@ -19,8 +34,7 @@ export const notificationsApi = {
     })
 
     if (!response.ok) {
-      const error = await response.json()
-      throw new Error(error.message || "Failed to fetch notifications")
+      await handleError(response, "Failed to fetch notifications");
     }
 
     const data = await response.json()
@@ -34,8 +48,7 @@ export const notificationsApi = {
     })
 
     if (!response.ok) {
-      const error = await response.json()
-      throw new Error(error.message || "Failed to mark as read")
+      await handleError(response, "Failed to mark as read");
     }
   },
 
@@ -46,8 +59,7 @@ export const notificationsApi = {
     })
 
     if (!response.ok) {
-      const error = await response.json()
-      throw new Error(error.message || "Failed to clear notifications")
+      await handleError(response, "Failed to clear notifications");
     }
   },
 }

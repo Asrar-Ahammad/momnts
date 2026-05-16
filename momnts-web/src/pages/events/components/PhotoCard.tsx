@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { Check, Trash, Warning } from '@phosphor-icons/react'
+import { Check, Trash, Warning, Users } from '@phosphor-icons/react'
 import {
   AlertDialog,
   AlertDialogAction,
@@ -60,6 +60,14 @@ const PhotoCard = ({ photo, onClick, isSelectMode, isSelected, canDelete, onDele
         </div>
       )}
 
+      {/* Face Count Badge (Persistent on Mobile) */}
+      {photo._count?.photo_faces > 0 && (
+        <div className="absolute bottom-2 right-2 z-10 px-2 py-1 bg-black/40 backdrop-blur-md rounded-lg flex items-center gap-1.5 border border-white/10 shadow-sm sm:opacity-0 sm:group-hover:opacity-100 transition-opacity">
+          <Users size={12} weight="bold" className="text-white" />
+          <span className="text-[10px] font-bold text-white leading-none">{photo._count.photo_faces}</span>
+        </div>
+      )}
+
       {/* Hover Overlay */}
       <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-200">
         
@@ -98,15 +106,10 @@ const PhotoCard = ({ photo, onClick, isSelectMode, isSelected, canDelete, onDele
           </div>
         )}
 
-        <div className="absolute bottom-0 left-0 right-0 p-3">
+        <div className="absolute bottom-0 left-0 right-0 p-3 pr-12">
           <p className="text-white text-sm font-medium truncate capitalize">
             {photo.user?.name || 'Unknown'}
           </p>
-          {photo._count?.photo_faces > 0 && (
-            <p className="text-white/70 text-xs">
-              {photo._count.photo_faces} face{photo._count.photo_faces > 1 ? 's' : ''} detected
-            </p>
-          )}
         </div>
       </div>
     </div>

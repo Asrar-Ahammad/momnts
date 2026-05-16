@@ -31,17 +31,23 @@ export function useNotificationSocket({
     socketRef.current = socket
 
     socket.on('connect', () => {
-      console.log('[WS] Connected to notifications, joining user:', userId)
+      if (import.meta.env.DEV) {
+        console.log('[WS] Connected to notifications, joining user room')
+      }
       socket.emit('join-user', userId)
     })
 
     socket.on('notification:new', (notification: NotificationData) => {
-      console.log('[WS] New notification received:', notification)
+      if (import.meta.env.DEV) {
+        console.log('[WS] New notification received')
+      }
       onNotificationReceivedRef.current?.(notification)
     })
 
     socket.on('disconnect', () => {
-      console.log('[WS] Notifications disconnected')
+      if (import.meta.env.DEV) {
+        console.log('[WS] Notifications disconnected')
+      }
     })
 
     return () => {

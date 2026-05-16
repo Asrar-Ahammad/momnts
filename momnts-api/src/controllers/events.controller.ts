@@ -223,24 +223,24 @@ async function joinEventController(req: AuthRequest, res: Response) {
             }
         })
 
-        // Create notification for the organizer
-        const notification = await prisma.notification.create({
-            data: {
-                user_id: event.user_id,
-                title: "New Attendee",
-                message: `${eventAccess.user.name} has joined ${event.name}`,
-                type: "EVENT_JOIN",
-                link: `/events/${event.id}?view=attendees`,
-                image_url: eventAccess.user.selfie_url
-            }
-        })
-
-        // Emit real-time notification via Socket.IO
+        // Create notification for the organizer (Non-blocking)
         try {
+            const notification = await prisma.notification.create({
+                data: {
+                    user_id: event.user_id,
+                    title: "New Attendee",
+                    message: `${eventAccess.user.name} has joined ${event.name}`,
+                    type: "EVENT_JOIN",
+                    link: `/events/${event.id}?view=attendees`,
+                    image_url: eventAccess.user.selfie_url
+                }
+            })
+
+            // Emit real-time notification via Socket.IO
             const io = getIO()
             io.to(`user:${event.user_id}`).emit('notification:new', notification)
         } catch (err) {
-            console.error('[Socket.IO] Failed to emit notification:', err)
+            console.error('[Notification/Socket] Failed to process join notification:', err)
         }
 
         // Enqueue face-matching job if user has a selfie

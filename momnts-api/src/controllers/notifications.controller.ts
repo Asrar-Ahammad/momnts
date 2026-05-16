@@ -1,6 +1,7 @@
 import type { Response } from "express";
 import { prisma } from "../lib/prisma.js";
 import type { AuthRequest } from "../middleware/auth.middleware.js";
+import { Prisma } from "../../generated/prisma/index.js";
 
 /**
  * @name getNotificationsController
@@ -28,8 +29,8 @@ async function getNotificationsController(req: AuthRequest, res: Response) {
             notifications,
         });
     } catch (error) {
-        const message = error instanceof Error ? error.message : "Internal server error";
-        return res.status(500).json({ message });
+        console.error("[getNotificationsController] Error:", error);
+        return res.status(500).json({ message: "Internal server error" });
     }
 }
 
@@ -60,8 +61,11 @@ async function markAsReadController(req: AuthRequest, res: Response) {
             message: "Notification marked as read",
         });
     } catch (error) {
-        const message = error instanceof Error ? error.message : "Internal server error";
-        return res.status(500).json({ message });
+        if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === 'P2025') {
+            return res.status(404).json({ message: "Notification not found or not owned by user" });
+        }
+        console.error("[markAsReadController] Error:", error);
+        return res.status(500).json({ message: "Internal server error" });
     }
 }
 
@@ -86,8 +90,8 @@ async function clearNotificationsController(req: AuthRequest, res: Response) {
             message: "All notifications cleared",
         });
     } catch (error) {
-        const message = error instanceof Error ? error.message : "Internal server error";
-        return res.status(500).json({ message });
+        console.error("[clearNotificationsController] Error:", error);
+        return res.status(500).json({ message: "Internal server error" });
     }
 }
 

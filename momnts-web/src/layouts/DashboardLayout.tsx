@@ -1,4 +1,4 @@
-import { Outlet, useNavigate, useLocation } from 'react-router';
+import { Outlet, useNavigate, useLocation, Link } from 'react-router';
 import { House, Ticket, User } from "@phosphor-icons/react"
 import { motion } from 'framer-motion'
 import { cn } from '../lib/utils'
@@ -35,12 +35,13 @@ const DashboardLayout = () => {
       {/* Top Header */}
       <header className="px-6 py-4 flex justify-between items-center bg-white/70 dark:bg-neutral-950/70 backdrop-blur-md sticky top-0 z-40">
         <div className="flex items-center gap-4">
-          <p 
+          <Link 
+            to="/dashboard"
+            aria-label="Go to dashboard"
             className='font-logo text-3xl select-none cursor-pointer tracking-tight'
-            onClick={() => navigate('/dashboard')}
           >
             Momnts
-          </p>
+          </Link>
         </div>
 
         {/* Desktop Navigation Pill */}

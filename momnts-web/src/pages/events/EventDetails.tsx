@@ -148,8 +148,11 @@ const EventDetails = () => {
     if (params.get('view') === 'attendees') {
       setAttendeesModalOpen(true)
       fetchAttendees()
-      // Clean up URL
-      const newUrl = window.location.pathname
+      // Clean up URL without removing other parameters
+      const currentParams = new URLSearchParams(window.location.search)
+      currentParams.delete('view')
+      const query = currentParams.toString()
+      const newUrl = window.location.pathname + (query ? `?${query}` : '')
       window.history.replaceState({}, '', newUrl)
     }
   }, [fetchAttendees])

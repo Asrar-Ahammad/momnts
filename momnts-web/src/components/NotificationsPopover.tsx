@@ -35,14 +35,24 @@ const NotificationsPopover = () => {
   useNotificationSocket({
     userId: user?.id,
     onNotificationReceived: useCallback((notification: NotificationData) => {
-      setNotifications(prev => [notification, ...prev].slice(0, 20))
-      setUnreadCount(prev => prev + 1)
-      toast.info(notification.title, {
-        description: notification.message,
-        action: notification.link ? {
-          label: 'View',
-          onClick: () => navigate(notification.link!)
-        } : undefined
+      setNotifications(prev => {
+        const isDuplicate = prev.some(n => n.id === notification.id)
+        if (isDuplicate) return prev
+
+        // Only increment and toast if it's truly new
+        if (!notification.is_read) {
+          setUnreadCount(prevCount => prevCount + 1)
+        }
+
+        toast.info(notification.title, {
+          description: notification.message,
+          action: notification.link ? {
+            label: 'View',
+            onClick: () => navigate(notification.link!)
+          } : undefined
+        })
+
+        return [notification, ...prev].slice(0, 20)
       })
     }, [navigate])
   })
@@ -86,7 +96,10 @@ const NotificationsPopover = () => {
   return (
     <Popover onOpenChange={(open) => open && fetchNotifications()}>
       <PopoverTrigger asChild>
-        <button className="relative p-2.5 text-neutral-500 hover:text-neutral-900 dark:hover:text-white transition-colors rounded-full hover:bg-neutral-100 dark:hover:bg-neutral-800 group cursor-pointer">
+        <button 
+          aria-label={unreadCount > 0 ? `Notifications, ${unreadCount} unread` : "Notifications"}
+          className="relative p-2.5 text-neutral-500 hover:text-neutral-900 dark:hover:text-white transition-colors rounded-full hover:bg-neutral-100 dark:hover:bg-neutral-800 group cursor-pointer"
+        >
           <Bell size={22} weight={unreadCount > 0 ? "fill" : "regular"} className={cn(unreadCount > 0 && "text-neutral-900 dark:text-white")} />
           <AnimatePresence>
             {unreadCount > 0 && (
@@ -150,7 +163,12 @@ const NotificationsPopover = () => {
                       {n.title}
                     </p>
                     <p className="text-[10px] font-medium text-neutral-400 dark:text-neutral-500 shrink-0 mt-0.5 uppercase tracking-tighter">
-                      {formatDistanceToNow(new Date(n.created_at), { addSuffix: true })}
+                      {(() => {
+                        const date = new Date(n.created_at);
+                        return !isNaN(date.getTime()) 
+                          ? formatDistanceToNow(date, { addSuffix: true }) 
+                          : 'just now';
+                      })()}
                     </p>
                   </div>
                   <p className={cn(

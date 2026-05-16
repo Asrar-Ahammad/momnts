@@ -31,12 +31,23 @@ export const EventCard = ({ event }: EventCardProps) => {
   const theme = getThemeForEvent(event.id)
   const isOrganizer = event.user_role === 'ORGANIZER'
 
+  const handleKeyDown = (e: React.KeyboardEvent) => {
+    if (e.key === 'Enter' || e.key === ' ') {
+      e.preventDefault()
+      navigate(`/events/${event.id}`)
+    }
+  }
+
   return (
     <motion.div
       whileHover={{ y: -8 }}
       transition={{ type: 'spring', stiffness: 300, damping: 20 }}
       onClick={() => navigate(`/events/${event.id}`)}
-      className="group cursor-pointer w-full bg-white dark:bg-neutral-900 rounded-[32px] overflow-hidden shadow-sm hover:shadow-2xl border border-neutral-100 dark:border-neutral-800 transition-all duration-500"
+      onKeyDown={handleKeyDown}
+      tabIndex={0}
+      role="button"
+      aria-label={`View details for event: ${event.name}`}
+      className="group cursor-pointer w-full bg-white dark:bg-neutral-900 rounded-[32px] overflow-hidden shadow-sm hover:shadow-2xl border border-neutral-100 dark:border-neutral-800 transition-all duration-500 focus:outline-none focus:ring-2 focus:ring-neutral-400 dark:focus:ring-neutral-500"
     >
       {/* Visual Header Section */}
       <div className={cn("relative h-48 w-full bg-gradient-to-br overflow-hidden", theme.bg)}>
