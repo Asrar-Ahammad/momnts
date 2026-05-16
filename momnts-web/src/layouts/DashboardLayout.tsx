@@ -34,7 +34,7 @@ const DashboardLayout = () => {
 
   return (
     <div className="h-screen flex flex-col overflow-hidden relative">
-      <header className="p-4 flex justify-between items-center gap-8 bg-white/80 dark:bg-neutral-900/80 backdrop-blur-md sticky top-0 z-50 border-b border-neutral-100 dark:border-neutral-800">
+      <header className="p-4 flex justify-between items-center gap-8 bg-white/80 dark:bg-black backdrop-blur-md sticky top-0 z-50 border-b border-neutral-100 dark:border-neutral-800">
         <p className='font-logo text-4xl select-none'>Momnts</p>
 
         {/* Desktop Navigation */}
@@ -86,9 +86,9 @@ const DashboardLayout = () => {
                 animate={{ x: 0 }}
                 exit={{ x: '100%' }}
                 transition={{ type: 'spring', damping: 25, stiffness: 200 }}
-                className="fixed top-0 right-0 bottom-0 w-full h-screen bg-white dark:bg-neutral-900 z-50 p-6 shadow-2xl sm:hidden border-l border-neutral-100 dark:border-neutral-800"
+                className="fixed top-0 right-0 bottom-0 w-full h-screen bg-white dark:bg-black z-50 p-6 shadow-2xl sm:hidden border-l border-neutral-100 dark:border-neutral-800"
               >
-                <div className="flex justify-between items-center mb-8 bg-white">
+                <div className="flex justify-between items-center mb-8">
                   <p className='font-logo text-3xl'>Momnts</p>
                   <button
                     onClick={() => setIsMobileMenuOpen(false)}
@@ -127,7 +127,7 @@ const DashboardLayout = () => {
           )}
         </AnimatePresence>
       </header>
-      <main className="flex-1 overflow-auto px-4 pb-4">
+      <main className="flex-1 overflow-auto pb-4">
         <Outlet />
       </main>
     </div>

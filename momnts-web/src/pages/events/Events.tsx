@@ -132,7 +132,7 @@ const Events = () => {
   return (
     <div className="space-y-6 pt-8">
       {/* Header Row */}
-      <div className="flex flex-col md:flex-row items-start justify-between gap-2">
+      <div className="flex flex-col md:flex-row items-start justify-between gap-2 px-6">
         <h1 className="text-6xl font-bold font-sirage">Events</h1>
         <div className="flex items-center gap-3">
           <Button variant="outline" className="cursor-pointer px-4 rounded-full" onClick={() => setCreateModalOpen(true)}>
@@ -147,7 +147,7 @@ const Events = () => {
       </div>
 
       {/* Search and Filter Row */}
-      <div className="flex items-center flex-wrap gap-2">
+      <div className="flex items-center flex-wrap gap-2 px-6">
         <div className="flex-1 max-w-md">
           <div className="relative">
             <MagnifyingGlass className="absolute left-3 top-1/2 -translate-y-1/2 text-neutral-400" size={18} />
@@ -207,7 +207,7 @@ const Events = () => {
               <CaretDown size={12} weight="bold" />
             </Button>
           </PopoverTrigger>
-          <PopoverContent className="w-full p-1" align="end">
+          <PopoverContent className="w-full p-1 rounded-2xl" align="end">
             <div className="flex flex-col gap-1">
               <Button
                 variant={roleFilter === 'ALL' ? 'default' : 'ghost'}
@@ -263,7 +263,7 @@ const Events = () => {
       </div>
 
       {/* Events Grid */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 px-6">
         {filteredEvents.map((event) => (
           <EventCard key={event.id} event={event} />
         ))}

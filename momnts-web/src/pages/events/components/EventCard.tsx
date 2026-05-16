@@ -173,7 +173,7 @@ export const EventCard = ({ event }: EventCardProps) => {
 
           {/* CTA button — dark pill like "Read More" in reference */}
           <Button className="bg-neutral-900 dark:bg-white text-white dark:text-neutral-900 text-sm font-semibold px-4 py-2 rounded-full hover:bg-neutral-700 dark:hover:bg-neutral-200 transition-colors">
-            View
+            View Photos
           </Button>
         </div>
       </div>

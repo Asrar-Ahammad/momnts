@@ -3,7 +3,12 @@ import { Button } from '../../../components/ui/button'
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '../../../components/ui/dialog'
 import { Input } from '../../../components/ui/input'
 import { Label } from '../../../components/ui/label'
-import { Trash } from '@phosphor-icons/react'
+import { Trash, CalendarBlank, Broadcast } from '@phosphor-icons/react'
+import { format } from 'date-fns'
+import { cn } from '../../../lib/utils'
+import { Popover, PopoverContent, PopoverTrigger } from '../../../components/ui/popover'
+import { Calendar } from '../../../components/ui/calendar'
+import { Switch } from '../../../components/ui/switch'
 
 interface EventSettingsModalProps {
   open: boolean
@@ -61,17 +66,40 @@ const EventSettingsModal = ({
                 value={settingsForm.name}
                 onChange={(e) => onSettingsFormChange({ ...settingsForm, name: e.target.value })}
                 placeholder="Enter event name"
+                className='rounded-full'
               />
             </div>
             
-            <div className="space-y-2">
+            <div className="space-y-2 flex flex-col">
               <Label htmlFor="event-date">Date</Label>
-              <Input
-                id="event-date"
-                type="date"
-                value={settingsForm.date}
-                onChange={(e) => onSettingsFormChange({ ...settingsForm, date: e.target.value })}
-              />
+              <Popover>
+                <PopoverTrigger asChild>
+                  <Button
+                    id="event-date"
+                    variant="outline"
+                    className={cn(
+                      "w-full justify-start text-left font-normal h-10 px-3",
+                      !settingsForm.date && "text-muted-foreground"
+                    )}
+                  >
+                    <CalendarBlank size={18} className="mr-2 opacity-70" />
+                    {settingsForm.date ? format(new Date(settingsForm.date), "PPP") : <span>Pick a date</span>}
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent className="w-auto p-0" align="start">
+                  <Calendar
+                    mode="single"
+                    selected={settingsForm.date ? new Date(settingsForm.date) : undefined}
+                    onSelect={(date) =>
+                      onSettingsFormChange({
+                        ...settingsForm,
+                        date: date ? format(date, "yyyy-MM-dd") : ""
+                      })
+                    }
+                    initialFocus
+                  />
+                </PopoverContent>
+              </Popover>
             </div>
             
             <div className="space-y-2">
@@ -81,20 +109,33 @@ const EventSettingsModal = ({
                 value={settingsForm.location}
                 onChange={(e) => onSettingsFormChange({ ...settingsForm, location: e.target.value })}
                 placeholder="Enter location"
+                className='rounded-full'
               />
             </div>
             
-            <div className="flex items-center space-x-2">
-              <input
-                type="checkbox"
+            <div className="flex items-center justify-between p-4 border border-neutral-100 dark:border-neutral-800 rounded-[20px] bg-neutral-50/50 dark:bg-neutral-900/50">
+              <div className="flex items-center space-x-3">
+                <div className={cn(
+                  "p-2.5 rounded-xl shadow-sm transition-colors",
+                  settingsForm.isActive 
+                    ? "bg-emerald-50 dark:bg-emerald-500/10 text-emerald-600 dark:text-emerald-400" 
+                    : "bg-white dark:bg-neutral-800 text-neutral-400"
+                )}>
+                  <Broadcast size={20} weight={settingsForm.isActive ? "fill" : "regular"} />
+                </div>
+                <div>
+                  <Label htmlFor="event-active" className="text-sm font-bold cursor-pointer">
+                    Event is active
+                  </Label>
+                  <p className="text-[11px] text-neutral-500 font-medium">Toggle event visibility and interaction</p>
+                </div>
+              </div>
+              <Switch
                 id="event-active"
                 checked={settingsForm.isActive}
-                onChange={(e) => onSettingsFormChange({ ...settingsForm, isActive: e.target.checked })}
-                className="h-4 w-4 rounded border-gray-300 text-neutral-900 focus:ring-neutral-900"
+                onCheckedChange={(checked) => onSettingsFormChange({ ...settingsForm, isActive: checked })}
+                className="cursor-pointer"
               />
-              <Label htmlFor="event-active" className="cursor-pointer">
-                Event is active
-              </Label>
             </div>
           </div>
 
