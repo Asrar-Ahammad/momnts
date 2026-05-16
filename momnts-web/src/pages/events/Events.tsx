@@ -4,10 +4,23 @@ import { Input } from '../../components/ui/input'
 import { Popover, PopoverContent, PopoverTrigger } from '../../components/ui/popover'
 import { Calendar } from '../../components/ui/calendar'
 import { format } from 'date-fns'
-import { CalendarIcon, Plus, ArrowsDownUp, MagnifyingGlass, Ticket, Faders, CaretDown, Crown, User } from '@phosphor-icons/react'
+import { 
+  CalendarIcon, 
+  Plus, 
+  ArrowsDownUp, 
+  MagnifyingGlass, 
+  Ticket, 
+  Faders, 
+  CaretDown, 
+  Crown, 
+  User,
+  SquaresFour,
+  Rows
+} from '@phosphor-icons/react'
+import { Tabs, TabsList, TabsTrigger } from '../../components/ui/tabs'
 import { eventsApi, EventData } from '../../features/events/services/events.api'
 import { toast } from 'sonner'
-import { EventCard, CreateEventModal, JoinEventModal } from './components'
+import { EventCard, CreateEventModal, JoinEventModal, EventListItem } from './components'
 
 const Events = () => {
   const [searchQuery, setSearchQuery] = useState('')
@@ -16,6 +29,7 @@ const Events = () => {
   const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('desc')
   const [events, setEvents] = useState<EventData[]>([])
   const [loading, setLoading] = useState(true)
+  const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid')
 
   // Role Filter State
   const [roleFilter, setRoleFilter] = useState<'ALL' | 'ORGANIZER' | 'ATTENDEE'>('ALL')
@@ -135,12 +149,12 @@ const Events = () => {
       <div className="flex flex-col md:flex-row items-start justify-between gap-2 px-6">
         <h1 className="text-6xl font-bold font-sirage">Events</h1>
         <div className="flex items-center gap-3">
-          <Button variant="outline" className="cursor-pointer px-4 rounded-full" onClick={() => setCreateModalOpen(true)}>
-            <Plus size={16} weight="bold" className="mr-2" />
+          <Button variant="outline" className="cursor-pointer px-4 rounded-full group flex items-center justify-center gap-2" onClick={() => setCreateModalOpen(true)}>
+            <Plus size={16} weight="bold" className="" />
             Create Event
           </Button>
-          <Button className="cursor-pointer rounded-full px-4" onClick={() => setJoinModalOpen(true)}>
-            <Ticket size={16} weight="fill" className="mr-2" />
+          <Button className="cursor-pointer rounded-full px-4 bg-black dark:bg-white dark:hover:bg-white/80 group flex items-center justify-center gap-2" onClick={() => setJoinModalOpen(true)}>
+            <Ticket size={16} weight="fill" className="" />
             Join Event
           </Button>
         </div>
@@ -260,12 +274,30 @@ const Events = () => {
             Reset Filters
           </Button>
         )}
+
+        <Tabs value={viewMode} onValueChange={(v) => setViewMode(v as 'grid' | 'list')} className="ml-auto">
+          <TabsList className="rounded-full h-10 bg-white dark:bg-black border">
+            <TabsTrigger value="grid" className="rounded-full px-4 h-8 data-active:bg-white/20 dark:data-active:bg-neutral-900 data-active:shadow-md">
+              <SquaresFour size={18} weight={viewMode === 'grid' ? "fill" : "regular"} className="mr-2" />
+              Grid
+            </TabsTrigger>
+            <TabsTrigger value="list" className="rounded-full px-4 h-8 data-active:bg-white/20 dark:data-active:bg-neutral-900 data-active:shadow-md">
+              <Rows size={18} weight={viewMode === 'list' ? "fill" : "regular"} className="mr-2" />
+              List
+            </TabsTrigger>
+          </TabsList>
+        </Tabs>
       </div>
 
-      {/* Events Grid */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 px-6">
+      {/* Events Grid/List */}
+      <div className={viewMode === 'grid' 
+        ? "grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 px-6" 
+        : "flex flex-col gap-4 px-6"
+      }>
         {filteredEvents.map((event) => (
-          <EventCard key={event.id} event={event} />
+          viewMode === 'grid' 
+            ? <EventCard key={event.id} event={event} />
+            : <EventListItem key={event.id} event={event} />
         ))}
       </div>
 

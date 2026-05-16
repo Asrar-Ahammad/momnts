@@ -15,6 +15,14 @@ export interface EventData {
     event_access: number
   }
   user_role: string
+  event_access?: {
+    user: {
+      id: string
+      name: string
+      selfie_url: string | null
+    }
+    role: string
+  }[]
 }
 
 export interface EventsResponse {

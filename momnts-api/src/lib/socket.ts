@@ -30,6 +30,12 @@ export function initSocketIO(httpServer: HTTPServer) {
       console.log(`[WS] ${socket.id} left room event:${eventId}`)
     })
 
+    // User joins their own private room for notifications
+    socket.on('join-user', (userId: string) => {
+      socket.join(`user:${userId}`)
+      console.log(`[WS] ${socket.id} joined private room user:${userId}`)
+    })
+
     socket.on('disconnect', () => {
       console.log(`[WS] Client disconnected: ${socket.id}`)
     })

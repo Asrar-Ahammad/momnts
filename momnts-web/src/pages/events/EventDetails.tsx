@@ -142,6 +142,18 @@ const EventDetails = () => {
     fetchPhotos()
   }, [fetchEventDetails, fetchPhotos])
 
+  // Handle URL view parameters (e.g., from notifications)
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search)
+    if (params.get('view') === 'attendees') {
+      setAttendeesModalOpen(true)
+      fetchAttendees()
+      // Clean up URL
+      const newUrl = window.location.pathname
+      window.history.replaceState({}, '', newUrl)
+    }
+  }, [fetchAttendees])
+
   const fetchPhotosForTab = useCallback(async (tab: TabType) => {
     if (tab === 'your-photos') {
       await fetchMyPhotos()
