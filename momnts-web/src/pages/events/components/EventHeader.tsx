@@ -110,8 +110,8 @@ const EventHeader = ({
   return (
     <>
     <div className="sticky top-0 z-30 bg-white/80 dark:bg-neutral-900/80 backdrop-blur-md border-b border-neutral-200 dark:border-neutral-800">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4 flex flex-col md:flex-row md:items-start justify-between gap-6">
-        <div className="flex items-start flex-col md:flex-row gap-3 sm:gap-4 flex-1">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4 flex flex-col lg:flex-row lg:items-start justify-between gap-4 lg:gap-6">
+        <div className="flex items-start flex-col sm:flex-row gap-3 sm:gap-4 flex-1 w-full min-w-0">
           <Tooltip>
             <TooltipTrigger delay={0} asChild>
               <Button className="cursor-pointer shrink-0" variant="ghost" size="icon" onClick={onBack}>
@@ -124,7 +124,7 @@ const EventHeader = ({
           </Tooltip>
 
           <div className="flex-1 min-w-0">
-            <h1 className="text-3xl sm:text-4xl font-bold font-sirage capitalize mb-2 truncate leading-tight">
+            <h1 className="text-2xl sm:text-3xl lg:text-4xl font-bold font-sirage capitalize mb-2 truncate leading-tight">
               {event?.name || 'Loading...'}
             </h1>
 
@@ -205,7 +205,7 @@ const EventHeader = ({
         </div>
 
         {/* Right Action Section */}
-        <div className="flex items-center justify-between sm:justify-end gap-2 sm:gap-3 border-t sm:border-t-0 pt-4 sm:pt-0 border-neutral-100 dark:border-neutral-800">
+        <div className="flex items-center justify-center lg:justify-end gap-2 sm:gap-3 border-t lg:border-t-0 pt-4 lg:pt-0 border-neutral-100 dark:border-neutral-800 overflow-x-auto no-scrollbar pb-1 w-full lg:w-auto">
           {!isSelectMode ? (
             <>
               <div className="flex items-center gap-2">
@@ -376,9 +376,6 @@ const EventHeader = ({
           )}
         </div>
       </div>
-
-      {/* Tabs Navigation */}
-
     </div>
 
     {/* Leave Event Confirmation */}

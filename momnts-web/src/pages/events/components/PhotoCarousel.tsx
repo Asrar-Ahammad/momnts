@@ -235,7 +235,7 @@ const PhotoCarousel = ({ open, onOpenChange, photos, initialIndex, onDelete, cur
                 <Button
                   variant="ghost"
                   size="icon"
-                  className="pointer-events-auto hover:text-white cursor-pointer h-8 w-8 md:h-12 md:w-12 bg-black/60 hover:bg-black/80 text-white rounded-full transition-colors"
+                  className="pointer-events-auto hover:text-white cursor-pointer h-8 w-8 md:h-12 md:w-12 bg-black/60 hover:bg-black/80 text-white border border-white/10 rounded-full transition-colors"
                   onClick={goToPrevious}
                 >
                   <CaretLeft size={28} weight="bold" />
@@ -243,7 +243,7 @@ const PhotoCarousel = ({ open, onOpenChange, photos, initialIndex, onDelete, cur
                 <Button
                   variant="ghost"
                   size="icon"
-                  className="pointer-events-auto hover:text-white cursor-pointer h-8 w-8 md:h-12 md:w-12  bg-black/60 hover:bg-black/80 text-white rounded-full transition-colors"
+                  className="pointer-events-auto hover:text-white cursor-pointer h-8 w-8 md:h-12 md:w-12  bg-black/60 hover:bg-black/80 text-white border border-white/10 rounded-full transition-colors"
                   onClick={goToNext}
                 >
                   <CaretRight size={28} weight="bold" />

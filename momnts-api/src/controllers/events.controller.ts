@@ -4,6 +4,7 @@ import type { AuthRequest } from "../middleware/auth.middleware.js";
 import crypto from 'crypto'
 import { matchingQueue } from "../lib/queue.js";
 import { deleteFromR2, extractKeyFromUrl } from "../lib/r2.js";
+import { getIO } from "../lib/socket.js";
 
 /**
  * @name createEventController
@@ -211,8 +212,36 @@ async function joinEventController(req: AuthRequest, res: Response) {
                 event_id: event.id,
                 user_id: req.user.id,
                 role: 'ATTENDEE',
+            },
+            include: {
+                user: {
+                    select: { 
+                        name: true,
+                        selfie_url: true
+                    }
+                }
             }
         })
+
+        // Create notification for the organizer (Non-blocking)
+        try {
+            const notification = await prisma.notification.create({
+                data: {
+                    user_id: event.user_id,
+                    title: "New Attendee",
+                    message: `${eventAccess.user.name} has joined ${event.name}`,
+                    type: "EVENT_JOIN",
+                    link: `/events/${event.id}?view=attendees`,
+                    image_url: eventAccess.user.selfie_url
+                }
+            })
+
+            // Emit real-time notification via Socket.IO
+            const io = getIO()
+            io.to(`user:${event.user_id}`).emit('notification:new', notification)
+        } catch (err) {
+            console.error('[Notification/Socket] Failed to process join notification:', err)
+        }
 
         // Enqueue face-matching job if user has a selfie
         const users = await prisma.$queryRaw<any[]>`
@@ -273,6 +302,21 @@ async function getJoinedEventsController(req: AuthRequest, res: Response) {
                     include: {
                         _count: {
                             select: { event_access: true }
+                        },
+                        event_access: {
+                            take: 5,
+                            include: {
+                                user: {
+                                    select: {
+                                        id: true,
+                                        name: true,
+                                        selfie_url: true
+                                    }
+                                }
+                            },
+                            orderBy: {
+                                role: 'asc'
+                            }
                         }
                     }
                 }
@@ -405,6 +449,21 @@ async function getEventsController(req: AuthRequest, res: Response) {
             include: {
                 _count: {
                     select: { event_access: true }
+                },
+                event_access: {
+                    take: 5,
+                    include: {
+                        user: {
+                            select: {
+                                id: true,
+                                name: true,
+                                selfie_url: true
+                            }
+                        }
+                    },
+                    orderBy: {
+                        role: 'asc'
+                    }
                 }
             }
         });

@@ -17,6 +17,7 @@ import { photosRouter } from "./src/routes/photos.routes.js";
 import { onboardingRouter } from "./src/routes/onboarding.routes.js";
 import { usersRouter } from "./src/routes/users.routes.js";
 import { galleryRouter } from "./src/routes/gallery.routes.js";
+import { notificationsRouter } from "./src/routes/notifications.routes.js";
 import { initSocketIO } from "./src/lib/socket.js";
 
 const app = express()
@@ -42,6 +43,7 @@ app.use("/api/events", galleryRouter)
 app.use('/api/photos', photosRouter)
 app.use('/api/onboarding', onboardingRouter)
 app.use('/api/users', usersRouter)
+app.use('/api/notifications', notificationsRouter)
 
 httpServer.listen(process.env.APP_PORT, ()=> {
   console.log(`Server is running at http://localhost:${process.env.APP_PORT}`)

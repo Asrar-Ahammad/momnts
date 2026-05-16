@@ -1,0 +1,208 @@
+import { useState, useEffect, useCallback } from 'react'
+import { Bell, UserPlus, Calendar, Info, Check } from '@phosphor-icons/react'
+import { motion, AnimatePresence } from 'framer-motion'
+import { formatDistanceToNow } from 'date-fns'
+import { useNavigate } from 'react-router'
+import { Popover, PopoverContent, PopoverTrigger } from './ui/popover'
+import { notificationsApi, NotificationData } from '../features/notifications/services/notifications.api'
+import { cn } from '../lib/utils'
+import { Button } from './ui/button'
+import { useAuth } from '../features/auth/hooks/useAuth'
+import { useNotificationSocket } from '../hooks/useNotificationSocket'
+import { toast } from 'sonner'
+
+const NotificationsPopover = () => {
+  const navigate = useNavigate()
+  const { user } = useAuth()
+  const [notifications, setNotifications] = useState<NotificationData[]>([])
+  const [unreadCount, setUnreadCount] = useState(0)
+
+  const fetchNotifications = useCallback(async () => {
+    try {
+      const data = await notificationsApi.getNotifications()
+      setNotifications(data)
+      setUnreadCount(data.filter(n => !n.is_read).length)
+    } catch (error) {
+      console.error('Failed to fetch notifications:', error)
+    }
+  }, [])
+
+  useEffect(() => {
+    fetchNotifications()
+  }, [fetchNotifications])
+
+  // Listen for real-time notifications via WebSocket
+  useNotificationSocket({
+    userId: user?.id,
+    onNotificationReceived: useCallback((notification: NotificationData) => {
+      setNotifications(prev => {
+        const isDuplicate = prev.some(n => n.id === notification.id)
+        if (isDuplicate) return prev
+
+        // Only increment and toast if it's truly new
+        if (!notification.is_read) {
+          setUnreadCount(prevCount => prevCount + 1)
+        }
+
+        toast.info(notification.title, {
+          description: notification.message,
+          action: notification.link ? {
+            label: 'View',
+            onClick: () => navigate(notification.link!)
+          } : undefined
+        })
+
+        return [notification, ...prev].slice(0, 20)
+      })
+    }, [navigate])
+  })
+
+  const handleNotificationClick = async (n: NotificationData) => {
+    if (!n.is_read) {
+      try {
+        await notificationsApi.markAsRead(n.id)
+        fetchNotifications()
+      } catch (error) {
+        console.error('Failed to mark as read:', error)
+      }
+    }
+
+    if (n.link) {
+      navigate(n.link)
+    }
+  }
+
+  const handleClearAll = async () => {
+    try {
+      await notificationsApi.clearNotifications()
+      setNotifications([])
+      setUnreadCount(0)
+    } catch (error) {
+      console.error('Failed to clear notifications:', error)
+    }
+  }
+
+  const getIcon = (type: string) => {
+    switch (type) {
+      case 'EVENT_JOIN':
+        return <UserPlus size={20} className="text-blue-500" />
+      case 'EVENT_UPDATE':
+        return <Calendar size={20} className="text-amber-500" />
+      default:
+        return <Info size={20} className="text-neutral-500" />
+    }
+  }
+
+  return (
+    <Popover onOpenChange={(open) => open && fetchNotifications()}>
+      <PopoverTrigger asChild>
+        <button 
+          aria-label={unreadCount > 0 ? `Notifications, ${unreadCount} unread` : "Notifications"}
+          className="relative p-2.5 text-neutral-500 hover:text-neutral-900 dark:hover:text-white transition-colors rounded-full hover:bg-neutral-100 dark:hover:bg-neutral-800 group cursor-pointer"
+        >
+          <Bell size={22} weight={unreadCount > 0 ? "fill" : "regular"} className={cn(unreadCount > 0 && "text-neutral-900 dark:text-white")} />
+          <AnimatePresence>
+            {unreadCount > 0 && (
+              <motion.span
+                initial={{ scale: 0 }}
+                animate={{ scale: 1 }}
+                exit={{ scale: 0 }}
+                className="absolute top-2 right-2 w-2.5 h-2.5 bg-red-500 border-2 border-white dark:border-neutral-950 rounded-full"
+              />
+            )}
+          </AnimatePresence>
+        </button>
+      </PopoverTrigger>
+      <PopoverContent className="w-80 sm:w-96 p-0 bg-white/95 dark:bg-neutral-950/95 backdrop-blur-xl border-neutral-100 dark:border-neutral-800 rounded-3xl shadow-2xl overflow-hidden" align="end" sideOffset={8}>
+        <div className="p-4 border-b border-neutral-100 dark:border-neutral-800 flex justify-between items-center bg-white dark:bg-neutral-950">
+          <h3 className="font-bold text-3xl font-sirage">Notifications</h3>
+          {unreadCount > 0 && (
+            <span className="text-[10px] font-bold px-2 py-0.5 bg-red-50 dark:bg-red-500/10 text-red-500 rounded-full uppercase tracking-widest">
+              {unreadCount} New
+            </span>
+          )}
+        </div>
+        <div className="max-h-[400px] overflow-y-auto overflow-x-hidden py-2 custom-scrollbar">
+          {notifications.length === 0 ? (
+            <div className="py-12 text-center flex flex-col items-center gap-3">
+              <div className="p-4 bg-neutral-50 dark:bg-neutral-900 rounded-full">
+                <Bell size={32} className="text-neutral-300" />
+              </div>
+              <p className="text-sm text-neutral-500 font-medium">All caught up!</p>
+            </div>
+          ) : (
+            notifications.map((n) => (
+              <button
+                key={n.id}
+                onClick={() => handleNotificationClick(n)}
+                className={cn(
+                  "w-full px-4 py-4 flex gap-4 transition-all duration-300 relative group text-left border-b border-neutral-50 dark:border-neutral-900/50 last:border-none cursor-pointer",
+                  !n.is_read ? "bg-blue-50/30 dark:bg-blue-500/5" : "hover:bg-neutral-50 dark:hover:bg-neutral-900/50"
+                )}
+              >
+                <div className={cn(
+                  "shrink-0 w-12 h-12 rounded-full flex items-center justify-center shadow-sm border overflow-hidden",
+                  !n.is_read ? "bg-white dark:bg-neutral-800 border-2 border-black dark:border-white" : "bg-neutral-50 dark:bg-neutral-900 border-neutral-100 dark:border-neutral-800"
+                )}>
+                  {n.image_url ? (
+                    <img 
+                      src={n.image_url} 
+                      alt="" 
+                      className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500" 
+                    />
+                  ) : (
+                    getIcon(n.type)
+                  )}
+                </div>
+                <div className="flex-1 min-w-0">
+                  <div className="flex justify-between items-start mb-1">
+                    <p className={cn(
+                      "text-sm font-bold truncate",
+                      !n.is_read ? "text-neutral-900 dark:text-white" : "text-neutral-600 dark:text-neutral-400"
+                    )}>
+                      {n.title}
+                    </p>
+                    <p className="text-[10px] font-medium text-neutral-400 dark:text-neutral-500 shrink-0 mt-0.5 uppercase tracking-tighter">
+                      {(() => {
+                        const date = new Date(n.created_at);
+                        return !isNaN(date.getTime()) 
+                          ? formatDistanceToNow(date, { addSuffix: true }) 
+                          : 'just now';
+                      })()}
+                    </p>
+                  </div>
+                  <p className={cn(
+                    "text-xs leading-relaxed line-clamp-2",
+                    !n.is_read ? "text-neutral-700 dark:text-neutral-300 font-medium" : "text-neutral-500"
+                  )}>
+                    {n.message}
+                  </p>
+                </div>
+                {!n.is_read && (
+                  <div className="absolute right-4 bottom-4 opacity-0 group-hover:opacity-100 transition-opacity">
+                    <div className="p-1 bg-blue-500 rounded-full text-white">
+                      <Check size={10} weight="bold" />
+                    </div>
+                  </div>
+                )}
+              </button>
+            ))
+          )}
+        </div>
+        {notifications.length > 0 && (
+          <div className="p-3 border-t border-neutral-100 dark:border-neutral-800 bg-neutral-50/50 dark:bg-neutral-900/50">
+            <Button 
+              variant="ghost" 
+              onClick={handleClearAll}
+              className="w-full text-[11px] font-bold uppercase tracking-widest h-8 text-neutral-500 hover:text-neutral-900 dark:hover:text-white transition-colors"
+            >
+              Clear All Notifications
+            </Button>
+          </div>
+        )}
+      </PopoverContent>
+    </Popover>
+  )
+}
+
+export default NotificationsPopover

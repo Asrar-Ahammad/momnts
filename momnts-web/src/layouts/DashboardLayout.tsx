@@ -1,137 +1,120 @@
-import { useState } from 'react'
-import { Outlet, useNavigate, useLocation } from 'react-router';
-import { CakeIcon, HouseIcon, UserIcon, List, X } from "@phosphor-icons/react"
-import { motion, AnimatePresence } from 'framer-motion'
+import { Outlet, useNavigate, useLocation, Link } from 'react-router';
+import { House, Ticket, User } from "@phosphor-icons/react"
+import { motion } from 'framer-motion'
 import { cn } from '../lib/utils'
 import { ThemeToggle } from '../components/theme-toggle'
-
+import NotificationsPopover from '../components/NotificationsPopover'
 
 const DashboardLayout = () => {
   const navigate = useNavigate()
   const location = useLocation()
-  const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false)
 
-  const dockItems = [
+  const navItems = [
     {
       title: 'Home',
-      icon: <HouseIcon className='h-full w-full' />,
-      onClick: () => { navigate('/dashboard'); setIsMobileMenuOpen(false); },
+      icon: <House size={22} weight={location.pathname === '/dashboard' ? "fill" : "regular"} />,
+      path: '/dashboard',
       active: location.pathname === '/dashboard',
     },
     {
       title: 'Events',
-      icon: <CakeIcon className='h-full w-full' />,
-      onClick: () => { navigate('/events'); setIsMobileMenuOpen(false); },
+      icon: <Ticket size={22} weight={location.pathname.startsWith('/events') ? "fill" : "regular"} />,
+      path: '/events',
       active: location.pathname.startsWith('/events'),
     },
     {
-      title: 'Me',
-      icon: <UserIcon className='h-full w-full' />,
-      onClick: () => { navigate('/profile'); setIsMobileMenuOpen(false); },
+      title: 'Profile',
+      icon: <User size={22} weight={location.pathname === '/profile' ? "fill" : "regular"} />,
+      path: '/profile',
       active: location.pathname === '/profile',
     },
   ];
 
   return (
-    <div className="h-screen flex flex-col overflow-hidden relative">
-      <header className="p-4 flex justify-between items-center gap-8 bg-white/80 dark:bg-black backdrop-blur-md sticky top-0 z-50 border-b border-neutral-100 dark:border-neutral-800">
-        <p className='font-logo text-4xl select-none'>Momnts</p>
-
-        {/* Desktop Navigation */}
-        <div className="hidden sm:flex items-center justify-center gap-1 border rounded-full px-2 py-1.5 bg-neutral-100/50 dark:bg-neutral-800/50">
-          {
-            dockItems.map((item, idx) => (
-              <div key={idx} className="relative">
-                <span
-                  onClick={item.onClick}
-                  className={cn(
-                    'relative z-10 cursor-pointer px-4 py-1.5 rounded-full transition-colors duration-200 text-sm font-medium block',
-                    item.active
-                      ? 'text-white dark:text-neutral-900'
-                      : 'text-neutral-500 hover:text-neutral-900 dark:hover:text-white'
-                  )}
-                >
-                  {item.title}
-                </span>
-                {item.active && (
-                  <motion.div
-                    layoutId="nav-pill"
-                    className="absolute inset-0 bg-neutral-900 dark:bg-white rounded-full shadow-sm"
-                    transition={{ type: 'spring', bounce: 0.25, duration: 0.5 }}
-                  />
-                )}
-              </div>
-            ))
-          }
-        </div>
-
-        <div className="flex items-center gap-2">
-          <ThemeToggle />
-          {/* Mobile Menu Toggle */}
-          <button
-            onClick={() => setIsMobileMenuOpen(true)}
-            className="sm:hidden p-2 text-neutral-600 dark:text-neutral-300 hover:bg-neutral-100 dark:hover:bg-neutral-800 rounded-xl transition-colors"
+    <div className="h-screen flex flex-col bg-white dark:bg-neutral-950 overflow-hidden relative">
+      {/* Top Header */}
+      <header className="px-6 py-4 flex justify-between items-center bg-white/70 dark:bg-neutral-950/70 backdrop-blur-md sticky top-0 z-40">
+        <div className="flex items-center gap-4">
+          <Link 
+            to="/dashboard"
+            aria-label="Go to dashboard"
+            className='font-logo text-3xl select-none cursor-pointer tracking-tight'
           >
-            <List size={28} weight="bold" />
-          </button>
+            Momnts
+          </Link>
         </div>
 
-        {/* Mobile Slide-over Menu */}
-        <AnimatePresence>
-          {isMobileMenuOpen && (
-            <>
-              {/* Menu Panel */}
-              <motion.div
-                initial={{ x: '100%' }}
-                animate={{ x: 0 }}
-                exit={{ x: '100%' }}
-                transition={{ type: 'spring', damping: 25, stiffness: 200 }}
-                className="fixed top-0 right-0 bottom-0 w-full h-screen bg-white dark:bg-black z-50 p-6 shadow-2xl sm:hidden border-l border-neutral-100 dark:border-neutral-800"
-              >
-                <div className="flex justify-between items-center mb-8">
-                  <p className='font-logo text-3xl'>Momnts</p>
-                  <button
-                    onClick={() => setIsMobileMenuOpen(false)}
-                    className="p-2 text-neutral-600 dark:text-neutral-300 hover:bg-neutral-100 dark:hover:bg-neutral-800 rounded-xl"
-                  >
-                    <X size={24} weight="bold" />
-                  </button>
-                </div>
+        {/* Desktop Navigation Pill */}
+        <nav className="hidden md:flex items-center gap-1 border border-neutral-200/60 dark:border-neutral-800/60 rounded-full px-1.5 py-1.5 bg-neutral-50/50 dark:bg-neutral-900/50 shadow-sm">
+          {navItems.map((item) => (
+            <button
+              key={item.title}
+              onClick={() => navigate(item.path)}
+              className={cn(
+                'relative px-5 py-2 rounded-full transition-all duration-300 text-sm font-semibold flex items-center gap-2 group cursor-pointer',
+                item.active
+                  ? 'text-white dark:text-neutral-900'
+                  : 'text-neutral-500 hover:text-neutral-900 dark:hover:text-white'
+              )}
+            >
+              <span className="relative z-10 transition-transform duration-300 group-hover:scale-110">
+                {item.icon}
+              </span>
+              <span className="relative z-10">{item.title}</span>
+              {item.active && (
+                <motion.div
+                  layoutId="nav-pill"
+                  className="absolute inset-0 bg-neutral-900 dark:bg-white rounded-full shadow-md"
+                  transition={{ type: 'spring', bounce: 0.2, duration: 0.6 }}
+                />
+              )}
+            </button>
+          ))}
+        </nav>
 
-                <nav className="flex flex-col gap-2">
-                  {dockItems.map((item, idx) => (
-                    <button
-                      key={idx}
-                      onClick={item.onClick}
-                      className={cn(
-                        "flex items-center gap-4 px-4 py-4 rounded-2xl transition-all text-lg font-medium",
-                        item.active
-                          ? "bg-neutral-100 dark:bg-neutral-800 text-neutral-900 dark:text-white"
-                          : "text-neutral-500 hover:bg-neutral-50 dark:hover:bg-neutral-800/50"
-                      )}
-                    >
-                      <div className="w-6 h-6">{item.icon}</div>
-                      {item.title}
-                    </button>
-                  ))}
-                </nav>
-
-                {/* <div className="absolute bottom-8 left-6 right-6">
-                  <div className="p-4 bg-neutral-50 dark:bg-neutral-800/50 rounded-2xl border border-neutral-100 dark:border-neutral-700">
-                    <p className="text-xs text-neutral-400 uppercase tracking-widest font-semibold mb-1">Account</p>
-                    <p className="text-sm text-neutral-600 dark:text-neutral-300">Managed by Momnts</p>
-                  </div>
-                </div> */}
-              </motion.div>
-            </>
-          )}
-        </AnimatePresence>
+        <div className="flex items-center gap-3">
+          <NotificationsPopover />
+          <div className="h-4 w-px bg-neutral-200 dark:bg-neutral-800 hidden sm:block mx-1" />
+          <ThemeToggle />
+        </div>
       </header>
-      <main className="flex-1 overflow-auto pb-4">
+
+      {/* Main Content Area */}
+      <main className="flex-1 overflow-auto pb-24 md:pb-8">
         <Outlet />
       </main>
-    </div>
-  )
-}
 
-export default DashboardLayout
+      {/* Mobile Floating Bottom Bar */}
+      <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-50 md:hidden w-[90%] max-w-[360px]">
+        <nav className="flex items-center justify-around bg-white/80 dark:bg-neutral-900/80 backdrop-blur-md border border-white/10 dark:border-neutral-800 rounded-[28px] p-2 shadow-2xl ring-1 ring-black/5 dark:ring-white/5">
+          {navItems.map((item) => (
+            <button
+              key={item.title}
+              onClick={() => navigate(item.path)}
+              className={cn(
+                "relative flex flex-col items-center justify-center py-2 px-6 rounded-2xl transition-all duration-300",
+                item.active ? "text-neutral-900 dark:text-white" : "text-neutral-400 dark:text-neutral-500 hover:text-neutral-600 dark:hover:text-neutral-400"
+              )}
+            >
+              <div className={cn(
+                "p-1.5 rounded-xl transition-all duration-300",
+                item.active ? "bg-neutral-100 dark:bg-neutral-800 scale-110" : ""
+              )}>
+                {item.icon}
+              </div>
+              {item.active && (
+                <motion.div
+                  layoutId="active-nav-dot"
+                  className="absolute -bottom-0.5 w-1 h-1 bg-neutral-900 dark:bg-white rounded-full"
+                  transition={{ type: 'spring', bounce: 0.2, duration: 0.6 }}
+                />
+              )}
+            </button>
+          ))}
+        </nav>
+      </div>
+    </div>
+  );
+};
+
+export default DashboardLayout;
