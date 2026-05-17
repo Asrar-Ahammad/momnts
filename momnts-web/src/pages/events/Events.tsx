@@ -277,13 +277,13 @@ const Events = () => {
 
         <Tabs value={viewMode} onValueChange={(v) => setViewMode(v as 'grid' | 'list')} className="ml-auto">
           <TabsList className="rounded-full h-10 bg-white dark:bg-black border">
-            <TabsTrigger value="grid" className="rounded-full px-4 h-8 data-active:bg-white/20 dark:data-active:bg-neutral-900 data-active:shadow-md">
+            <TabsTrigger value="grid" className="rounded-full px-4 h-8 data-active:bg-white/20 dark:data-active:bg-neutral-900 data-active:shadow-md flex items-center justify-center">
               <SquaresFour size={18} weight={viewMode === 'grid' ? "fill" : "regular"} className="mr-2" />
-              Grid
+              <span className='hidden lg:flex'>Grid</span>
             </TabsTrigger>
-            <TabsTrigger value="list" className="rounded-full px-4 h-8 data-active:bg-white/20 dark:data-active:bg-neutral-900 data-active:shadow-md">
+            <TabsTrigger value="list" className="rounded-full px-4 h-8 data-active:bg-white/20 dark:data-active:bg-neutral-900 data-active:shadow-md flex items-center justify-center">
               <Rows size={18} weight={viewMode === 'list' ? "fill" : "regular"} className="mr-2" />
-              List
+              <span className='hidden lg:flex'>List</span>
             </TabsTrigger>
           </TabsList>
         </Tabs>
@@ -291,7 +291,7 @@ const Events = () => {
 
       {/* Events Grid/List */}
       <div className={viewMode === 'grid' 
-        ? "grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 px-6" 
+        ? "grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 px-6 pb-24" 
         : "flex flex-col gap-4 px-6"
       }>
         {filteredEvents.map((event) => (

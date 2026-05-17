@@ -124,7 +124,7 @@ const EventHeader = ({
           </Tooltip>
 
           <div className="flex-1 min-w-0">
-            <h1 className="text-2xl sm:text-3xl lg:text-4xl font-bold font-sirage capitalize mb-2 truncate leading-tight">
+            <h1 className="text-3xl sm:text-4xl lg:text-4xl font-bold font-sirage capitalize mb-2 truncate">
               {event?.name || 'Loading...'}
             </h1>
 

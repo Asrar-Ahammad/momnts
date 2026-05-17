@@ -152,7 +152,7 @@ const Profile = () => {
   }
 
   return (
-    <div className="max-w-4xl mx-auto px-4 py-12">
+    <div className="max-w-screen md:max-w-4xl mx-auto px-14 py-12 pb-24">
       <div className="relative mb-12">
         <h1 className="text-6xl font-bold text-neutral-900 dark:text-neutral-100 mb-2 font-sirage">Profile</h1>
         <p className="text-neutral-500 dark:text-neutral-400">Manage your account and biometric settings.</p>

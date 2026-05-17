@@ -1,13 +1,53 @@
 import { Outlet, useNavigate, useLocation, Link } from 'react-router';
 import { House, Ticket, User } from "@phosphor-icons/react"
-import { motion } from 'framer-motion'
+import { motion, AnimatePresence } from 'framer-motion'
 import { cn } from '../lib/utils'
 import { ThemeToggle } from '../components/theme-toggle'
 import NotificationsPopover from '../components/NotificationsPopover'
+import { useRef, useEffect, useState } from 'react';
 
 const DashboardLayout = () => {
   const navigate = useNavigate()
   const location = useLocation()
+  const [prevPath, setPrevPath] = useState(location.pathname)
+  const [direction, setDirection] = useState(0)
+
+  const getPathIndex = (path: string) => {
+    if (path.startsWith('/dashboard')) return 0
+    if (path.startsWith('/events')) return 1
+    if (path.startsWith('/profile')) return 2
+    return 0
+  }
+
+  // Calculate direction during render to sync with AnimatePresence
+  if (location.pathname !== prevPath) {
+    const prevIndex = getPathIndex(prevPath)
+    const nextIndex = getPathIndex(location.pathname)
+    const newDirection = nextIndex > prevIndex ? 1 : -1
+    
+    setDirection(newDirection)
+    setPrevPath(location.pathname)
+  }
+
+  const slideVariants = {
+    enter: (direction: number) => ({
+      x: direction > 0 ? '100%' : '-100%',
+      opacity: 0,
+      scale: 0.98
+    }),
+    center: {
+      x: 0,
+      opacity: 1,
+      scale: 1,
+      zIndex: 1
+    },
+    exit: (direction: number) => ({
+      x: direction > 0 ? '-100%' : '100%',
+      opacity: 0,
+      scale: 0.98,
+      zIndex: 0
+    })
+  }
 
   const navItems = [
     {
@@ -33,19 +73,20 @@ const DashboardLayout = () => {
   return (
     <div className="h-screen flex flex-col bg-white dark:bg-neutral-950 overflow-hidden relative">
       {/* Top Header */}
-      <header className="px-6 py-4 flex justify-between items-center bg-white/70 dark:bg-neutral-950/70 backdrop-blur-md sticky top-0 z-40">
-        <div className="flex items-center gap-4">
-          <Link 
+      <header className="h-[72px] px-6 flex items-center justify-between bg-white/80 dark:bg-neutral-900/80 backdrop-blur-md fixed top-0 left-0 right-0 z-40 border-b border-neutral-200/10 dark:border-neutral-800/10">
+        {/* Left: Logo */}
+        <div className="flex-1 flex items-center">
+          <Link
             to="/dashboard"
             aria-label="Go to dashboard"
-            className='font-logo text-3xl select-none cursor-pointer tracking-tight'
+            className='font-logo text-3xl select-none cursor-pointer tracking-tight text-neutral-900 dark:text-white'
           >
             Momnts
           </Link>
         </div>
 
-        {/* Desktop Navigation Pill */}
-        <nav className="hidden md:flex items-center gap-1 border border-neutral-200/60 dark:border-neutral-800/60 rounded-full px-1.5 py-1.5 bg-neutral-50/50 dark:bg-neutral-900/50 shadow-sm">
+        {/* Center: Desktop Navigation Pill */}
+        <nav className="hidden md:flex items-center gap-1 border border-neutral-200/30 dark:border-neutral-800/30 rounded-full px-1.5 py-1.5 bg-white/30 dark:bg-neutral-900/30 backdrop-blur-xl shadow-lg">
           {navItems.map((item) => (
             <button
               key={item.title}
@@ -72,7 +113,8 @@ const DashboardLayout = () => {
           ))}
         </nav>
 
-        <div className="flex items-center gap-3">
+        {/* Right: Actions */}
+        <div className="flex-1 flex items-center justify-end gap-3">
           <NotificationsPopover />
           <div className="h-4 w-px bg-neutral-200 dark:bg-neutral-800 hidden sm:block mx-1" />
           <ThemeToggle />
@@ -80,13 +122,30 @@ const DashboardLayout = () => {
       </header>
 
       {/* Main Content Area */}
-      <main className="flex-1 overflow-auto pb-24 md:pb-8">
-        <Outlet />
+      <main className="flex-1 overflow-x-hidden pt-[72px] pb-24 md:pb-8 relative">
+        <AnimatePresence initial={false} custom={direction} mode="popLayout">
+          <motion.div
+            key={location.pathname}
+            custom={direction}
+            variants={slideVariants}
+            initial="enter"
+            animate="center"
+            exit="exit"
+            transition={{
+              x: { type: "spring", stiffness: 200, damping: 25, mass: 0.8 },
+              opacity: { duration: 0.2 },
+              scale: { duration: 0.2 }
+            }}
+            className="w-full h-full"
+          >
+            <Outlet />
+          </motion.div>
+        </AnimatePresence>
       </main>
 
       {/* Mobile Floating Bottom Bar */}
-      <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-50 md:hidden w-[90%] max-w-[360px]">
-        <nav className="flex items-center justify-around bg-white/80 dark:bg-neutral-900/80 backdrop-blur-md border border-white/10 dark:border-neutral-800 rounded-[28px] p-2 shadow-2xl ring-1 ring-black/5 dark:ring-white/5">
+      <div className="fixed bottom-4 left-1/2 -translate-x-1/2 z-50 md:hidden w-[70%] max-w-[360px]">
+        <nav className="flex items-center justify-around bg-white/80 dark:bg-neutral-900/80 backdrop-blur-md border dark:border-white/10 border-white/80 rounded-[28px] p-2 shadow-2xl ring-1 ring-black/5 dark:ring-white/5">
           {navItems.map((item) => (
             <button
               key={item.title}

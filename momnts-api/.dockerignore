@@ -1,0 +1,9 @@
+node_modules
+temp-uploads
+.env
+.env.*
+.git
+.gitignore
+.DS_Store
+README.md
+dist
