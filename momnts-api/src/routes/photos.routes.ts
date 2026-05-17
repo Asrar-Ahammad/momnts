@@ -5,6 +5,7 @@ import {
   getPhotoDetailController,
   deletePhotoController,
   downloadPhotoController,
+  togglePhotoFavouriteController,
 } from '../controllers/photos.controller.js'
 import { authenticate } from '../middleware/auth.middleware.js'
 import { upload } from '../lib/multer.js'
@@ -19,5 +20,6 @@ photosRouter.get('/:eventId',         authenticate, getEventPhotosController)
 photosRouter.get('/:eventId/:photoId',authenticate, getPhotoDetailController)
 photosRouter.get('/:eventId/:photoId/download', authenticate, downloadPhotoController)
 photosRouter.delete('/:eventId/:photoId', authenticate, deletePhotoController)
+photosRouter.post('/:eventId/:photoId/favourite', authenticate, togglePhotoFavouriteController)
 
 export { photosRouter }

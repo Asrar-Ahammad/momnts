@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback, useRef, useMemo } from 'react'
 import { Dialog, DialogContent, DialogClose } from '../../../components/ui/dialog'
 import { Button } from '../../../components/ui/button'
-import { X, CaretLeft, CaretRight, XIcon, Trash } from '@phosphor-icons/react'
+import { X, CaretLeft, CaretRight, XIcon, Trash, Heart } from '@phosphor-icons/react'
 import { PhotoData } from '../../../features/events/services/photos.api'
 import {
   AlertDialog,
@@ -13,6 +13,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "../../../components/ui/alert-dialog"
+import { cn } from '../../../lib/utils'
 
 interface PhotoCarouselProps {
   open: boolean
@@ -23,6 +24,8 @@ interface PhotoCarouselProps {
   currentUserId?: string
   userRole?: string
   isEventActive?: boolean
+  isFavourite?: (photoId: string) => boolean
+  onToggleFavourite?: (photoId: string) => void
 }
 
 // Preload an image and return a promise
@@ -35,15 +38,28 @@ const preloadImage = (src: string): Promise<void> => {
   })
 }
 
-const PhotoCarousel = ({ open, onOpenChange, photos, initialIndex, onDelete, currentUserId, userRole, isEventActive }: PhotoCarouselProps) => {
+const PhotoCarousel = ({
+  open,
+  onOpenChange,
+  photos,
+  initialIndex,
+  onDelete,
+  currentUserId,
+  userRole,
+  isEventActive,
+  isFavourite,
+  onToggleFavourite
+}: PhotoCarouselProps) => {
   const [currentIndex, setCurrentIndex] = useState(initialIndex)
   const [isLoading, setIsLoading] = useState(false)
   const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false)
   const preloadedRef = useRef<Set<string>>(new Set())
 
   useEffect(() => {
-    setCurrentIndex(initialIndex)
-  }, [initialIndex])
+    if (open) {
+      setCurrentIndex(initialIndex)
+    }
+  }, [initialIndex, open])
 
   // Preload adjacent images (prev, next, and a couple beyond)
   const preloadAdjacentImages = useCallback((index: number) => {
@@ -132,9 +148,11 @@ const PhotoCarousel = ({ open, onOpenChange, photos, initialIndex, onDelete, cur
   }, [])
 
   useEffect(() => {
-    setCurrentIndex(initialIndex)
-    setNaturalSize(null) // Reset natural size when image changes
-  }, [initialIndex])
+    if (open) {
+      setCurrentIndex(initialIndex)
+      setNaturalSize(null) // Reset natural size when image changes
+    }
+  }, [initialIndex, open])
 
   // Reset natural size when index changes manually
   useEffect(() => {
@@ -208,6 +226,21 @@ const PhotoCarousel = ({ open, onOpenChange, photos, initialIndex, onDelete, cur
             <div className="relative flex items-center justify-center w-full h-full">
               {/* Header / Action Buttons */}
               <div className="absolute top-4 right-4 z-50 flex items-center gap-2">
+                {currentPhoto && onToggleFavourite && (
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    className={cn(
+                      "bg-black/40 backdrop-blur-md px-3 py-1.5 rounded-full border border-white/10 flex items-center justify-center cursor-pointer transition-all duration-200",
+                      isFavourite?.(currentPhoto.id)
+                        ? "text-rose-500 hover:text-rose-600 hover:bg-rose-50/10 scale-105"
+                        : "text-white/80 hover:text-rose-500 hover:bg-black/80 hover:scale-105"
+                    )}
+                    onClick={() => onToggleFavourite(currentPhoto.id)}
+                  >
+                    <Heart size={20} weight={isFavourite?.(currentPhoto.id) ? "fill" : "bold"} className={isFavourite?.(currentPhoto.id) ? "text-rose-500" : ""} />
+                  </Button>
+                )}
                 {canDelete && (
                   <Button
                     variant="ghost"
