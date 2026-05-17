@@ -15,7 +15,7 @@ import EventSettingsModal from './components/EventSettingsModal'
 import AttendeesModal from './components/AttendeesModal'
 import PhotoCarousel from './components/PhotoCarousel'
 
-type TabType = 'all' | 'your-photos' | 'your-uploads'
+type TabType = 'all' | 'your-photos' | 'favourites' | 'your-uploads'
 
 const EventDetails = () => {
   const { eventId } = useParams<{ eventId: string }>()
@@ -51,6 +51,7 @@ const EventDetails = () => {
   const [fileStatuses, setFileStatuses] = useState<FileUploadStatus[]>([])
   const [sortOrder, setSortOrder] = useState<'desc' | 'asc'>('desc')
   const [selectedAttendeeId, setSelectedAttendeeId] = useState<string | null>(null)
+  const [favouritePhotoIds, setFavouritePhotoIds] = useState<Set<string>>(new Set())
 
   // ── Real-time WebSocket updates ──
   useEventSocket({
@@ -101,6 +102,15 @@ const EventDetails = () => {
       setLoading(true)
       const photosData = await photosApi.getEventPhotos(eventId)
       setPhotos(photosData)
+
+      // Initialize favourites from database photo records
+      const favIds = new Set<string>()
+      photosData.forEach((p) => {
+        if (p.favourites && p.favourites.length > 0) {
+          favIds.add(p.id)
+        }
+      })
+      setFavouritePhotoIds(favIds)
     } catch (error) {
       console.error('Failed to fetch photos:', error)
       toast.error('Failed to load photos')
@@ -116,6 +126,19 @@ const EventDetails = () => {
       const response = await photosApi.getMyPhotos(eventId)
       setMyPhotos(response.data)
       setMyPhotosPrompt(response.prompt)
+
+      // Initialize/sync favourites for myPhotos too
+      setFavouritePhotoIds((prev) => {
+        const next = new Set(prev)
+        response.data.forEach((p) => {
+          if (p.favourites && p.favourites.length > 0) {
+            next.add(p.id)
+          } else {
+            next.delete(p.id)
+          }
+        })
+        return next
+      })
     } catch (error) {
       console.error('Failed to fetch your photos:', error)
       toast.error('Failed to load your photos')
@@ -138,6 +161,104 @@ const EventDetails = () => {
     }
   }, [eventId])
 
+  const handleToggleFavourite = async (photoId: string) => {
+    if (!eventId) return
+    try {
+      // Optimistic update for latency-free experience
+      setFavouritePhotoIds((prev) => {
+        const next = new Set(prev)
+        if (next.has(photoId)) {
+          next.delete(photoId)
+        } else {
+          next.add(photoId)
+        }
+        return next
+      })
+
+      // Backend persist
+      const response = await photosApi.toggleFavourite(eventId, photoId)
+
+      // Sync state with actual response
+      setFavouritePhotoIds((prev) => {
+        const next = new Set(prev)
+        if (response.isFavourite) {
+          next.add(photoId)
+        } else {
+          next.delete(photoId)
+        }
+        return next
+      })
+
+      if (response.isFavourite) {
+        toast.success('Added to Favourites! ❤️')
+      } else {
+        toast.success('Removed from Favourites')
+      }
+    } catch (error) {
+      console.error('Failed to toggle favourite:', error)
+      toast.error('Failed to toggle favourite')
+      // Rollback
+      fetchPhotos()
+    }
+  }
+
+  const handleDownloadFavourites = async () => {
+    const photosToDownload = photos.filter(p => favouritePhotoIds.has(p.id))
+    if (photosToDownload.length === 0) return
+
+    const toastId = toast.loading(`Preparing to download ${photosToDownload.length} favourite photo(s)...`)
+    let successCount = 0
+    let failCount = 0
+
+    for (let i = 0; i < photosToDownload.length; i++) {
+      const photo = photosToDownload[i]
+      try {
+        const apiUrl = import.meta.env.VITE_SERVER_URL || 'http://localhost:3000'
+        const downloadUrl = `${apiUrl}/api/photos/${photo.event_id}/${photo.id}/download`
+
+        const response = await fetch(downloadUrl, {
+          credentials: 'include' // Required for authenticated route
+        })
+
+        if (!response.ok) throw new Error('Network response was not ok')
+
+        const blob = await response.blob()
+        const url = window.URL.createObjectURL(blob)
+        const a = document.createElement('a')
+        a.href = url
+        a.download = `momnts-fav-${photo.id}.jpg`
+        document.body.appendChild(a)
+        a.click()
+
+        // Cleanup
+        setTimeout(() => {
+          window.URL.revokeObjectURL(url)
+          document.body.removeChild(a)
+        }, 100)
+
+        // Progress update
+        toast.loading(`Downloading ${i + 1}/${photosToDownload.length} favourite(s)...`, { id: toastId })
+
+        // Delay to prevent browser blocking
+        await new Promise(resolve => setTimeout(resolve, 500))
+        successCount++
+      } catch (error) {
+        console.error(`Failed to download photo ${photo.id}:`, error)
+        toast.error(`Failed to download photo ${i + 1}`)
+        failCount++
+        toast.loading(`Downloading ${i + 1}/${photosToDownload.length} favourite(s)...`, { id: toastId })
+      }
+    }
+
+    if (failCount === 0) {
+      toast.success('All favourites downloaded!', { id: toastId })
+    } else if (successCount > 0) {
+      toast.warning(`Downloaded ${successCount} favourites, ${failCount} failed.`, { id: toastId })
+    } else {
+      toast.error('All downloads failed.', { id: toastId })
+    }
+  }
+
   useEffect(() => {
     fetchEventDetails()
     fetchPhotos()
@@ -158,8 +279,8 @@ const EventDetails = () => {
   const fetchPhotosForTab = useCallback(async (tab: TabType) => {
     if (tab === 'your-photos') {
       await fetchMyPhotos()
-    } else if (tab === 'all' || tab === 'your-uploads') {
-      // For 'all' and 'your-uploads', we still use the main photos list
+    } else if (tab === 'all' || tab === 'your-uploads' || tab === 'favourites') {
+      // For 'all', 'your-uploads', and 'favourites', we still use the main photos list
       if (photos.length === 0) {
         await fetchPhotos()
       }
@@ -171,7 +292,12 @@ const EventDetails = () => {
     fetchPhotosForTab(activeTab)
   }, [activeTab, fetchPhotosForTab])
 
-  const sourcePhotos = activeTab === 'your-photos' ? myPhotos : photos
+  const sourcePhotos =
+    activeTab === 'your-photos'
+      ? myPhotos
+      : activeTab === 'favourites'
+        ? photos.filter((p) => favouritePhotoIds.has(p.id))
+        : photos
   const filteredPhotos = [...sourcePhotos.filter((photo) => {
     if (selectedAttendeeId) {
       if (photo.user_id !== selectedAttendeeId && photo.user?.id !== selectedAttendeeId) {
@@ -448,6 +574,8 @@ const EventDetails = () => {
             toast.error(error instanceof Error ? error.message : 'Failed to leave event')
           }
         }}
+        onDownloadFavourites={handleDownloadFavourites}
+        favouritesCount={favouritePhotoIds.size}
       />
 
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
@@ -481,6 +609,8 @@ const EventDetails = () => {
           onToggleSelect={handleToggleSelect}
           currentUserId={user?.id}
           userRole={event?.user_role}
+          favouritePhotoIds={favouritePhotoIds}
+          onToggleFavourite={handleToggleFavourite}
         />
       </div>
 
@@ -539,6 +669,8 @@ const EventDetails = () => {
         currentUserId={user?.id}
         userRole={event?.user_role}
         isEventActive={event?.is_active}
+        isFavourite={(photoId) => favouritePhotoIds.has(photoId)}
+        onToggleFavourite={handleToggleFavourite}
       />
     </div>
   )

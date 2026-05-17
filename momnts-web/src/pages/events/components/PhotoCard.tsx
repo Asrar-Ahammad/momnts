@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react'
-import { Check, Trash, Warning, Users } from '@phosphor-icons/react'
+import { Check, Trash, Warning, Users, Heart } from '@phosphor-icons/react'
 import {
   AlertDialog,
   AlertDialogAction,
@@ -21,9 +21,20 @@ interface PhotoCardProps {
   isSelected?: boolean
   canDelete?: boolean
   onDelete?: () => void
+  isFavourite?: boolean
+  onToggleFavourite?: () => void
 }
 
-const PhotoCard = ({ photo, onClick, isSelectMode, isSelected, canDelete, onDelete }: PhotoCardProps) => {
+const PhotoCard = ({
+  photo,
+  onClick,
+  isSelectMode,
+  isSelected,
+  canDelete,
+  onDelete,
+  isFavourite,
+  onToggleFavourite
+}: PhotoCardProps) => {
   const [imageLoaded, setImageLoaded] = useState(false)
   const [isInView, setIsInView] = useState(false)
   const cardRef = useRef<HTMLDivElement>(null)
@@ -67,6 +78,58 @@ const PhotoCard = ({ photo, onClick, isSelectMode, isSelected, canDelete, onDele
           {isSelected && <Check size={14} weight="bold" className="text-white dark:text-neutral-900" />}
         </div>
       )}
+
+      {/* Desktop Favourite Button (Top Left) */}
+      {!isSelectMode && (
+        <div
+          className={cn(
+            "absolute top-3 left-3 z-20 hidden sm:block transition-all duration-200",
+            isFavourite ? "opacity-100" : "opacity-0 group-hover:opacity-100"
+          )}
+          onClick={(e) => {
+            e.stopPropagation()
+            onToggleFavourite?.()
+          }}
+        >
+          <button
+            type="button"
+            className={cn(
+              "p-2 rounded-full backdrop-blur-sm transition-all duration-200 cursor-pointer shadow-md flex items-center justify-center",
+              isFavourite
+                ? "bg-rose-500 text-white hover:bg-rose-600 scale-105"
+                : "bg-black/40 text-white/80 hover:bg-black/60 hover:scale-105 border border-white/10"
+            )}
+          >
+            <Heart size={14} weight={isFavourite ? "fill" : "bold"} />
+          </button>
+        </div>
+      )}
+
+      {/* Mobile Favourite Button (Top Right) */}
+      {!isSelectMode && (
+        <div
+          className={cn(
+            "absolute top-3 right-3 z-20 block sm:hidden transition-all duration-200"
+          )}
+          onClick={(e) => {
+            e.stopPropagation()
+            onToggleFavourite?.()
+          }}
+        >
+          <button
+            type="button"
+            className={cn(
+              "p-2 rounded-full backdrop-blur-sm transition-all duration-200 cursor-pointer shadow-md flex items-center justify-center",
+              isFavourite
+                ? "bg-rose-500 text-white scale-105"
+                : "bg-black/40 text-white/80 border border-white/10"
+            )}
+          >
+            <Heart size={14} weight={isFavourite ? "fill" : "bold"} />
+          </button>
+        </div>
+      )}
+
       <img
         src={isInView ? photo.thumb_url : 'data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="1" height="1"/>'}
         alt="Event photo"

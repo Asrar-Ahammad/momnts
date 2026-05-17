@@ -16,6 +16,8 @@ interface PhotoGridProps {
   onToggleSelect: (photoId: string) => void
   currentUserId?: string
   userRole?: string
+  favouritePhotoIds: Set<string>
+  onToggleFavourite: (photoId: string) => void
 }
 
 const SKELETON_HEIGHTS = [240, 320, 200, 280, 360, 220, 300, 260, 340, 180, 290, 250]
@@ -31,7 +33,9 @@ const PhotoGrid = ({
   selectedPhotoIds,
   onToggleSelect,
   currentUserId,
-  userRole
+  userRole,
+  favouritePhotoIds,
+  onToggleFavourite
 }: PhotoGridProps) => {
   const getPhotoIndex = (photoId: string) => {
     return photos.findIndex((photo) => photo.id === photoId)
@@ -61,7 +65,9 @@ const PhotoGrid = ({
             ? 'No photos yet. Be the first to upload!'
             : activeTab === 'your-uploads'
               ? "You haven't uploaded any photos yet."
-              : "No photos matched with your face yet."}
+              : activeTab === 'favourites'
+                ? "No favourites added yet. Tap the heart icon on any photo!"
+                : "No photos matched with your face yet."}
         </p>
       </div>
     )
@@ -92,6 +98,8 @@ const PhotoGrid = ({
               canDelete={userRole === 'ORGANIZER' || (event?.is_active && currentUserId === photo.user_id)}
               isSelectMode={isSelectMode}
               isSelected={selectedPhotoIds.has(photo.id)}
+              isFavourite={favouritePhotoIds.has(photo.id)}
+              onToggleFavourite={() => onToggleFavourite(photo.id)}
             />
           </motion.div>
         ))}

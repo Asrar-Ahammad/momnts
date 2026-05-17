@@ -29,6 +29,7 @@ model User {
   claimed_profiles FaceProfile[]  @relation("UserClaimedProfiles")
   refreshTokens    RefreshToken[]
   notifications    Notification[]
+  favourites       Favourite[]
 }
 
 model Event {
@@ -85,6 +86,7 @@ model Photo {
   user  User  @relation(fields: [user_id], references: [id], onDelete: Cascade)
 
   photo_faces PhotoFace[]
+  favourites  Favourite[]
 }
 
 model FaceProfile {
@@ -145,4 +147,16 @@ model Notification {
   user User @relation(fields: [user_id], references: [id], onDelete: Cascade)
 
   @@index([user_id, created_at])
+}
+
+model Favourite {
+  id         String   @id @default(uuid())
+  user_id    String
+  photo_id   String
+  created_at DateTime @default(now())
+
+  user  User  @relation(fields: [user_id], references: [id], onDelete: Cascade)
+  photo Photo @relation(fields: [photo_id], references: [id], onDelete: Cascade)
+
+  @@unique([user_id, photo_id])
 }

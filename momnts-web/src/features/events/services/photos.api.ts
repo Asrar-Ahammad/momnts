@@ -19,6 +19,7 @@ export interface PhotoData {
   _count?: {
     photo_faces: number
   }
+  favourites?: Array<{ id: string }>
 }
 
 export interface UploadResponse {
@@ -173,5 +174,19 @@ export const photosApi = {
       const error = await response.json()
       throw new Error(error.message || "Failed to delete photo")
     }
+  },
+
+  async toggleFavourite(eventId: string, photoId: string): Promise<{ isFavourite: boolean }> {
+    const response = await fetch(`${API_URL}/api/photos/${eventId}/${photoId}/favourite`, {
+      method: "POST",
+      credentials: "include",
+    })
+
+    if (!response.ok) {
+      const error = await response.json()
+      throw new Error(error.message || "Failed to toggle favourite")
+    }
+
+    return await response.json()
   },
 }

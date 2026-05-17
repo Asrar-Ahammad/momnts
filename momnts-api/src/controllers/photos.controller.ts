@@ -296,6 +296,14 @@ export async function getEventPhotosController(req: AuthRequest, res: Response) 
                 // Include face count so UI can show how many faces were detected
                 _count: {
                     select: { photo_faces: true }
+                },
+                favourites: {
+                    where: {
+                        user_id: req.user.id
+                    },
+                    select: {
+                        id: true
+                    }
                 }
             },
             orderBy: { uploaded_at: 'desc' }
@@ -528,6 +536,79 @@ export async function downloadPhotoController(req: AuthRequest, res: Response) {
 
     } catch (error) {
         console.error('Download proxy error:', error)
+        const message = error instanceof Error ? error.message : 'Internal server error'
+        return res.status(500).json({ message })
+    }
+}
+
+/**
+ * @name togglePhotoFavouriteController
+ * @description Add or remove a photo from user's favourites.
+ * @route POST /photos/:eventId/:photoId/favourite
+ * @access Private
+ */
+export async function togglePhotoFavouriteController(req: AuthRequest, res: Response) {
+    try {
+        if (!req.user?.id) {
+            return res.status(401).json({ message: 'User not authenticated' })
+        }
+
+        const eventId = req.params.eventId as string
+        const photoId = req.params.photoId as string
+
+        // Verify event access
+        const eventAccess = await prisma.eventAccess.findUnique({
+            where: {
+                event_id_user_id: {
+                    event_id: eventId,
+                    user_id: req.user.id,
+                }
+            }
+        })
+
+        if (!eventAccess) {
+            return res.status(403).json({ message: 'You do not have access to this event' })
+        }
+
+        const photo = await prisma.photo.findUnique({
+            where: { id: photoId }
+        })
+
+        if (!photo || photo.event_id !== eventId) {
+            return res.status(404).json({ message: 'Photo not found' })
+        }
+
+        // Check if already favourited
+        const existing = await prisma.favourite.findUnique({
+            where: {
+                user_id_photo_id: {
+                    user_id: req.user.id,
+                    photo_id: photoId
+                }
+            }
+        })
+
+        if (existing) {
+            await prisma.favourite.delete({
+                where: {
+                    user_id_photo_id: {
+                        user_id: req.user.id,
+                        photo_id: photoId
+                    }
+                }
+            })
+            return res.status(200).json({ message: 'Removed from favourites', isFavourite: false })
+        } else {
+            await prisma.favourite.create({
+                data: {
+                    user_id: req.user.id,
+                    photo_id: photoId
+                }
+            })
+            return res.status(200).json({ message: 'Added to favourites', isFavourite: true })
+        }
+
+    } catch (error) {
         const message = error instanceof Error ? error.message : 'Internal server error'
         return res.status(500).json({ message })
     }
