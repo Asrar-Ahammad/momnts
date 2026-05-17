@@ -415,7 +415,7 @@ const EventDetails = () => {
   }
 
   return (
-    <div className="min-h-screen bg-neutral-50 dark:bg-neutral-950">
+    <div className="min-h-screen bg-neutral-50 dark:bg-neutral-950 pb-20">
       <EventHeader
         event={event}
         activeTab={activeTab}

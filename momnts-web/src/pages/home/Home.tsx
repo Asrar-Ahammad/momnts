@@ -83,7 +83,7 @@ const Home = () => {
   }
 
   return (
-    <div className="max-w-5xl mx-auto px-4 py-8 space-y-10">
+    <div className="max-w-5xl mx-auto px-4 py-8 space-y-10 pb-24">
       {/* 1. Greeting header */}
       <div className="space-y-1">
         <h1 className="text-6xl font-bold font-sirage text-neutral-900 dark:text-neutral-100">
