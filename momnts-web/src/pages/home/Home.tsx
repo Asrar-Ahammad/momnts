@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router'
 import { useAuth } from '../../features/auth/hooks/useAuth'
 import { useEvents } from '../../features/events/hooks/useEvents'
@@ -7,12 +7,19 @@ import { CreateEventModal, JoinEventModal } from '../events/components'
 import { Button } from '../../components/ui/button'
 import { Skeleton } from '../../components/ui/skeleton'
 import { useQueryClient } from '@tanstack/react-query'
+import { cn } from '../../lib/utils'
+import { motion } from 'framer-motion'
+import { MomntsSlideshow } from '../../components/MomntsSlideshow'
+import { EventData } from '../../features/events/services/events.api'
+import { MomntCard } from './components/MomntCard'
 import {
   CameraPlus,
   PlusCircle,
   Ticket,
-  X
+  X,
+  MusicNotes
 } from '@phosphor-icons/react'
+
 
 const Home = () => {
   const navigate = useNavigate()
@@ -23,6 +30,15 @@ const Home = () => {
   const [showSelfieBanner, setShowSelfieBanner] = useState(true)
   const [createModalOpen, setCreateModalOpen] = useState(false)
   const [joinModalOpen, setJoinModalOpen] = useState(false)
+  const [selectedSlideshowEvent, setSelectedSlideshowEvent] = useState<{
+    id: string
+    name: string
+    location: string
+    date: string
+  } | null>(null)
+
+
+
 
   const handleEventsUpdate = () => {
     queryClient.invalidateQueries({ queryKey: ['events'] })
@@ -87,7 +103,7 @@ const Home = () => {
       {/* 1. Greeting header */}
       <div className="space-y-1">
         <h1 className="text-6xl font-bold font-sirage text-neutral-900 dark:text-neutral-100">
-          Hey {user?.username || 'there'}!
+          Hey <span className="capitalize">{user?.username || 'there'}</span>!
         </h1>
         <p className="text-neutral-500 dark:text-neutral-400">
           Here's what's happening with your events.
@@ -139,6 +155,43 @@ const Home = () => {
           <Ticket size={20} weight="bold" className="mr-2" />
           Join Event
         </Button>
+      </div>
+
+      {/* 3.5. Relive Your Momnts Memory Lanes */}
+      <div className="space-y-4">
+        <div className="flex items-center gap-2">
+          
+          <h2 className="text-2xl font-sirage font-bold text-neutral-800 dark:text-neutral-200">
+            Momnts Memory Lanes
+          </h2>
+        </div>
+
+        {isLoading ? (
+          <div className="flex gap-6 overflow-x-auto scrollbar-hide py-2">
+            <Skeleton className="h-72 w-48 rounded-2xl shrink-0 bg-neutral-200 dark:bg-neutral-800" />
+            <Skeleton className="h-72 w-48 rounded-2xl shrink-0 bg-neutral-200 dark:bg-neutral-800" />
+            <Skeleton className="h-72 w-48 rounded-2xl shrink-0 bg-neutral-200 dark:bg-neutral-800" />
+          </div>
+        ) : events.length > 0 ? (
+          <div className="flex gap-6 overflow-x-auto scrollbar-hide py-2 px-1 scroll-smooth snap-x">
+            {events.map((event) => (
+              <MomntCard
+                key={event.id}
+                event={event}
+                onClick={() => {
+                  setSelectedSlideshowEvent({
+                    id: event.id,
+                    name: event.name,
+                    location: event.location,
+                    date: event.date
+                  })
+                }}
+              />
+            ))}
+          </div>
+        ) : (
+          <p className="text-sm text-neutral-500 italic">No events available for Momnts</p>
+        )}
       </div>
 
       {/* 4. Continue where you left off */}
@@ -205,7 +258,20 @@ const Home = () => {
         onOpenChange={setJoinModalOpen}
         onEventJoined={handleEventsUpdate}
       />
+
+      {/* 7. Fullscreen Cinematic Slideshow */}
+      <MomntsSlideshow
+        open={selectedSlideshowEvent !== null}
+        onOpenChange={(open) => {
+          if (!open) setSelectedSlideshowEvent(null)
+        }}
+        eventId={selectedSlideshowEvent?.id || ''}
+        eventName={selectedSlideshowEvent?.name || ''}
+        eventLocation={selectedSlideshowEvent?.location || ''}
+        eventDate={selectedSlideshowEvent?.date || ''}
+      />
     </div>
+
   )
 }
 
