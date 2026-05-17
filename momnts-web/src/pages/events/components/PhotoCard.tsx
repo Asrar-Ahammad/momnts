@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { Check, Trash, Warning, Users } from '@phosphor-icons/react'
 import {
   AlertDialog,
@@ -25,9 +25,30 @@ interface PhotoCardProps {
 
 const PhotoCard = ({ photo, onClick, isSelectMode, isSelected, canDelete, onDelete }: PhotoCardProps) => {
   const [imageLoaded, setImageLoaded] = useState(false)
+  const [isInView, setIsInView] = useState(false)
+  const cardRef = useRef<HTMLDivElement>(null)
+
+  useEffect(() => {
+    const observer = new IntersectionObserver(
+      (entries) => {
+        if (entries[0].isIntersecting) {
+          setIsInView(true)
+          observer.disconnect()
+        }
+      },
+      { rootMargin: '200px' }
+    )
+
+    if (cardRef.current) {
+      observer.observe(cardRef.current)
+    }
+
+    return () => observer.disconnect()
+  }, [])
 
   return (
     <div
+      ref={cardRef}
       className={cn(
         "relative group overflow-hidden rounded-xl bg-neutral-100 dark:bg-neutral-800 transition-all duration-200",
         isSelectMode ? "ring-2" : "",
@@ -47,7 +68,7 @@ const PhotoCard = ({ photo, onClick, isSelectMode, isSelected, canDelete, onDele
         </div>
       )}
       <img
-        src={photo.thumb_url}
+        src={isInView ? photo.thumb_url : 'data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="1" height="1"/>'}
         alt="Event photo"
         className="w-full h-auto transition-opacity duration-300"
         style={{ display: imageLoaded ? 'block' : 'none' }}
@@ -70,7 +91,7 @@ const PhotoCard = ({ photo, onClick, isSelectMode, isSelected, canDelete, onDele
 
       {/* Hover Overlay */}
       <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-200">
-        
+
         {/* Delete Button (Top Right) */}
         {canDelete && !isSelectMode && (
           <div className="absolute top-2 right-2" onClick={(e) => e.stopPropagation()}>

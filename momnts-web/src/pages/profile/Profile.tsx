@@ -239,12 +239,12 @@ const Profile = () => {
 
           <div className="hidden md:flex pt-4 w-full items-center justify-start">
             <AlertDialog>
-              <AlertDialogTrigger asChild>
+              <AlertDialogTrigger render={
                 <Button variant="ghost" className="w-full text-red-500 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-500/10 rounded-2xl h-12 flex items-center justify-center gap-2">
                   <SignOut size={20} weight="bold" />
                   Logout Session
                 </Button>
-              </AlertDialogTrigger>
+              } />
               <AlertDialogContent className="rounded-3xl border-neutral-200 dark:border-neutral-800">
                 <AlertDialogHeader>
                   <AlertDialogTitle>Are you sure you want to logout?</AlertDialogTitle>
@@ -253,7 +253,7 @@ const Profile = () => {
                   </AlertDialogDescription>
                 </AlertDialogHeader>
                 <AlertDialogFooter>
-                  <AlertDialogCancel className="rounded-2xl border-neutral-200 dark:border-neutral-800">Cancel</AlertDialogCancel>
+                  <AlertDialogCancel variant="outline" size="default" className="rounded-2xl border-neutral-200 dark:border-neutral-800">Cancel</AlertDialogCancel>
                   <AlertDialogAction onClick={handleLogout} className="bg-red-500 hover:bg-red-600 text-white rounded-2xl">
                     Logout
                   </AlertDialogAction>
@@ -371,12 +371,12 @@ const Profile = () => {
           {/* Mobile Logout Button */}
           <div className="md:hidden pt-4 flex justify-center">
             <AlertDialog>
-              <AlertDialogTrigger asChild>
+              <AlertDialogTrigger render={
                 <Button variant="ghost" className="w-full justify-center text-red-500 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-500/10 rounded-2xl h-14 border border-red-100 dark:border-red-900/30">
                   <SignOut size={22} weight="bold" className="mr-3" />
                   Logout Session
                 </Button>
-              </AlertDialogTrigger>
+              } />
               <AlertDialogContent className="rounded-3xl">
                 <AlertDialogHeader>
                   <AlertDialogTitle>Logout Session?</AlertDialogTitle>
@@ -385,7 +385,7 @@ const Profile = () => {
                   </AlertDialogDescription>
                 </AlertDialogHeader>
                 <AlertDialogFooter>
-                  <AlertDialogCancel className="rounded-2xl">Cancel</AlertDialogCancel>
+                  <AlertDialogCancel variant="outline" size="default" className="rounded-2xl">Cancel</AlertDialogCancel>
                   <AlertDialogAction onClick={handleLogout} className="bg-red-500 hover:bg-red-600 text-white rounded-2xl">
                     Logout
                   </AlertDialogAction>

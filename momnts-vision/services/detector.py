@@ -38,7 +38,7 @@ def validate_url(url: str) -> bool:
     except Exception:
         return False
 
-MAX_IMAGE_SIZE = 10 * 1024 * 1024  # 10 MB
+MAX_IMAGE_SIZE = 50 * 1024 * 1024  # 50 MB
 
 
 def download_image(url: str) -> str:

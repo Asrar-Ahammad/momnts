@@ -36,9 +36,8 @@ export const upload = multer({
       cb(new Error('Only JPEG, PNG, WebP and HEIC images are allowed'))
     }
   },
-
   limits: {
-    fileSize: 10 * 1024 * 1024, // 10MB max per file
+    fileSize: 50 * 1024 * 1024, // 50MB max per file
     files: 10,                   // max 10 files per request
   },
 })

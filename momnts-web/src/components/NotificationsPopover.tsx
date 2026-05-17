@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect, useCallback, useRef } from 'react'
 import { Bell, UserPlus, Calendar, Info, Check } from '@phosphor-icons/react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { formatDistanceToNow } from 'date-fns'
@@ -16,6 +16,7 @@ const NotificationsPopover = () => {
   const { user } = useAuth()
   const [notifications, setNotifications] = useState<NotificationData[]>([])
   const [unreadCount, setUnreadCount] = useState(0)
+  const shownNotificationsRef = useRef<Set<string>>(new Set())
 
   const fetchNotifications = useCallback(async () => {
     try {
@@ -35,23 +36,24 @@ const NotificationsPopover = () => {
   useNotificationSocket({
     userId: user?.id,
     onNotificationReceived: useCallback((notification: NotificationData) => {
+      if (shownNotificationsRef.current.has(notification.id)) return
+      shownNotificationsRef.current.add(notification.id)
+
+      if (!notification.is_read) {
+        setUnreadCount(prevCount => prevCount + 1)
+      }
+
+      toast.info(notification.title, {
+        description: notification.message,
+        action: notification.link ? {
+          label: 'View',
+          onClick: () => navigate(notification.link!)
+        } : undefined
+      })
+
       setNotifications(prev => {
         const isDuplicate = prev.some(n => n.id === notification.id)
         if (isDuplicate) return prev
-
-        // Only increment and toast if it's truly new
-        if (!notification.is_read) {
-          setUnreadCount(prevCount => prevCount + 1)
-        }
-
-        toast.info(notification.title, {
-          description: notification.message,
-          action: notification.link ? {
-            label: 'View',
-            onClick: () => navigate(notification.link!)
-          } : undefined
-        })
-
         return [notification, ...prev].slice(0, 20)
       })
     }, [navigate])

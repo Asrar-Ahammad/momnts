@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from 'react'
-import { useParams, useNavigate } from 'react-router'
+import { useParams, useNavigate, useSearchParams } from 'react-router'
 import { useAuth } from '../../features/auth/hooks/useAuth'
 import { Button } from '../../components/ui/button'
 import { Badge } from '../../components/ui/badge'
@@ -21,6 +21,7 @@ const EventDetails = () => {
   const { eventId } = useParams<{ eventId: string }>()
   const navigate = useNavigate()
   const { user } = useAuth()
+  const [searchParams, setSearchParams] = useSearchParams()
 
   const [activeTab, setActiveTab] = useState<TabType>('all')
   const [event, setEvent] = useState<EventData | null>(null)
@@ -144,18 +145,15 @@ const EventDetails = () => {
 
   // Handle URL view parameters (e.g., from notifications)
   useEffect(() => {
-    const params = new URLSearchParams(window.location.search)
-    if (params.get('view') === 'attendees') {
+    if (searchParams.get('view') === 'attendees') {
       setAttendeesModalOpen(true)
       fetchAttendees()
-      // Clean up URL without removing other parameters
-      const currentParams = new URLSearchParams(window.location.search)
-      currentParams.delete('view')
-      const query = currentParams.toString()
-      const newUrl = window.location.pathname + (query ? `?${query}` : '')
-      window.history.replaceState({}, '', newUrl)
+      // Clean up URL without removing other parameters in sync with React Router
+      const newParams = new URLSearchParams(searchParams)
+      newParams.delete('view')
+      setSearchParams(newParams, { replace: true })
     }
-  }, [fetchAttendees])
+  }, [searchParams, setSearchParams, fetchAttendees])
 
   const fetchPhotosForTab = useCallback(async (tab: TabType) => {
     if (tab === 'your-photos') {
@@ -246,10 +244,10 @@ const EventDetails = () => {
       )
 
       toast.success(`${selectedFiles.length} photo(s) uploaded successfully!`)
-      
+
       // Delay closing so user can see the green check marks
       await new Promise(resolve => setTimeout(resolve, 1000))
-      
+
       setUploadModalOpen(false)
       setSelectedFiles([])
       setFileStatuses([])
@@ -415,7 +413,7 @@ const EventDetails = () => {
   }
 
   return (
-    <div className="min-h-screen bg-neutral-50 dark:bg-neutral-950 pb-20">
+    <div className="min-h-screen bg-neutral-50 dark:bg-neutral-950 pb-20 md:pb-6">
       <EventHeader
         event={event}
         activeTab={activeTab}
