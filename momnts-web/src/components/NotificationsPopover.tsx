@@ -11,6 +11,20 @@ import { useAuth } from '../features/auth/hooks/useAuth'
 import { useNotificationSocket } from '../hooks/useNotificationSocket'
 import { toast } from 'sonner'
 
+function avatarColor(name: string): string {
+  let hash = 0
+  for (let i = 0; i < name.length; i++) {
+    hash = name.charCodeAt(i) + ((hash << 5) - hash)
+  }
+  const hue = Math.abs(hash) % 360
+  return `hsl(${hue}, 45%, 42%)`
+}
+
+function getInitials(name: string): string {
+  if (!name) return "?"
+  return name.substring(0, 2).toUpperCase()
+}
+
 const NotificationsPopover = () => {
   const navigate = useNavigate()
   const { user } = useAuth()
@@ -152,6 +166,19 @@ const NotificationsPopover = () => {
                       alt="" 
                       className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500" 
                     />
+                  ) : n.type === 'EVENT_JOIN' ? (
+                    (() => {
+                      const nameMatch = n.message.match(/^(.*?) has joined/i);
+                      const name = nameMatch ? nameMatch[1] : '?';
+                      return (
+                        <div 
+                          className="w-full h-full flex items-center justify-center text-white text-sm font-semibold select-none"
+                          style={{ backgroundColor: avatarColor(name) }}
+                        >
+                          {getInitials(name)}
+                        </div>
+                      )
+                    })()
                   ) : (
                     getIcon(n.type)
                   )}

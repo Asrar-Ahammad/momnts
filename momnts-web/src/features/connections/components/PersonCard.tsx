@@ -99,7 +99,7 @@ export default function PersonCard({ connection, onClick }: PersonCardProps) {
       <button
         type="button"
         onClick={onClick}
-        className="md:hidden w-full bg-neutral-50 dark:bg-neutral-800 hover:bg-neutral-100 dark:hover:bg-neutral-700 border border-neutral-200 dark:border-neutral-700 p-3 flex items-center gap-3 cursor-pointer transition-colors rounded-xl group focus:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-blue-500 dark:focus-visible:ring-offset-neutral-800"
+        className="md:hidden w-full bg-neutral-50 dark:bg-neutral-800 hover:bg-neutral-100 dark:hover:bg-neutral-700 border border-neutral-200 dark:border-neutral-700 p-3 flex items-center gap-3 cursor-pointer transition-colors rounded-4xl group focus:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-blue-500 dark:focus-visible:ring-offset-neutral-800"
       >
         {/* Avatar */}
         {person.selfie_url ? (

@@ -1,4 +1,4 @@
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { Camera } from "@phosphor-icons/react"
 import { Badge } from "../../../components/ui/badge"
 import { Skeleton } from "../../../components/ui/skeleton"
@@ -21,6 +21,10 @@ export default function WhoWasIWith({
   const [selectedFaceProfileId, setSelectedFaceProfileId] = useState<
     string | null
   >(null)
+
+  useEffect(() => {
+    setSelectedFaceProfileId(null)
+  }, [eventId])
 
   // API returned a message (no face profile found)
   const noFaceProfile =

@@ -33,7 +33,7 @@ export default function SharedPhotosSheet({
   )
   const [carouselIndex, setCarouselIndex] = useState<number | null>(null)
   const isOpen = faceProfileId !== null
-  
+
   // Local fallback state
   const [localFavouritePhotoIds, setLocalFavouritePhotoIds] = useState<Set<string>>(new Set())
 
@@ -118,7 +118,7 @@ export default function SharedPhotosSheet({
       {/* ── Gallery modal ── */}
       <Dialog open={isOpen} onOpenChange={(open) => !open && onClose()}>
         <DialogContent
-          className="w-[95vw] max-w-5xl max-h-[90vh] p-0 overflow-hidden rounded-2xl bg-white dark:bg-neutral-900 border border-neutral-200 dark:border-neutral-800"
+          className="w-[95vw] max-w-[95vw] max-h-[90vh] p-0 overflow-hidden rounded-4xl bg-white dark:bg-neutral-900 border border-neutral-200 dark:border-neutral-800"
           showCloseButton={false}
         >
           {/* Header */}

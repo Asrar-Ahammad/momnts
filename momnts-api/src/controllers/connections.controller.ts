@@ -158,9 +158,9 @@ async function getSharedPhotosController(req: AuthRequest, res: Response) {
       include: { claimed: { select: { id: true, name: true, selfie_url: true } } },
     });
 
-    if (!otherProfile) {
+    if (!otherProfile || otherProfile.event_id !== eventId) {
       return res.status(404).json({
-        message: "Face profile not found",
+        message: "Face profile not found in this event",
       });
     }
 
