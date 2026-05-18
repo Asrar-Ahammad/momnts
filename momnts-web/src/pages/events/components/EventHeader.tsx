@@ -98,6 +98,7 @@ const EventHeader = ({
 }: EventHeaderProps) => {
   const [showLeaveConfirm, setShowLeaveConfirm] = useState(false)
   const [leaving, setLeaving] = useState(false)
+  // TODO: Add error handling for this hook
   const { data: summaryData } = useConnectionsSummary(event?.id ?? '')
 
   const handleLeave = async () => {
@@ -189,9 +190,11 @@ const EventHeader = ({
               layout
               className="flex items-center justify-start lg:justify-end gap-2 sm:gap-3 overflow-x-auto no-scrollbar pb-1 w-full lg:w-auto shrink-0"
             >
+              {/* Default view buttons */}
               {!isSelectMode ? (
                 <motion.div layout className="flex items-center gap-2 w-full lg:w-auto">
                   <AnimatePresence mode="popLayout">
+                    {/* Sort and Select buttons (not shown on connections tab) */}
                     {activeTab !== 'connections' && (
                       <motion.div
                         key="sort-select-controls"
@@ -232,6 +235,7 @@ const EventHeader = ({
                     )}
                   </AnimatePresence>
 
+                  {/* Organizer-only buttons */}
                   {event?.user_role === 'ORGANIZER' && (
                     <motion.div layout className="flex items-center gap-2 shrink-0">
                       <Tooltip>
@@ -264,6 +268,7 @@ const EventHeader = ({
                     </motion.div>
                   )}
 
+                  {/* Attendee-only buttons */}
                   {event?.user_role === 'ATTENDEE' && (
                     <motion.div layout>
                       <Tooltip>
@@ -282,8 +287,10 @@ const EventHeader = ({
                     </motion.div>
                   )}
 
+                  {/* Main action button (Upload/Download) */}
                   <motion.div layout className="flex-1 sm:flex-none">
                     {(() => {
+                      // Favourites tab: Download Favourites
                       if (activeTab === 'favourites') {
                         return (
                           <Button
@@ -304,6 +311,7 @@ const EventHeader = ({
                       const isInactiveAttendee = !event?.is_active && event?.user_role !== 'ORGANIZER'
                       const isLimitReached = event?.user_role === 'ATTENDEE' && userUploadCount >= (event?.attendee_upload_limit || 0)
 
+                      // Event inactive: Upload disabled
                       if (isInactiveAttendee) {
                         return (
                           <Tooltip>
@@ -326,6 +334,7 @@ const EventHeader = ({
                         )
                       }
 
+                      // Upload limit reached: Upload disabled
                       if (isLimitReached) {
                         return (
                           <Tooltip>
@@ -348,6 +357,7 @@ const EventHeader = ({
                         )
                       }
 
+                      // Default: Upload Photos
                       return (
                         <Button
                           className="w-full h-10 px-6 sm:px-8 flex items-center justify-center gap-2 rounded-xl bg-neutral-900 dark:bg-white text-white dark:text-neutral-900 hover:opacity-90 transition-opacity"
@@ -362,6 +372,7 @@ const EventHeader = ({
                   </motion.div>
                 </motion.div>
               ) : (
+                // Select mode buttons
                 <motion.div layout className="flex items-center gap-2 sm:gap-4 w-full sm:w-auto">
                   <span className="text-sm font-semibold text-neutral-600 dark:text-neutral-400 mr-auto sm:mr-0 px-2">
                     {selectedCount} <span className="hidden sm:inline">selected</span>

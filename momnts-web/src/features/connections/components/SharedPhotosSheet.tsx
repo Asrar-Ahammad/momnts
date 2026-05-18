@@ -54,16 +54,18 @@ export default function SharedPhotosSheet({
   }, [data, parentFavouritePhotoIds])
 
   const handleToggleFavourite = parentOnToggleFavourite ?? (async (photoId: string) => {
-    // Optimistic UI update
-    setLocalFavouritePhotoIds((prev) => {
-      const next = new Set(prev)
-      if (next.has(photoId)) {
-        next.delete(photoId)
+    const toggle = (set: Set<string>) => {
+      const newSet = new Set(set);
+      if (newSet.has(photoId)) {
+        newSet.delete(photoId);
       } else {
-        next.add(photoId)
+        newSet.add(photoId);
       }
-      return next
-    })
+      return newSet;
+    };
+
+    // Optimistic UI update
+    setLocalFavouritePhotoIds(toggle);
 
     try {
       const response = await photosApi.toggleFavourite(eventId, photoId)
@@ -87,15 +89,7 @@ export default function SharedPhotosSheet({
       console.error("Failed to toggle favourite:", error)
       toast.error("Failed to toggle favourite")
       // Revert optimistic update on failure
-      setLocalFavouritePhotoIds((prev) => {
-        const next = new Set(prev)
-        if (next.has(photoId)) {
-          next.delete(photoId)
-        } else {
-          next.add(photoId)
-        }
-        return next
-      })
+      setLocalFavouritePhotoIds(toggle);
     }
   });
 

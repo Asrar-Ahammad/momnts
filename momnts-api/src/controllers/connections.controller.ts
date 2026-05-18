@@ -2,6 +2,8 @@ import type { Response } from "express";
 import { prisma } from "../lib/prisma.js";
 import type { AuthRequest } from "../middleware/auth.middleware.js";
 
+const CONNECTIONS_LIMIT = 50;
+
 /**
  * @name getWhoWasIWithController
  * @description Returns a list of other face profiles that co-occur in photos
@@ -77,9 +79,11 @@ async function getWhoWasIWithController(req: AuthRequest, res: Response) {
         ON u.id = fp.claimed_by
       WHERE pf1.face_profile_id = ANY(${userFaceProfileIds}::text[])
         AND NOT (pf2.face_profile_id = ANY(${userFaceProfileIds}::text[]))
+      -- Group by the user if the profile is claimed, otherwise by the profile itself.
+      -- This treats all of a single user's face profiles as one person.
       GROUP BY COALESCE(fp.claimed_by, fp.id), fp.claimed_by, fp.is_claimed, u.name, u.id, u.selfie_url
       ORDER BY shared_photo_count DESC
-      LIMIT 50
+      LIMIT ${CONNECTIONS_LIMIT}
     `;
 
     const mappedResults = results.map((r) => ({
@@ -161,13 +165,15 @@ async function getSharedPhotosController(req: AuthRequest, res: Response) {
     }
 
     // Find all face profiles claimed by the other user (if claimed), otherwise just this profile
-    let otherFaceProfileIds: string[] = [faceProfileId];
+    let otherFaceProfileIds: string[];
     if (otherProfile.claimed_by) {
       const otherClaimedProfiles = await prisma.faceProfile.findMany({
         where: { event_id: eventId, claimed_by: otherProfile.claimed_by },
         select: { id: true },
       });
       otherFaceProfileIds = otherClaimedProfiles.map((fp) => fp.id);
+    } else {
+      otherFaceProfileIds = [faceProfileId];
     }
 
     // Find shared photos via self-join on PhotoFace
@@ -183,7 +189,6 @@ async function getSharedPhotosController(req: AuthRequest, res: Response) {
         uploader_name: string;
         width: number | null;
         height: number | null;
-        is_favourited: boolean;
       }[]
     >`
       SELECT DISTINCT
@@ -195,11 +200,7 @@ async function getSharedPhotosController(req: AuthRequest, res: Response) {
         p.is_visible,
         u.name as uploader_name,
         p.width,
-        p.height,
-        EXISTS(
-          SELECT 1 FROM "Favourite" f
-          WHERE f.photo_id = p.id AND f.user_id = ${req.user.id}
-        ) as is_favourited
+        p.height
       FROM "PhotoFace" pf1
       JOIN "PhotoFace" pf2
         ON pf1.photo_id = pf2.photo_id
@@ -214,6 +215,21 @@ async function getSharedPhotosController(req: AuthRequest, res: Response) {
       ORDER BY p.uploaded_at DESC
     `;
 
+    // Get user's favourites for this event
+    const userFavourites = await prisma.favourite.findMany({
+      where: {
+        user_id: req.user.id,
+        photo_id: { in: photos.map(p => p.id) },
+      },
+      select: { photo_id: true },
+    });
+    const favouritePhotoIds = new Set(userFavourites.map(f => f.photo_id));
+
+    const photosWithFavourites = photos.map(p => ({
+      ...p,
+      is_favourited: favouritePhotoIds.has(p.id),
+    }));
+
     return res.status(200).json({
       shared_with: {
         face_profile_id: faceProfileId,
@@ -222,8 +238,8 @@ async function getSharedPhotosController(req: AuthRequest, res: Response) {
         user_id: otherProfile.claimed?.id ?? null,
         selfie_url: otherProfile.claimed?.selfie_url ?? null,
       },
-      total_shared: photos.length,
-      photos,
+      total_shared: photosWithFavourites.length,
+      photos: photosWithFavourites,
     });
   } catch (error) {
     const message =
