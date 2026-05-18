@@ -121,7 +121,7 @@ const DashboardLayout = () => {
           <div className="h-4 w-px bg-neutral-200 dark:bg-neutral-800 hidden sm:block mx-1" />
           <ThemeToggle />
           
-          <div className="hidden sm:block ml-1">
+          <div className="ml-1">
             {user?.selfie_url ? (
               <img 
                 src={user.selfie_url} 
