@@ -369,10 +369,10 @@ export const MomntsSlideshow = ({
               {/* Close Slide button */}
               <button
                 onClick={handleClose}
-                className="p-3 bg-black/40 hover:bg-red-500/20 border border-white/10 hover:border-red-500/30 rounded-full transition-all group cursor-pointer"
+                className="p-3 bg-black/40 hover:bg-white/10 hover:text-white text-white border border-white/10 rounded-full transition-all duration-300 ease-in-out group cursor-pointer"
                 aria-label="Exit Slideshow"
               >
-                <X size={20} className="group-hover:scale-110 transition-transform duration-300" />
+                <X size={20} className="group-hover:text-white text-white/40 transition-all duration-300 ease-in-out" />
               </button>
             </motion.div>
 
