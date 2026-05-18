@@ -88,18 +88,10 @@ export async function updateSelfieController(req: AuthRequest, res: Response) {
       }
     }
 
-    // 7. Unclaim user's own profiles so they can be re-evaluated
-    //    with the new embedding. The match worker will re-claim ones
-    //    that still match, so "Your Photos" stays accurate.
-    try {
-      const unclaimed = await prisma.faceProfile.updateMany({
-        where: { claimed_by: userId },
-        data: { is_claimed: false, claimed_by: null },
-      })
-      console.log(`[UPDATE_SELFIE] Released ${unclaimed.count} profile(s) for re-matching`)
-    } catch (err) {
-      console.error('[UPDATE_SELFIE] Failed to unclaim profiles (non-fatal):', err)
-    }
+    // 7. Keep existing FaceProfile claims intact — "Your Photos" is preserved.
+    //    The match worker (step 8) only targets unclaimed profiles, so it will
+    //    find any NEW matches the updated embedding picks up without losing
+    //    previously matched photos.
 
     // 8. Enqueue matching for all events to re-claim with new embedding
     try {

@@ -1,14 +1,16 @@
 import { Outlet, useNavigate, useLocation, Link } from 'react-router';
-import { House, Ticket, User } from "@phosphor-icons/react"
+import { House, Ticket, User, UserCircleDashed } from "@phosphor-icons/react"
 import { motion, AnimatePresence } from 'framer-motion'
 import { cn } from '../lib/utils'
 import { ThemeToggle } from '../components/theme-toggle'
 import NotificationsPopover from '../components/NotificationsPopover'
+import { useAuth } from '../features/auth/hooks/useAuth'
 import { useRef, useEffect, useState } from 'react';
 
 const DashboardLayout = () => {
   const navigate = useNavigate()
   const location = useLocation()
+  const { user } = useAuth()
   const [prevPath, setPrevPath] = useState(location.pathname)
   const [direction, setDirection] = useState(0)
 
@@ -118,6 +120,24 @@ const DashboardLayout = () => {
           <NotificationsPopover />
           <div className="h-4 w-px bg-neutral-200 dark:bg-neutral-800 hidden sm:block mx-1" />
           <ThemeToggle />
+          
+          <div className="hidden sm:block ml-1">
+            {user?.selfie_url ? (
+              <img 
+                src={user.selfie_url} 
+                alt={user.name}
+                className="w-9 h-9 rounded-full object-cover ring-2 ring-neutral-200 dark:ring-neutral-800 cursor-pointer transition-transform hover:scale-105"
+                onClick={() => navigate('/profile')}
+              />
+            ) : (
+              <div 
+                className="w-9 h-9 rounded-full flex items-center justify-center bg-neutral-100 dark:bg-neutral-800 cursor-pointer transition-transform hover:scale-105"
+                onClick={() => navigate('/profile')}
+              >
+                <UserCircleDashed size={22} className="text-neutral-500" />
+              </div>
+            )}
+          </div>
         </div>
       </header>
 

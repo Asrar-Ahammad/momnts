@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { useConnectionsSummary } from '../../../features/connections/hooks/useConnections'
 import { Button } from '../../../components/ui/button'
 import { Badge } from '../../../components/ui/badge'
 import { Tabs, TabsList, TabsTrigger } from '../../../components/ui/tabs'
@@ -26,6 +27,7 @@ import {
 import {
   ArrowLeft,
   Upload,
+  UsersThree,
   Images,
   User,
   CloudArrowUp,
@@ -46,9 +48,9 @@ import {
 } from '@phosphor-icons/react'
 import { EventData } from '../../../features/events/services/events.api'
 import { toast } from 'sonner'
-import { motion } from 'framer-motion'
+import { motion, AnimatePresence } from 'framer-motion'
 
-type TabType = 'all' | 'your-photos' | 'favourites' | 'your-uploads'
+type TabType = 'all' | 'your-photos' | 'favourites' | 'your-uploads' | 'connections'
 
 interface EventHeaderProps {
   event: EventData | null
@@ -96,6 +98,8 @@ const EventHeader = ({
 }: EventHeaderProps) => {
   const [showLeaveConfirm, setShowLeaveConfirm] = useState(false)
   const [leaving, setLeaving] = useState(false)
+  // TODO: Add error handling for this hook
+  const { data: summaryData } = useConnectionsSummary(event?.id ?? '')
 
   const handleLeave = async () => {
     if (!onLeaveEvent) return
@@ -182,52 +186,36 @@ const EventHeader = ({
             </div>
 
             {/* Right Action Section */}
-            <div className="flex items-center justify-start lg:justify-end gap-2 sm:gap-3 overflow-x-auto no-scrollbar pb-1 w-full lg:w-auto shrink-0">
+            <motion.div
+              layout
+              className="flex items-center justify-start lg:justify-end gap-2 sm:gap-3 overflow-x-auto no-scrollbar pb-1 w-full lg:w-auto shrink-0"
+            >
+              {/* Default view buttons */}
               {!isSelectMode ? (
-                <>
-                  <div className="flex items-center gap-2">
-                    <Tooltip>
-                      <TooltipTrigger asChild>
-                        <Button
-                          variant="outline"
-                          className="h-10 w-10 sm:w-auto sm:px-4 flex items-center justify-center gap-2 rounded-xl"
-                          onClick={onToggleSort}
-                        >
-                          {sortOrder === 'desc' ? <SortDescending size={18} weight="bold" /> : <SortAscending size={18} weight="bold" />}
-                          <span className="hidden sm:inline">Sort</span>
-                        </Button>
-                      </TooltipTrigger>
-                      <TooltipContent className="sm:hidden">Sort Photos</TooltipContent>
-                    </Tooltip>
-
-                    <Tooltip>
-                      <TooltipTrigger asChild>
-                        <Button
-                          variant="outline"
-                          className="h-10 w-10 sm:w-auto sm:px-4 flex items-center justify-center gap-2 rounded-xl"
-                          onClick={onToggleSelectMode}
-                        >
-                          <Selection size={18} weight="bold" />
-                          <span className="hidden sm:inline">Select</span>
-                        </Button>
-                      </TooltipTrigger>
-                      <TooltipContent className="sm:hidden">Select Photos</TooltipContent>
-                    </Tooltip>
-
-                    {event?.user_role === 'ORGANIZER' && (
-                      <>
+                <motion.div layout className="flex items-center gap-2 w-full lg:w-auto">
+                  <AnimatePresence mode="popLayout">
+                    {/* Sort and Select buttons (not shown on connections tab) */}
+                    {activeTab !== 'connections' && (
+                      <motion.div
+                        key="sort-select-controls"
+                        initial={{ opacity: 0, scale: 0.8, x: -15 }}
+                        animate={{ opacity: 1, scale: 1, x: 0 }}
+                        exit={{ opacity: 0, scale: 0.8, x: -15 }}
+                        transition={{ type: "spring", stiffness: 380, damping: 30 }}
+                        className="flex items-center gap-2 shrink-0"
+                      >
                         <Tooltip>
                           <TooltipTrigger asChild>
                             <Button
                               variant="outline"
                               className="h-10 w-10 sm:w-auto sm:px-4 flex items-center justify-center gap-2 rounded-xl"
-                              onClick={onAttendeesClick}
+                              onClick={onToggleSort}
                             >
-                              <Users size={18} weight="bold" />
-                              <span className="hidden sm:inline">Attendees</span>
+                              {sortOrder === 'desc' ? <SortDescending size={18} weight="bold" /> : <SortAscending size={18} weight="bold" />}
+                              <span className="hidden sm:inline">Sort</span>
                             </Button>
                           </TooltipTrigger>
-                          <TooltipContent className="sm:hidden">View Attendees</TooltipContent>
+                          <TooltipContent className="sm:hidden">Sort Photos</TooltipContent>
                         </Tooltip>
 
                         <Tooltip>
@@ -235,18 +223,54 @@ const EventHeader = ({
                             <Button
                               variant="outline"
                               className="h-10 w-10 sm:w-auto sm:px-4 flex items-center justify-center gap-2 rounded-xl"
-                              onClick={onSettingsClick}
+                              onClick={onToggleSelectMode}
                             >
-                              <Gear size={18} weight="bold" />
-                              <span className="hidden sm:inline">Settings</span>
+                              <Selection size={18} weight="bold" />
+                              <span className="hidden sm:inline">Select</span>
                             </Button>
                           </TooltipTrigger>
-                          <TooltipContent className="sm:hidden">Event Settings</TooltipContent>
+                          <TooltipContent className="sm:hidden">Select Photos</TooltipContent>
                         </Tooltip>
-                      </>
+                      </motion.div>
                     )}
+                  </AnimatePresence>
 
-                    {event?.user_role === 'ATTENDEE' && (
+                  {/* Organizer-only buttons */}
+                  {event?.user_role === 'ORGANIZER' && (
+                    <motion.div layout className="flex items-center gap-2 shrink-0">
+                      <Tooltip>
+                        <TooltipTrigger asChild>
+                          <Button
+                            variant="outline"
+                            className="h-10 w-10 sm:w-auto sm:px-4 flex items-center justify-center gap-2 rounded-xl"
+                            onClick={onAttendeesClick}
+                          >
+                            <Users size={18} weight="bold" />
+                            <span className="hidden sm:inline">Attendees</span>
+                          </Button>
+                        </TooltipTrigger>
+                        <TooltipContent className="sm:hidden">View Attendees</TooltipContent>
+                      </Tooltip>
+
+                      <Tooltip>
+                        <TooltipTrigger asChild>
+                          <Button
+                            variant="outline"
+                            className="h-10 w-10 sm:w-auto sm:px-4 flex items-center justify-center gap-2 rounded-xl"
+                            onClick={onSettingsClick}
+                          >
+                            <Gear size={18} weight="bold" />
+                            <span className="hidden sm:inline">Settings</span>
+                          </Button>
+                        </TooltipTrigger>
+                        <TooltipContent className="sm:hidden">Event Settings</TooltipContent>
+                      </Tooltip>
+                    </motion.div>
+                  )}
+
+                  {/* Attendee-only buttons */}
+                  {event?.user_role === 'ATTENDEE' && (
+                    <motion.div layout>
                       <Tooltip>
                         <TooltipTrigger asChild>
                           <Button
@@ -260,88 +284,96 @@ const EventHeader = ({
                         </TooltipTrigger>
                         <TooltipContent className="sm:hidden">Leave Event</TooltipContent>
                       </Tooltip>
-                    )}
-                  </div>
+                    </motion.div>
+                  )}
 
-                  {(() => {
-                    if (activeTab === 'favourites') {
+                  {/* Main action button (Upload/Download) */}
+                  <motion.div layout className="flex-1 sm:flex-none">
+                    {(() => {
+                      // Favourites tab: Download Favourites
+                      if (activeTab === 'favourites') {
+                        return (
+                          <Button
+                            className="flex-1 sm:flex-none w-full h-10 px-6 sm:px-8 flex items-center justify-center gap-2 rounded-xl bg-rose-600 hover:bg-rose-700 text-white transition-colors"
+                            onClick={onDownloadFavourites}
+                            disabled={favouritesCount === 0}
+                          >
+                            <DownloadSimple size={18} weight="bold" />
+                            <span className="hidden sm:inline">Download Favourites</span>
+                            <span className="inline sm:hidden">Download</span>
+                            {favouritesCount > 0 && (
+                              <span className="bg-white/20 px-2 py-0.5 rounded-full text-[11px] font-semibold">{favouritesCount}</span>
+                            )}
+                          </Button>
+                        )
+                      }
+
+                      const isInactiveAttendee = !event?.is_active && event?.user_role !== 'ORGANIZER'
+                      const isLimitReached = event?.user_role === 'ATTENDEE' && userUploadCount >= (event?.attendee_upload_limit || 0)
+
+                      // Event inactive: Upload disabled
+                      if (isInactiveAttendee) {
+                        return (
+                          <Tooltip>
+                            <TooltipTrigger asChild>
+                              <div className="w-full">
+                                <Button
+                                  className="w-full h-10 px-6 sm:px-8 flex items-center justify-center gap-2 rounded-xl bg-neutral-200 dark:bg-neutral-800 text-neutral-400 cursor-not-allowed"
+                                  disabled
+                                >
+                                  <Upload size={18} weight="bold" />
+                                  <span className="hidden sm:inline">Upload Photos</span>
+                                  <span className="inline sm:hidden">Upload</span>
+                                </Button>
+                              </div>
+                            </TooltipTrigger>
+                            <TooltipContent>
+                              <p>Event is inactive. Uploads are disabled.</p>
+                            </TooltipContent>
+                          </Tooltip>
+                        )
+                      }
+
+                      // Upload limit reached: Upload disabled
+                      if (isLimitReached) {
+                        return (
+                          <Tooltip>
+                            <TooltipTrigger asChild>
+                              <div className="w-full">
+                                <Button
+                                  className="w-full h-10 px-6 sm:px-8 flex items-center justify-center gap-2 rounded-xl bg-neutral-100 dark:bg-neutral-800 text-neutral-400 border border-neutral-200 dark:border-neutral-700 cursor-not-allowed"
+                                  disabled
+                                >
+                                  <Upload size={18} weight="bold" />
+                                  <span className="hidden sm:inline">Upload Limit Reached</span>
+                                  <span className="inline sm:hidden">Limit Reached</span>
+                                </Button>
+                              </div>
+                            </TooltipTrigger>
+                            <TooltipContent>
+                              <p>You have reached your limit of {event?.attendee_upload_limit} photos.</p>
+                            </TooltipContent>
+                          </Tooltip>
+                        )
+                      }
+
+                      // Default: Upload Photos
                       return (
                         <Button
-                          className="flex-1 sm:flex-none h-10 px-6 sm:px-8 flex items-center justify-center gap-2 rounded-xl bg-rose-600 hover:bg-rose-700 text-white transition-colors"
-                          onClick={onDownloadFavourites}
-                          disabled={favouritesCount === 0}
+                          className="w-full h-10 px-6 sm:px-8 flex items-center justify-center gap-2 rounded-xl bg-neutral-900 dark:bg-white text-white dark:text-neutral-900 hover:opacity-90 transition-opacity"
+                          onClick={onUploadClick}
                         >
-                          <DownloadSimple size={18} weight="bold" />
-                          <span className="hidden sm:inline">Download Favourites</span>
-                          <span className="inline sm:hidden">Download</span>
-                          {favouritesCount > 0 && (
-                            <span className="bg-white/20 px-2 py-0.5 rounded-full text-[11px] font-semibold">{favouritesCount}</span>
-                          )}
+                          <Upload size={18} weight="bold" />
+                          <span className="hidden sm:inline">Upload Photos</span>
+                          <span className="inline sm:hidden">Upload</span>
                         </Button>
                       )
-                    }
-
-                    const isInactiveAttendee = !event?.is_active && event?.user_role !== 'ORGANIZER'
-                    const isLimitReached = event?.user_role === 'ATTENDEE' && userUploadCount >= (event?.attendee_upload_limit || 0)
-
-                    if (isInactiveAttendee) {
-                      return (
-                        <Tooltip>
-                          <TooltipTrigger asChild>
-                            <div className="flex-1 sm:flex-none">
-                              <Button
-                                className="w-full h-10 px-6 sm:px-8 flex items-center justify-center gap-2 rounded-xl bg-neutral-200 dark:bg-neutral-800 text-neutral-400 cursor-not-allowed"
-                                disabled
-                              >
-                                <Upload size={18} weight="bold" />
-                                <span className="hidden sm:inline">Upload Photos</span>
-                                <span className="inline sm:hidden">Upload</span>
-                              </Button>
-                            </div>
-                          </TooltipTrigger>
-                          <TooltipContent>
-                            <p>Event is inactive. Uploads are disabled.</p>
-                          </TooltipContent>
-                        </Tooltip>
-                      )
-                    }
-
-                    if (isLimitReached) {
-                      return (
-                        <Tooltip>
-                          <TooltipTrigger asChild>
-                            <div className="flex-1 sm:flex-none">
-                              <Button
-                                className="w-full h-10 px-6 sm:px-8 flex items-center justify-center gap-2 rounded-xl bg-neutral-100 dark:bg-neutral-800 text-neutral-400 border border-neutral-200 dark:border-neutral-700 cursor-not-allowed"
-                                disabled
-                              >
-                                <Upload size={18} weight="bold" />
-                                <span className="hidden sm:inline">Upload Limit Reached</span>
-                                <span className="inline sm:hidden">Limit Reached</span>
-                              </Button>
-                            </div>
-                          </TooltipTrigger>
-                          <TooltipContent>
-                            <p>You have reached your limit of {event?.attendee_upload_limit} photos.</p>
-                          </TooltipContent>
-                        </Tooltip>
-                      )
-                    }
-
-                    return (
-                      <Button
-                        className="flex-1 sm:flex-none h-10 px-6 sm:px-8 flex items-center justify-center gap-2 rounded-xl bg-neutral-900 dark:bg-white text-white dark:text-neutral-900 hover:opacity-90 transition-opacity"
-                        onClick={onUploadClick}
-                      >
-                        <Upload size={18} weight="bold" />
-                        <span className="hidden sm:inline">Upload Photos</span>
-                        <span className="inline sm:hidden">Upload</span>
-                      </Button>
-                    )
-                  })()}
-                </>
+                    })()}
+                  </motion.div>
+                </motion.div>
               ) : (
-                <div className="flex items-center gap-2 sm:gap-4 w-full sm:w-auto">
+                // Select mode buttons
+                <motion.div layout className="flex items-center gap-2 sm:gap-4 w-full sm:w-auto">
                   <span className="text-sm font-semibold text-neutral-600 dark:text-neutral-400 mr-auto sm:mr-0 px-2">
                     {selectedCount} <span className="hidden sm:inline">selected</span>
                   </span>
@@ -366,16 +398,16 @@ const EventHeader = ({
                       <span className="hidden sm:inline">Cancel</span>
                     </Button>
                   </div>
-                </div>
+                </motion.div>
               )}
-            </div>
+            </motion.div>
           </div>
 
           {/* Row 2: Tabs (Full Width) */}
           <div className="mt-2 -mx-4 px-4 sm:mx-0 sm:px-0 overflow-x-auto no-scrollbar border-t border-neutral-100 dark:border-neutral-800/60 pt-3">
             <Tabs value={activeTab} onValueChange={(v) => onTabChange(v as TabType)} className="w-full">
               <TabsList className="bg-neutral-100 dark:bg-neutral-800 w-max min-w-full sm:w-auto flex shrink-0 rounded-full p-1 relative">
-                {(['all', 'your-photos', 'favourites', 'your-uploads'] as TabType[]).map((tab) => {
+                {(['all', 'your-photos', 'favourites', 'your-uploads', 'connections'] as TabType[]).map((tab) => {
                   const isActive = activeTab === tab;
                   return (
                     <TabsTrigger
@@ -394,9 +426,15 @@ const EventHeader = ({
                       {tab === 'your-photos' && <User size={16} className="z-10" />}
                       {tab === 'favourites' && <Heart size={16} className="z-10 text-rose-500" weight="fill" />}
                       {tab === 'your-uploads' && <CloudArrowUp size={16} className="z-10" />}
+                      {tab === 'connections' && <UsersThree size={16} className="z-10" />}
                       <span className="hidden sm:inline z-10">
-                        {tab === 'all' ? 'All Photos' : tab === 'your-photos' ? 'Your Photos' : tab === 'favourites' ? 'Favourites' : 'Your Uploads'}
+                        {tab === 'all' ? 'All Photos' : tab === 'your-photos' ? 'Your Photos' : tab === 'favourites' ? 'Favourites' : tab === 'your-uploads' ? 'Your Uploads' : 'Who was I with?'}
                       </span>
+                      {tab === 'connections' && (summaryData?.total_people ?? 0) > 0 && (
+                        <span className="bg-neutral-900 dark:bg-white text-white dark:text-neutral-900 text-[10px] font-bold px-1.5 py-0.5 rounded-full leading-none z-10">
+                          {summaryData!.total_people}
+                        </span>
+                      )}
                     </TabsTrigger>
                   )
                 })}

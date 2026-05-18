@@ -14,8 +14,9 @@ import UploadModal, { FileUploadStatus } from './components/UploadModal'
 import EventSettingsModal from './components/EventSettingsModal'
 import AttendeesModal from './components/AttendeesModal'
 import PhotoCarousel from './components/PhotoCarousel'
+import WhoWasIWith from '../../features/connections/components/WhoWasIWith'
 
-type TabType = 'all' | 'your-photos' | 'favourites' | 'your-uploads'
+type TabType = 'all' | 'your-photos' | 'favourites' | 'your-uploads' | 'connections'
 
 const EventDetails = () => {
   const { eventId } = useParams<{ eventId: string }>()
@@ -277,6 +278,7 @@ const EventDetails = () => {
   }, [searchParams, setSearchParams, fetchAttendees])
 
   const fetchPhotosForTab = useCallback(async (tab: TabType) => {
+    if (tab === 'connections') return // connections tab handles its own data
     if (tab === 'your-photos') {
       await fetchMyPhotos()
     } else if (tab === 'all' || tab === 'your-uploads' || tab === 'favourites') {
@@ -579,39 +581,49 @@ const EventDetails = () => {
       />
 
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
-        {selectedAttendeeId && (
-          <div className="mb-4 flex items-center">
-            <Badge variant="secondary" className="flex items-center gap-2 w-fit py-3 px-3 bg-neutral-200 dark:bg-neutral-800 text-sm">
-              Viewing <span className="capitalize font-semibold">{attendees.find(a => a.user_id === selectedAttendeeId)?.user?.name || 'attendee'}</span> uploads
-              <button
-                type="button"
-                className="hover:text-red-500 flex items-center justify-center p-0.5 rounded-full hover:bg-neutral-300 dark:hover:bg-neutral-700 transition-colors"
-                onClick={(e) => {
-                  e.preventDefault();
-                  e.stopPropagation();
-                  setSelectedAttendeeId(null);
-                }}
-              >
-                <X size={14} className="cursor-pointer" />
-              </button>
-            </Badge>
-          </div>
+        {activeTab === 'connections' ? (
+          <WhoWasIWith
+            eventId={eventId!}
+            favouritePhotoIds={favouritePhotoIds}
+            onToggleFavourite={handleToggleFavourite}
+          />
+        ) : (
+          <>
+            {selectedAttendeeId && (
+              <div className="mb-4 flex items-center">
+                <Badge variant="secondary" className="flex items-center gap-2 w-fit py-3 px-3 bg-neutral-200 dark:bg-neutral-800 text-sm">
+                  Viewing <span className="capitalize font-semibold">{attendees.find(a => a.user_id === selectedAttendeeId)?.user?.name || 'attendee'}</span> uploads
+                  <button
+                    type="button"
+                    className="hover:text-red-500 flex items-center justify-center p-0.5 rounded-full hover:bg-neutral-300 dark:hover:bg-neutral-700 transition-colors"
+                    onClick={(e) => {
+                      e.preventDefault();
+                      e.stopPropagation();
+                      setSelectedAttendeeId(null);
+                    }}
+                  >
+                    <X size={14} className="cursor-pointer" />
+                  </button>
+                </Badge>
+              </div>
+            )}
+            <PhotoGrid
+              photos={filteredPhotos}
+              loading={loading}
+              activeTab={activeTab}
+              event={event}
+              onPhotoClick={handlePhotoClick}
+              onDelete={handleDeletePhoto}
+              isSelectMode={isSelectMode}
+              selectedPhotoIds={selectedPhotoIds}
+              onToggleSelect={handleToggleSelect}
+              currentUserId={user?.id}
+              userRole={event?.user_role}
+              favouritePhotoIds={favouritePhotoIds}
+              onToggleFavourite={handleToggleFavourite}
+            />
+          </>
         )}
-        <PhotoGrid
-          photos={filteredPhotos}
-          loading={loading}
-          activeTab={activeTab}
-          event={event}
-          onPhotoClick={handlePhotoClick}
-          onDelete={handleDeletePhoto}
-          isSelectMode={isSelectMode}
-          selectedPhotoIds={selectedPhotoIds}
-          onToggleSelect={handleToggleSelect}
-          currentUserId={user?.id}
-          userRole={event?.user_role}
-          favouritePhotoIds={favouritePhotoIds}
-          onToggleFavourite={handleToggleFavourite}
-        />
       </div>
 
       <UploadModal
