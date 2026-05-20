@@ -1,4 +1,4 @@
-import { useState, useRef } from 'react'
+import { useState } from 'react'
 import { useAuth } from '../../features/auth/hooks/useAuth'
 import { usersApi } from '../../features/users/services/users.api'
 import { Button } from '../../components/ui/button'
@@ -6,6 +6,7 @@ import { Input } from '../../components/ui/input'
 import { useNavigate } from 'react-router'
 import { Tooltip, TooltipTrigger, TooltipContent } from '../../components/ui/tooltip'
 import SelfieCropModal from './components/SelfieCropModal'
+import SelfieUploadModal from './components/SelfieUploadModal'
 import {
   User,
   Envelope,
@@ -35,8 +36,8 @@ import { toast } from 'sonner'
 const Profile = () => {
   const { user, setUser, logout } = useAuth()
   const navigate = useNavigate()
-  const fileInputRef = useRef<HTMLInputElement>(null)
   const [isUpdatingSelfie, setIsUpdatingSelfie] = useState(false)
+  const [isUploadModalOpen, setIsUploadModalOpen] = useState(false)
 
   // Cropping states
   const [selectedImage, setSelectedImage] = useState<string | null>(null)
@@ -59,7 +60,7 @@ const Profile = () => {
   }
 
   const handleSelfieClick = () => {
-    fileInputRef.current?.click()
+    setIsUploadModalOpen(true)
   }
 
   const handleStartEditingName = () => {
@@ -94,21 +95,9 @@ const Profile = () => {
     }
   }
 
-  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0]
-    if (!file) return
-
-    if (!file.type.startsWith('image/')) {
-      toast.error("Please select an image file")
-      return
-    }
-
-    const reader = new FileReader()
-    reader.onload = () => {
-      setSelectedImage(reader.result as string)
-      setIsCropModalOpen(true)
-    }
-    reader.readAsDataURL(file)
+  const handleImageSelected = (imageSrc: string) => {
+    setSelectedImage(imageSrc)
+    setIsCropModalOpen(true)
   }
 
   const handleCropComplete = async (croppedBlob: Blob) => {
@@ -229,13 +218,7 @@ const Profile = () => {
             </div>
           </div>
 
-          <input 
-            type="file" 
-            ref={fileInputRef} 
-            onChange={handleFileChange} 
-            accept="image/*" 
-            className="hidden" 
-          />
+
 
           <div className="hidden md:flex pt-4 w-full items-center justify-start">
             <AlertDialog>
@@ -401,6 +384,11 @@ const Profile = () => {
         onOpenChange={setIsCropModalOpen}
         onCropComplete={handleCropComplete}
         isUploading={isUpdatingSelfie}
+      />
+      <SelfieUploadModal
+        open={isUploadModalOpen}
+        onOpenChange={setIsUploadModalOpen}
+        onImageSelected={handleImageSelected}
       />
     </div>
   )

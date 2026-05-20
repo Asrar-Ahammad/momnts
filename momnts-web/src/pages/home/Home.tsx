@@ -211,13 +211,13 @@ const Home = () => {
       <div className="space-y-4">
         <h2 className="text-2xl font-sirage font-semibold text-neutral-800 dark:text-neutral-200">Upcoming Events</h2>
         {isLoading ? (
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
             <Skeleton className="h-64 rounded-2xl" />
             <Skeleton className="h-64 rounded-2xl" />
             <Skeleton className="h-64 rounded-2xl" />
           </div>
         ) : upcomingEvents.length > 0 ? (
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
             {upcomingEvents.map((event) => (
               <EventCard key={event.id} event={event} />
             ))}
@@ -231,7 +231,7 @@ const Home = () => {
       {isLoading ? (
         <div className="space-y-4">
           <h2 className="text-2xl font-sirage font-semibold text-neutral-800 dark:text-neutral-200">Past Events</h2>
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
             <Skeleton className="h-64 rounded-2xl" />
             <Skeleton className="h-64 rounded-2xl" />
             <Skeleton className="h-64 rounded-2xl" />
@@ -240,7 +240,7 @@ const Home = () => {
       ) : pastEvents.length > 0 ? (
         <div className="space-y-4">
           <h2 className="text-2xl font-sirage font-semibold text-neutral-800 dark:text-neutral-200">Past Events</h2>
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
             {pastEvents.map((event) => (
               <EventCard key={event.id} event={event} />
             ))}
