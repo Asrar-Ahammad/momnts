@@ -35,8 +35,12 @@ const SelfieUploadModal = ({ open, onOpenChange, onImageSelected }: SelfieUpload
   const isMountedRef = useRef(true)
   const currentStepRef = useRef<'choice' | 'camera'>('choice')
 
+  // Synchronously sync currentStepRef during render to eliminate race conditions
+  currentStepRef.current = step
+
   // Bind media stream to video element when stream or videoRef becomes available
   useEffect(() => {
+    console.log('[SelfieUploadModal] Bind stream useEffect:', { streamId: stream?.id, videoRef: !!videoRef.current })
     if (videoRef.current) {
       videoRef.current.srcObject = stream
     }
@@ -44,7 +48,10 @@ const SelfieUploadModal = ({ open, onOpenChange, onImageSelected }: SelfieUpload
 
   // Cleanup on unmount to prevent stale state updates
   useEffect(() => {
+    console.log('[SelfieUploadModal] Mount useEffect setup, setting isMountedRef = true')
+    isMountedRef.current = true
     return () => {
+      console.log('[SelfieUploadModal] Mount useEffect cleanup, setting isMountedRef = false and stopping camera')
       isMountedRef.current = false
       stopCamera()
     }
@@ -52,6 +59,7 @@ const SelfieUploadModal = ({ open, onOpenChange, onImageSelected }: SelfieUpload
 
   // Reset modal state when opened/closed
   useEffect(() => {
+    console.log('[SelfieUploadModal] Open state changed:', open)
     if (open) {
       setStep('choice')
       setCameraError(null)
@@ -60,13 +68,9 @@ const SelfieUploadModal = ({ open, onOpenChange, onImageSelected }: SelfieUpload
     }
   }, [open])
 
-  // Track current step to guard against stale setStream calls
-  useEffect(() => {
-    currentStepRef.current = step
-  }, [step])
-
   // Manage camera streaming state when step or facingMode changes
   useEffect(() => {
+    console.log('[SelfieUploadModal] step/facingMode changed:', { step, facingMode })
     if (step === 'camera') {
       startCamera()
     } else {
@@ -74,6 +78,7 @@ const SelfieUploadModal = ({ open, onOpenChange, onImageSelected }: SelfieUpload
     }
 
     return () => {
+      console.log('[SelfieUploadModal] step/facingMode cleanup')
       stopCamera()
     }
   }, [step, facingMode])
@@ -93,11 +98,13 @@ const SelfieUploadModal = ({ open, onOpenChange, onImageSelected }: SelfieUpload
   }, [step])
 
   const startCamera = async () => {
+    console.log('[SelfieUploadModal] startCamera called', { isCameraLoading, currentStep: currentStepRef.current, isMounted: isMountedRef.current })
     setIsCameraLoading(true)
     setCameraError(null)
     stopCamera() // Ensure clean slate
 
     try {
+      console.log('[SelfieUploadModal] Requesting getUserMedia...')
       const mediaStream = await navigator.mediaDevices.getUserMedia({
         video: {
           facingMode: facingMode,
@@ -108,15 +115,20 @@ const SelfieUploadModal = ({ open, onOpenChange, onImageSelected }: SelfieUpload
         audio: false
       })
       
+      console.log('[SelfieUploadModal] getUserMedia success, stream ID:', mediaStream.id)
+      
       // Guard against stale state updates if user navigated away during getUserMedia call
+      console.log('[SelfieUploadModal] Checking guards:', { currentStep: currentStepRef.current, isMounted: isMountedRef.current })
       if (currentStepRef.current === 'camera' && isMountedRef.current) {
+        console.log('[SelfieUploadModal] Guards passed, calling setStream')
         setStream(mediaStream)
       } else {
+        console.warn('[SelfieUploadModal] Guards failed! Stopping tracks of stream:', mediaStream.id)
         // Clean up stream if we're no longer in camera mode
         mediaStream.getTracks().forEach((track) => track.stop())
       }
     } catch (err: any) {
-      console.error('Failed to get camera stream:', err)
+      console.error('[SelfieUploadModal] getUserMedia failed:', err)
       // Only set error if still in camera mode
       if (currentStepRef.current === 'camera' && isMountedRef.current) {
         if (err.name === 'NotAllowedError' || err.name === 'PermissionDeniedError') {
@@ -128,6 +140,7 @@ const SelfieUploadModal = ({ open, onOpenChange, onImageSelected }: SelfieUpload
         }
       }
     } finally {
+      console.log('[SelfieUploadModal] startCamera finally, isMounted:', isMountedRef.current)
       if (isMountedRef.current) {
         setIsCameraLoading(false)
       }
@@ -135,8 +148,12 @@ const SelfieUploadModal = ({ open, onOpenChange, onImageSelected }: SelfieUpload
   }
 
   const stopCamera = () => {
+    console.log('[SelfieUploadModal] stopCamera called, stream exists:', !!stream)
     if (stream) {
-      stream.getTracks().forEach((track) => track.stop())
+      stream.getTracks().forEach((track) => {
+        console.log('[SelfieUploadModal] Stopping track:', track.label, track.id)
+        track.stop()
+      })
       setStream(null)
     }
   }
