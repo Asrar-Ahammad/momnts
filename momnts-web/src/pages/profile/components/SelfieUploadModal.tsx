@@ -32,6 +32,8 @@ const SelfieUploadModal = ({ open, onOpenChange, onImageSelected }: SelfieUpload
 
   const videoRef = useRef<HTMLVideoElement>(null)
   const fileInputRef = useRef<HTMLInputElement>(null)
+  const isMountedRef = useRef(true)
+  const currentStepRef = useRef<'choice' | 'camera'>('choice')
 
   // Bind media stream to video element when stream or videoRef becomes available
   useEffect(() => {
@@ -39,6 +41,14 @@ const SelfieUploadModal = ({ open, onOpenChange, onImageSelected }: SelfieUpload
       videoRef.current.srcObject = stream
     }
   }, [stream, step])
+
+  // Cleanup on unmount to prevent stale state updates
+  useEffect(() => {
+    return () => {
+      isMountedRef.current = false
+      stopCamera()
+    }
+  }, [])
 
   // Reset modal state when opened/closed
   useEffect(() => {
@@ -49,6 +59,11 @@ const SelfieUploadModal = ({ open, onOpenChange, onImageSelected }: SelfieUpload
       stopCamera()
     }
   }, [open])
+
+  // Track current step to guard against stale setStream calls
+  useEffect(() => {
+    currentStepRef.current = step
+  }, [step])
 
   // Manage camera streaming state when step or facingMode changes
   useEffect(() => {
@@ -93,18 +108,29 @@ const SelfieUploadModal = ({ open, onOpenChange, onImageSelected }: SelfieUpload
         audio: false
       })
       
-      setStream(mediaStream)
+      // Guard against stale state updates if user navigated away during getUserMedia call
+      if (currentStepRef.current === 'camera' && isMountedRef.current) {
+        setStream(mediaStream)
+      } else {
+        // Clean up stream if we're no longer in camera mode
+        mediaStream.getTracks().forEach((track) => track.stop())
+      }
     } catch (err: any) {
       console.error('Failed to get camera stream:', err)
-      if (err.name === 'NotAllowedError' || err.name === 'PermissionDeniedError') {
-        setCameraError('Camera access denied. Please enable camera permissions in your browser settings.')
-      } else if (err.name === 'NotFoundError' || err.name === 'DevicesNotFoundError') {
-        setCameraError('No camera found on this device.')
-      } else {
-        setCameraError('Could not access device camera. Please try uploading a file instead.')
+      // Only set error if still in camera mode
+      if (currentStepRef.current === 'camera' && isMountedRef.current) {
+        if (err.name === 'NotAllowedError' || err.name === 'PermissionDeniedError') {
+          setCameraError('Camera access denied. Please enable camera permissions in your browser settings.')
+        } else if (err.name === 'NotFoundError' || err.name === 'DevicesNotFoundError') {
+          setCameraError('No camera found on this device.')
+        } else {
+          setCameraError('Could not access device camera. Please try uploading a file instead.')
+        }
       }
     } finally {
-      setIsCameraLoading(false)
+      if (isMountedRef.current) {
+        setIsCameraLoading(false)
+      }
     }
   }
 
