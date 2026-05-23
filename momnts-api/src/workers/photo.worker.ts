@@ -68,13 +68,14 @@ const worker = new Worker(
 
         let faceProfileId: string
 
+        const profile = existingProfiles[0]
         if (
-          existingProfiles.length > 0 &&
-          existingProfiles[0].distance < (1 - SIMILARITY_THRESHOLD)
+          profile &&
+          profile.distance < (1 - SIMILARITY_THRESHOLD)
         ) {
           // ── Match found — link to existing profile ──
-          faceProfileId = existingProfiles[0].id
-          console.log(`  Face matched to existing profile: ${faceProfileId} (distance: ${existingProfiles[0].distance.toFixed(3)})`)
+          faceProfileId = profile.id
+          console.log(`  Face matched to existing profile: ${faceProfileId} (distance: ${profile.distance.toFixed(3)})`)
 
         } else {
           // No match — create new profile with pre-generated ID

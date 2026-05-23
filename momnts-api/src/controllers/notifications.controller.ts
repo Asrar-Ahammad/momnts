@@ -1,7 +1,7 @@
 import type { Response } from "express";
 import { prisma } from "../lib/prisma.js";
 import type { AuthRequest } from "../middleware/auth.middleware.js";
-import { Prisma } from "../../generated/prisma/index.js";
+import { Prisma } from "../generated/prisma/index.js";
 
 /**
  * @name getNotificationsController
@@ -46,6 +46,7 @@ async function markAsReadController(req: AuthRequest, res: Response) {
         }
 
         const notificationId = req.params.notificationId;
+        if (typeof notificationId !== 'string') return res.status(400).json({ error: 'Invalid param' })
 
         await prisma.notification.update({
             where: {

@@ -1,6 +1,6 @@
-import { Response } from 'express'
+import type { Response } from 'express'
 import { prisma } from '../lib/prisma.js'
-import { AuthRequest } from '../middleware/auth.middleware.js'
+import type { AuthRequest } from '../middleware/auth.middleware.js'
 
 /**
  * GET /events/:eventId/photos/all
@@ -12,7 +12,8 @@ export async function getAllPhotosController(req: AuthRequest, res: Response) {
     const userId = req.user?.id
     if (!userId) return res.status(401).json({ message: "Unauthorized" })
 
-    const { eventId } = req.params
+    const eventId = req.params.eventId
+    if (typeof eventId !== 'string') return res.status(400).json({ error: 'Invalid param' })
 
     const eventAccess = await prisma.eventAccess.findUnique({
       where: { event_id_user_id: { event_id: eventId, user_id: userId } }
@@ -49,7 +50,8 @@ export async function getMyPhotosController(req: AuthRequest, res: Response) {
     const userId = req.user?.id
     if (!userId) return res.status(401).json({ message: "Unauthorized" })
 
-    const { eventId } = req.params
+    const eventId = req.params.eventId
+    if (typeof eventId !== 'string') return res.status(400).json({ error: 'Invalid param' })
 
     const eventAccess = await prisma.eventAccess.findUnique({
       where: { event_id_user_id: { event_id: eventId, user_id: userId } }
@@ -126,7 +128,8 @@ export async function getMyUploadsController(req: AuthRequest, res: Response) {
     const userId = req.user?.id
     if (!userId) return res.status(401).json({ message: "Unauthorized" })
 
-    const { eventId } = req.params
+    const eventId = req.params.eventId
+    if (typeof eventId !== 'string') return res.status(400).json({ error: 'Invalid param' })
 
     const eventAccess = await prisma.eventAccess.findUnique({
       where: { event_id_user_id: { event_id: eventId, user_id: userId } }

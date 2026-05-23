@@ -1,9 +1,9 @@
-import { Response } from 'express'
+import type { Response } from 'express'
 import { prisma } from '../lib/prisma.js'
 import { uploadToR2, deleteFromR2 } from '../lib/r2.js'
 import sharp from 'sharp'
 import axios from 'axios'
-import { AuthRequest } from '../middleware/auth.middleware.js'
+import type { AuthRequest } from '../middleware/auth.middleware.js'
 import { matchingQueue } from '../lib/queue.js'
 
 /**
@@ -105,7 +105,7 @@ export async function uploadSelfieController(req: AuthRequest, res: Response) {
           {
             userId,
             eventId: event_id,
-            ...(matchOnlyAfter && { matchOnlyAfter }),
+            ...(matchOnlyAfter != null ? { matchOnlyAfter } : {}),
           },
           {
             jobId: `match-${event_id}-${userId}-${Date.now()}`,

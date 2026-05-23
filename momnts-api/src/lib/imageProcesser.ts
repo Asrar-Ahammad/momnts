@@ -21,7 +21,7 @@ export async function processImage(input: Buffer | string): Promise<ProcessedPho
   const pipeline = sharp(input, {
     failOn: 'none',
     sequentialRead: true,
-  }).rotate().withMetadata(false)
+  }).rotate()
 
   // Get original dimensions before processing
   const metadata = await pipeline.clone().metadata()

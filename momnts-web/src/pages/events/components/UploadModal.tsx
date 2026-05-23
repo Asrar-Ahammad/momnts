@@ -65,6 +65,7 @@ const UploadModal = ({
           <DialogTitle className="text-4xl font-sirage">Upload Photos</DialogTitle>
           <DialogDescription>
             Select photos to upload to this event. Face detection will run automatically.
+            (Select 10 photos in one upload)
           </DialogDescription>
         </DialogHeader>
 

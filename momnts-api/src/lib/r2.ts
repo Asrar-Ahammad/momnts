@@ -1,5 +1,7 @@
 import { S3Client, PutObjectCommand, DeleteObjectCommand } from '@aws-sdk/client-s3'
 import { NodeHttpHandler } from '@smithy/node-http-handler'
+import * as http from 'http'
+import * as https from 'https'
 
 // Validate required environment variables at startup
 const requiredEnvVars = {
@@ -35,8 +37,8 @@ export const r2 = new S3Client({
   requestHandler: new NodeHttpHandler({
     connectionTimeout: 5000,
     socketTimeout: 30000,
-    maxSockets: 25,
-    maxConcurrentStreams: 25,
+    httpAgent: new http.Agent({ maxSockets: 25 }),
+    httpsAgent: new https.Agent({ maxSockets: 25 }),
   }),
 })
 
