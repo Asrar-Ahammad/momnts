@@ -47,6 +47,8 @@ app.use('/api/users', usersRouter)
 app.use('/api/notifications', notificationsRouter)
 app.use('/api/events/:eventId/connections', connectionsRouter)
 
-httpServer.listen(process.env.APP_PORT, ()=> {
-  console.log(`Server is running at http://localhost:${process.env.APP_PORT}`)
+const PORT = process.env.PORT || process.env.APP_PORT || 3000
+
+httpServer.listen(PORT, () => {
+  console.log(`Server is running at http://localhost:${PORT}`)
 })
