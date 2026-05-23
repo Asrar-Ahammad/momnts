@@ -2,8 +2,8 @@
   "compilerOptions": {
     "lib": ["ESNext"],
     "target": "ES2023",
-    "module": "CommonJS",
-    "moduleResolution": "node",
+    "module": "Node16",
+    "moduleResolution": "Node16",
     "outDir": "./dist",
     "rootDir": "./",
     "esModuleInterop": true,
