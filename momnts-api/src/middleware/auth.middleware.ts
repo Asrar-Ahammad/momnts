@@ -21,7 +21,8 @@ export async function authenticate(
   next: NextFunction
 ) {
   try {
-    const token = req.cookies.accessToken;
+    const authHeader = req.headers.authorization;
+    const token = authHeader?.startsWith('Bearer ') ? authHeader.slice(7) : null;
 
     if (!token) {
       return res.status(401).json({ message: "No token provided" });

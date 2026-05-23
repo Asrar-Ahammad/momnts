@@ -67,23 +67,10 @@ async function registerUserController(req: Request, res: Response) {
       },
     });
 
-    // Set HTTP-only cookies
-    res.cookie("accessToken", accessToken, {
-      httpOnly: true,
-      secure: process.env.NODE_ENV === "production",
-      sameSite: "strict",
-      maxAge: 60 * 60 * 1000, // 1 hour
-    });
-
-    res.cookie("refreshToken", refreshToken, {
-      httpOnly: true,
-      secure: process.env.NODE_ENV === "production",
-      sameSite: "strict",
-      maxAge: 7 * 24 * 60 * 60 * 1000, // 7 days
-    });
-
     return res.status(201).json({
       message: "User created successsfully",
+      accessToken,
+      refreshToken,
       user: {
         id: user.id,
         username: user.name,
@@ -158,23 +145,10 @@ async function loginUserController(req: Request, res: Response) {
       },
     });
 
-    // Set HTTP-only cookies
-    res.cookie("accessToken", accessToken, {
-      httpOnly: true,
-      secure: process.env.NODE_ENV === "production",
-      sameSite: "strict",
-      maxAge: 60 * 60 * 1000, // 1 hour
-    });
-
-    res.cookie("refreshToken", refreshToken, {
-      httpOnly: true,
-      secure: process.env.NODE_ENV === "production",
-      sameSite: "strict",
-      maxAge: 7 * 24 * 60 * 60 * 1000, // 7 days
-    });
-
     return res.status(200).json({
       message: "User logged in successfully",
+      accessToken,
+      refreshToken,
       user: {
         id: user.id,
         username: user.name,
@@ -197,7 +171,7 @@ async function loginUserController(req: Request, res: Response) {
 
 async function refreshUserController(req: Request, res: Response) {
   try {
-    const refreshToken = req.cookies.refreshToken;
+    const refreshToken = req.body.refreshToken;
 
     if (!refreshToken) {
       return res.status(401).json({ message: "No refresh token provided" });
@@ -270,23 +244,10 @@ async function refreshUserController(req: Request, res: Response) {
       },
     });
 
-    // Set new HTTP-only cookies
-    res.cookie("accessToken", newAccessToken, {
-      httpOnly: true,
-      secure: process.env.NODE_ENV === "production",
-      sameSite: "strict",
-      maxAge: 60 * 60 * 1000, // 1 hour
-    });
-
-    res.cookie("refreshToken", newRefreshToken, {
-      httpOnly: true,
-      secure: process.env.NODE_ENV === "production",
-      sameSite: "strict",
-      maxAge: 7 * 24 * 60 * 60 * 1000, // 7 days
-    });
-
     return res.status(200).json({
       message: "Token refreshed successfully",
+      accessToken: newAccessToken,
+      refreshToken: newRefreshToken,
       user: {
         id: storedToken.user.id,
         username: storedToken.user.name,
@@ -315,8 +276,10 @@ async function refreshUserController(req: Request, res: Response) {
 
 async function logoutUserController(req: Request, res: Response) {
   try {
-    const refreshToken = req.cookies.refreshToken;
-    const accessToken = req.cookies.accessToken;
+    // Read tokens from request body (client sends them before clearing localStorage)
+    const refreshToken = req.body.refreshToken;
+    const authHeader = req.headers.authorization;
+    const accessToken = authHeader?.startsWith('Bearer ') ? authHeader.slice(7) : null;
 
     // Delete refresh token from database if it exists
     if (refreshToken) {
@@ -340,10 +303,6 @@ async function logoutUserController(req: Request, res: Response) {
         });
       }
     }
-
-    // Clear cookies
-    res.clearCookie("accessToken");
-    res.clearCookie("refreshToken");
 
     return res.status(200).json({ message: "Logged out successfully" });
   } catch (error) {

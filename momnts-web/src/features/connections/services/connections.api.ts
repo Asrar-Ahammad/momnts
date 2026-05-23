@@ -47,6 +47,8 @@ export interface SummaryResponse {
   total_shared_photos: number
 }
 
+import { authHeaders } from "../../../lib/authHeaders"
+
 const API_URL = import.meta.env.VITE_SERVER_URL || "http://localhost:3000"
 
 export async function fetchConnections(
@@ -54,7 +56,7 @@ export async function fetchConnections(
 ): Promise<ConnectionsResponse> {
   const res = await fetch(
     `${API_URL}/api/events/${eventId}/connections`,
-    { credentials: "include" }
+    { headers: authHeaders() }
   )
   if (!res.ok) throw new Error("Failed to fetch connections")
   return res.json()
@@ -66,7 +68,7 @@ export async function fetchSharedPhotos(
 ): Promise<SharedPhotosResponse> {
   const res = await fetch(
     `${API_URL}/api/events/${eventId}/connections/${faceProfileId}/photos`,
-    { credentials: "include" }
+    { headers: authHeaders() }
   )
   if (!res.ok) throw new Error("Failed to fetch shared photos")
   return res.json()
@@ -77,7 +79,7 @@ export async function fetchConnectionsSummary(
 ): Promise<SummaryResponse> {
   const res = await fetch(
     `${API_URL}/api/events/${eventId}/connections/summary`,
-    { credentials: "include" }
+    { headers: authHeaders() }
   )
   if (!res.ok) throw new Error("Failed to fetch summary")
   return res.json()

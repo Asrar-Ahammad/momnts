@@ -1,3 +1,5 @@
+import { authHeaders } from "../../../lib/authHeaders"
+
 const API_URL = import.meta.env.VITE_SERVER_URL || "http://localhost:3000"
 
 export interface NotificationData {
@@ -30,7 +32,7 @@ async function handleError(response: Response, fallback: string) {
 export const notificationsApi = {
   async getNotifications(): Promise<NotificationData[]> {
     const response = await fetch(`${API_URL}/api/notifications`, {
-      credentials: "include",
+      headers: authHeaders(),
     })
 
     if (!response.ok) {
@@ -44,7 +46,7 @@ export const notificationsApi = {
   async markAsRead(notificationId: string): Promise<void> {
     const response = await fetch(`${API_URL}/api/notifications/${notificationId}/read`, {
       method: "PUT",
-      credentials: "include",
+      headers: authHeaders(),
     })
 
     if (!response.ok) {
@@ -55,7 +57,7 @@ export const notificationsApi = {
   async clearNotifications(): Promise<void> {
     const response = await fetch(`${API_URL}/api/notifications/all`, {
       method: "DELETE",
-      credentials: "include",
+      headers: authHeaders(),
     })
 
     if (!response.ok) {

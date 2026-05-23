@@ -1,3 +1,5 @@
+import { authHeaders, jsonAuthHeaders } from "../../../lib/authHeaders"
+
 const API_URL = import.meta.env.VITE_SERVER_URL || "http://localhost:3000"
 
 export const usersApi = {
@@ -8,7 +10,7 @@ export const usersApi = {
     const response = await fetch(`${API_URL}/api/users/selfie`, {
       method: "PUT",
       body: formData,
-      credentials: "include",
+      headers: authHeaders(),
     })
 
     if (!response.ok) {
@@ -22,9 +24,8 @@ export const usersApi = {
   async updateProfile(name: string): Promise<{ message: string; name: string }> {
     const response = await fetch(`${API_URL}/api/users/profile`, {
       method: "PUT",
-      headers: { "Content-Type": "application/json" },
+      headers: jsonAuthHeaders(),
       body: JSON.stringify({ name }),
-      credentials: "include",
     })
 
     if (!response.ok) {

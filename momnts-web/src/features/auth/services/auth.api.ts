@@ -1,3 +1,5 @@
+import { authHeaders } from "../../../lib/authHeaders"
+
 const API_URL = import.meta.env.VITE_SERVER_URL || "http://localhost:3000"
 
 export interface User {
@@ -10,6 +12,8 @@ export interface User {
 
 export interface AuthResponse {
   message: string
+  accessToken: string
+  refreshToken: string
   user: User
 }
 
@@ -19,7 +23,6 @@ export const authApi = {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ email, password }),
-      credentials: "include",
     })
 
     if (!response.ok) {
@@ -27,7 +30,10 @@ export const authApi = {
       throw new Error(error.message || "Login failed")
     }
 
-    return response.json()
+    const data = await response.json()
+    localStorage.setItem('token', data.accessToken)
+    localStorage.setItem('refreshToken', data.refreshToken)
+    return data
   },
 
   async register(name: string, email: string, password: string): Promise<AuthResponse> {
@@ -35,7 +41,6 @@ export const authApi = {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ name, email, password }),
-      credentials: "include",
     })
 
     if (!response.ok) {
@@ -43,23 +48,31 @@ export const authApi = {
       throw new Error(error.message || "Registration failed")
     }
 
-    return response.json()
+    const data = await response.json()
+    localStorage.setItem('token', data.accessToken)
+    localStorage.setItem('refreshToken', data.refreshToken)
+    return data
   },
 
   async logout(): Promise<void> {
-    const response = await fetch(`${API_URL}/api/auth/logout`, {
-      method: "POST",
-      credentials: "include",
-    })
-
-    if (!response.ok) {
-      throw new Error("Logout failed")
+    const refreshToken = localStorage.getItem('refreshToken')
+    try {
+      await fetch(`${API_URL}/api/auth/logout`, {
+        method: "POST",
+        headers: {
+          ...authHeaders('application/json'),
+        },
+        body: JSON.stringify({ refreshToken }),
+      })
+    } finally {
+      localStorage.removeItem('token')
+      localStorage.removeItem('refreshToken')
     }
   },
 
   async getMe(): Promise<User> {
     const response = await fetch(`${API_URL}/api/auth/me`, {
-      credentials: "include",
+      headers: authHeaders(),
     })
 
     if (!response.ok) {

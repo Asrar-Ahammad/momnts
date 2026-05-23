@@ -7,6 +7,7 @@ import { ArrowLeft, X } from '@phosphor-icons/react'
 import { eventsApi, EventData } from '../../features/events/services/events.api'
 import { photosApi, PhotoData } from '../../features/events/services/photos.api'
 import { toast } from 'sonner'
+import { authHeaders } from '../../lib/authHeaders'
 import { useEventSocket } from '../../hooks/useEventSocket'
 import EventHeader from './components/EventHeader'
 import PhotoGrid from './components/PhotoGrid'
@@ -218,7 +219,7 @@ const EventDetails = () => {
         const downloadUrl = `${apiUrl}/api/photos/${photo.event_id}/${photo.id}/download`
 
         const response = await fetch(downloadUrl, {
-          credentials: 'include' // Required for authenticated route
+          headers: authHeaders(),
         })
 
         if (!response.ok) throw new Error('Network response was not ok')
@@ -482,7 +483,7 @@ const EventDetails = () => {
         const downloadUrl = `${apiUrl}/api/photos/${photo.event_id}/${photo.id}/download`
 
         const response = await fetch(downloadUrl, {
-          credentials: 'include' // Required for authenticated route
+          headers: authHeaders(),
         })
 
         if (!response.ok) throw new Error('Network response was not ok')

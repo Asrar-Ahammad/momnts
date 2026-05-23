@@ -1,3 +1,5 @@
+import { authHeaders } from "../../../lib/authHeaders"
+
 const API_URL = import.meta.env.VITE_SERVER_URL || "http://localhost:3000"
 
 export interface PhotoData {
@@ -35,7 +37,7 @@ export interface UploadResponse {
 export const photosApi = {
   async getEventPhotos(eventId: string): Promise<PhotoData[]> {
     const response = await fetch(`${API_URL}/api/photos/${eventId}`, {
-      credentials: "include",
+      headers: authHeaders(),
     })
 
     if (!response.ok) {
@@ -49,7 +51,7 @@ export const photosApi = {
 
   async getPhotoDetail(eventId: string, photoId: string): Promise<PhotoData> {
     const response = await fetch(`${API_URL}/api/photos/${eventId}/${photoId}`, {
-      credentials: "include",
+      headers: authHeaders(),
     })
 
     if (!response.ok) {
@@ -63,7 +65,7 @@ export const photosApi = {
 
   async getMyPhotos(eventId: string): Promise<{ data: PhotoData[]; prompt?: string; face_profile_id?: string }> {
     const response = await fetch(`${API_URL}/api/events/${eventId}/photos/mine`, {
-      credentials: "include",
+      headers: authHeaders(),
     })
 
     if (!response.ok) {
@@ -100,7 +102,7 @@ export const photosApi = {
         const response = await fetch(`${API_URL}/api/photos/${eventId}/upload`, {
           method: 'POST',
           body: formData,
-          credentials: 'include',
+          headers: authHeaders(),
           signal: controller.signal,
         })
 
@@ -167,7 +169,7 @@ export const photosApi = {
   async deletePhoto(eventId: string, photoId: string): Promise<void> {
     const response = await fetch(`${API_URL}/api/photos/${eventId}/${photoId}`, {
       method: "DELETE",
-      credentials: "include",
+      headers: authHeaders(),
     })
 
     if (!response.ok) {
@@ -179,7 +181,7 @@ export const photosApi = {
   async toggleFavourite(eventId: string, photoId: string): Promise<{ isFavourite: boolean }> {
     const response = await fetch(`${API_URL}/api/photos/${eventId}/${photoId}/favourite`, {
       method: "POST",
-      credentials: "include",
+      headers: authHeaders(),
     })
 
     if (!response.ok) {

@@ -1,3 +1,5 @@
+import { authHeaders, jsonAuthHeaders } from "../../../lib/authHeaders"
+
 const API_URL = import.meta.env.VITE_SERVER_URL || "http://localhost:3000"
 
 export interface EventData {
@@ -32,7 +34,7 @@ export interface EventsResponse {
 export const eventsApi = {
   async getMyEvents(): Promise<EventData[]> {
     const response = await fetch(`${API_URL}/api/events/my-events`, {
-      credentials: "include",
+      headers: authHeaders(),
     })
 
     if (!response.ok) {
@@ -46,7 +48,7 @@ export const eventsApi = {
 
   async getJoinedEvents(): Promise<EventData[]> {
     const response = await fetch(`${API_URL}/api/events/joined`, {
-      credentials: "include",
+      headers: authHeaders(),
     })
 
     if (!response.ok) {
@@ -66,9 +68,8 @@ export const eventsApi = {
   async createEvent(name: string, location: string, date: string, attendeeUploadLimit: number): Promise<EventData> {
     const response = await fetch(`${API_URL}/api/events/create`, {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
+      headers: jsonAuthHeaders(),
       body: JSON.stringify({ name, location, date, attendeeUploadLimit }),
-      credentials: "include",
     })
 
     if (!response.ok) {
@@ -83,9 +84,8 @@ export const eventsApi = {
   async joinEvent(inviteCode: string): Promise<EventData> {
     const response = await fetch(`${API_URL}/api/events/join`, {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
+      headers: jsonAuthHeaders(),
       body: JSON.stringify({ inviteCode }),
-      credentials: "include",
     })
 
     if (!response.ok) {
@@ -99,7 +99,7 @@ export const eventsApi = {
 
   async getEventDetails(eventId: string): Promise<EventData> {
     const response = await fetch(`${API_URL}/api/events/${eventId}`, {
-      credentials: "include",
+      headers: authHeaders(),
     })
 
     if (!response.ok) {
@@ -114,9 +114,8 @@ export const eventsApi = {
   async updateEvent(eventId: string, name: string, date: string, location: string, isActive: boolean): Promise<EventData> {
     const response = await fetch(`${API_URL}/api/events/${eventId}`, {
       method: "PUT",
-      headers: { "Content-Type": "application/json" },
+      headers: jsonAuthHeaders(),
       body: JSON.stringify({ name, date, location, isActive }),
-      credentials: "include",
     })
 
     if (!response.ok) {
@@ -130,7 +129,7 @@ export const eventsApi = {
 
   async getEventAttendees(eventId: string): Promise<any[]> {
     const response = await fetch(`${API_URL}/api/events/${eventId}/attendees`, {
-      credentials: "include",
+      headers: authHeaders(),
     })
 
     if (!response.ok) {
@@ -145,7 +144,7 @@ export const eventsApi = {
   async deleteEvent(eventId: string): Promise<void> {
     const response = await fetch(`${API_URL}/api/events/${eventId}`, {
       method: "DELETE",
-      credentials: "include",
+      headers: authHeaders(),
     })
 
     if (!response.ok) {
@@ -157,7 +156,7 @@ export const eventsApi = {
   async leaveEvent(eventId: string): Promise<void> {
     const response = await fetch(`${API_URL}/api/events/${eventId}/leave`, {
       method: "POST",
-      credentials: "include",
+      headers: authHeaders(),
     })
 
     if (!response.ok) {
