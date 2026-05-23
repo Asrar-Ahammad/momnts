@@ -13,6 +13,9 @@ export const redis = new Redis(process.env.REDIS_URL!, {
   
   // BullMQ recommends null for shared producer/worker connections
   maxRetriesPerRequest: null,
+  tls: {},
+  enableReadyCheck: false,
+
 })
 
 redis.on('connect', () => {
