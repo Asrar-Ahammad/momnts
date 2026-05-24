@@ -51,15 +51,8 @@ image = (
         "opencv-python-headless",
         "python-dotenv",
     ])
-    .run_commands(
-        "python -c \""
-        "from deepface import DeepFace; "
-        "import numpy as np; "
-        "img = np.zeros((224,224,3), dtype='uint8'); "
-        "DeepFace.represent(img, model_name='ArcFace', "
-        "detector_backend='opencv', enforce_detection=False); "
-        "print('ArcFace model cached')\""
-    )
+    .add_local_file("prewarm.py", "/root/prewarm.py", copy=True)
+    .run_commands("python /root/prewarm.py")
     .add_local_dir(
         ".",
         remote_path="/root",
