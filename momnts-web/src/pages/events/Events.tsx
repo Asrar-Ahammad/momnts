@@ -18,8 +18,9 @@ import {
   Rows
 } from '@phosphor-icons/react'
 import { Tabs, TabsList, TabsTrigger } from '../../components/ui/tabs'
-import { eventsApi, EventData } from '../../features/events/services/events.api'
-import { toast } from 'sonner'
+import { EventData } from '../../features/events/services/events.api'
+import { useEvents } from '../../features/events/hooks/useEvents'
+import { useQueryClient } from '@tanstack/react-query'
 import { EventCard, CreateEventModal, JoinEventModal, EventListItem } from './components'
 
 const Events = () => {
@@ -27,8 +28,8 @@ const Events = () => {
   const [dateRange, setDateRange] = useState<{ from?: Date; to?: Date }>({})
   const [isCalendarOpen, setIsCalendarOpen] = useState(false)
   const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('desc')
-  const [events, setEvents] = useState<EventData[]>([])
-  const [loading, setLoading] = useState(true)
+  const { events, isLoading: loading } = useEvents()
+  const queryClient = useQueryClient()
   const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid')
 
   // Role Filter State
@@ -68,30 +69,6 @@ const Events = () => {
     }
   }, [])
 
-  useEffect(() => {
-    const fetchEvents = async () => {
-      try {
-        setLoading(true)
-        const [myEvents, joinedEvents] = await Promise.all([
-          eventsApi.getMyEvents(),
-          eventsApi.getJoinedEvents()
-        ])
-        const allEvents = [...myEvents, ...joinedEvents]
-        const uniqueEvents = allEvents.filter((event, index, self) =>
-          index === self.findIndex((e) => e.id === event.id)
-        )
-        setEvents(uniqueEvents)
-      } catch (error) {
-        console.error('Failed to fetch events:', error)
-        toast.error(error instanceof Error ? error.message : 'Failed to fetch events')
-      } finally {
-        setLoading(false)
-      }
-    }
-
-    fetchEvents()
-  }, [])
-
   const filteredEvents = events
     .filter(event =>
       event.name.toLowerCase().includes(searchQuery.toLowerCase())
@@ -116,8 +93,8 @@ const Events = () => {
       return sortOrder === 'asc' ? dateA - dateB : dateB - dateA
     })
 
-  const handleEventsUpdate = (updatedEvents: EventData[]) => {
-    setEvents(updatedEvents)
+  const handleEventsUpdate = () => {
+    queryClient.invalidateQueries({ queryKey: ['events'] })
   }
 
   const handleResetFilters = () => {
