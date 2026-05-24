@@ -26,3 +26,13 @@ redis.on('connect', () => {
 redis.on('error', (err) => {
   console.error('Redis connection error:', err)
 })
+
+// Override duplicate to automatically attach error listeners to duplicated connections (e.g. BullMQ internals)
+const originalDuplicate = redis.duplicate.bind(redis)
+redis.duplicate = (options?: any) => {
+  const dup = originalDuplicate(options)
+  dup.on('error', (err) => {
+    console.error('Duplicated Redis client connection error:', err)
+  })
+  return dup
+}

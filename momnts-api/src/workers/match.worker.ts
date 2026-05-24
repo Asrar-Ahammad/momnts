@@ -131,4 +131,8 @@ matchWorker.on('failed', (job, err) => {
   console.error(`Face-matching job ${job?.id} failed with error: ${err.message}`)
 })
 
+matchWorker.on('error', (err) => {
+  console.error('[Worker] Face-matching worker error:', err)
+})
+
 export default matchWorker

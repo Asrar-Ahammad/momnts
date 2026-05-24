@@ -185,4 +185,8 @@ worker.on('failed', (job, err) => {
   console.error(`Job ${job?.id} failed:`, err.message)
 })
 
+worker.on('error', (err) => {
+  console.error('[Worker] Photo processing worker error:', err)
+})
+
 console.log('Photo processing worker started')
