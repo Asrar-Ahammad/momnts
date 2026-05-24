@@ -21,17 +21,30 @@ export function initSocketIO(httpServer: HTTPServer) {
   // Middleware to authenticate socket connections
   io.use((socket, next) => {
     try {
-      const cookieHeader = socket.handshake.headers.cookie
-      if (!cookieHeader) return next() // Allow unauthenticated for general events
-      
-      const cookies = Object.fromEntries(
-        cookieHeader.split(';').map(c => {
-          const [key, ...value] = c.trim().split('=')
-          return [key, value.join('=')]
-        })
-      )
-      
-      const token = cookies.accessToken
+      let token = socket.handshake.auth?.token || socket.handshake.query?.token as string
+
+      // Try reading from headers if not found in auth/query
+      if (!token) {
+        const authHeader = socket.handshake.headers.authorization
+        if (authHeader?.startsWith('Bearer ')) {
+          token = authHeader.slice(7)
+        }
+      }
+
+      // Fallback to cookie
+      if (!token) {
+        const cookieHeader = socket.handshake.headers.cookie
+        if (cookieHeader) {
+          const cookies = Object.fromEntries(
+            cookieHeader.split(';').map(c => {
+              const [key, ...value] = c.trim().split('=')
+              return [key, value.join('=')]
+            })
+          )
+          token = cookies.accessToken
+        }
+      }
+
       if (token && process.env.JWT_SECRET) {
         const decoded = jwt.verify(token, process.env.JWT_SECRET) as { id: string }
         socket.data.userId = decoded.id

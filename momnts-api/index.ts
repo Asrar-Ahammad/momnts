@@ -52,3 +52,7 @@ const PORT = process.env.PORT || process.env.APP_PORT || 3000
 httpServer.listen(PORT, () => {
   console.log(`Server is running at http://localhost:${PORT}`)
 })
+
+// Start background workers in the same process for production
+import "./src/workers/photo.worker.js"
+import "./src/workers/match.worker.js"

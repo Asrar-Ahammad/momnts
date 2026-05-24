@@ -23,9 +23,11 @@ export function useNotificationSocket({
   useEffect(() => {
     if (!userId) return
 
+    const token = localStorage.getItem('token')
     const socket = io(SOCKET_URL, {
       transports: ['websocket', 'polling'],
       withCredentials: true,
+      auth: { token },
     })
 
     socketRef.current = socket

@@ -59,8 +59,10 @@ export function useEventSocket({
   useEffect(() => {
     if (!eventId) return
 
+    const token = localStorage.getItem('token')
     const socket = io(SOCKET_URL, {
       transports: ['websocket', 'polling'],
+      auth: { token },
     })
 
     socketRef.current = socket
