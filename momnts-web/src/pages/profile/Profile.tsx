@@ -142,7 +142,7 @@ const Profile = () => {
 
   return (
     <div className="max-w-screen md:max-w-4xl mx-auto px-14 py-12 pb-24">
-      <div className="relative mb-12">
+      <div className="relative mb-12 select-none">
         <h1 className="text-6xl font-bold text-neutral-900 dark:text-neutral-100 mb-2 font-sirage">Profile</h1>
         <p className="text-neutral-500 dark:text-neutral-400">Manage your account and biometric settings.</p>
       </div>
@@ -247,9 +247,9 @@ const Profile = () => {
         </div>
 
         {/* Right Column: Account Details */}
-        <div className="md:col-span-2 space-y-8">
+        <div className="md:col-span-2 space-y-8 min-w-fit">
           <div className="bg-white dark:bg-neutral-900 border border-neutral-100 dark:border-neutral-800 rounded-[32px] p-8 shadow-sm">
-            <h3 className="text-xl font-bold mb-8 text-neutral-900 dark:text-neutral-100 flex items-center gap-2">
+            <h3 className="text-xl font-bold select-none mb-8 text-neutral-900 dark:text-neutral-100 flex items-center gap-2">
               Account Information
             </h3>
             
@@ -259,7 +259,7 @@ const Profile = () => {
                   <User size={24} />
                 </div>
                 <div className="flex-1">
-                  <p className="text-xs font-bold text-neutral-400 dark:text-neutral-500 uppercase tracking-widest mb-1">Full Name</p>
+                  <p className="text-xs font-bold text-neutral-400 dark:text-neutral-500 uppercase tracking-widest mb-1 select-none">Full Name</p>
                   {isEditingName ? (
                     <div className="flex items-center gap-2">
                       <Input
@@ -316,7 +316,7 @@ const Profile = () => {
                   <Envelope size={24} />
                 </div>
                 <div>
-                  <p className="text-xs font-bold text-neutral-400 dark:text-neutral-500 uppercase tracking-widest mb-1">Email Address</p>
+                  <p className="text-xs font-bold text-neutral-400 dark:text-neutral-500 uppercase tracking-widest mb-1 select-none">Email Address</p>
                   <p className="text-lg font-semibold text-neutral-900 dark:text-neutral-100">{user.email}</p>
                 </div>
               </div>
@@ -326,7 +326,7 @@ const Profile = () => {
                   <CalendarBlank size={24} />
                 </div>
                 <div>
-                  <p className="text-xs font-bold text-neutral-400 dark:text-neutral-500 uppercase tracking-widest mb-1">Member Since</p>
+                  <p className="text-xs font-bold text-neutral-400 dark:text-neutral-500 uppercase tracking-widest mb-1 select-none">Member Since</p>
                   <p className="text-lg font-semibold text-neutral-900 dark:text-neutral-100">{formatDate(user.created_at)}</p>
                 </div>
               </div>

@@ -59,11 +59,11 @@ const Home = () => {
   if (!isLoading && events.length === 0) {
     return (
       <div className="max-w-5xl mx-auto px-4 py-12 flex flex-col items-center justify-center min-h-[60vh] text-center">
-        <div className="w-20 h-20 bg-neutral-100 dark:bg-neutral-800 rounded-full flex items-center justify-center text-4xl mb-6">
+        <div className="w-20 h-20 bg-neutral-100 dark:bg-neutral-800 select-none rounded-full flex items-center justify-center text-4xl mb-6">
           📸
         </div>
-        <h2 className="text-2xl font-bold text-neutral-900 dark:text-neutral-100 mb-2">No events yet</h2>
-        <p className="text-neutral-500 dark:text-neutral-400 max-w-sm mb-8">
+        <h2 className="text-2xl font-bold text-neutral-900 dark:text-neutral-100 mb-2 select-none">No events yet</h2>
+        <p className="text-neutral-500 dark:text-neutral-400 max-w-sm mb-8 select-none">
           Create your first event or join one with an invite code.
         </p>
         <div className="flex flex-col sm:flex-row gap-4 w-full sm:w-auto">
@@ -102,10 +102,10 @@ const Home = () => {
     <div className="max-w-5xl mx-auto px-4 py-8 space-y-10 pb-24">
       {/* 1. Greeting header */}
       <div className="space-y-1">
-        <h1 className="text-6xl font-bold font-sirage text-neutral-900 dark:text-neutral-100">
+        <h1 className="text-6xl font-bold font-sirage text-neutral-900 dark:text-neutral-100 select-none">
           Hey <span className="capitalize">{user?.username || 'there'}</span>!
         </h1>
-        <p className="text-neutral-500 dark:text-neutral-400">
+        <p className="text-neutral-500 dark:text-neutral-400 select-none">
           Here's what's happening with your events.
         </p>
       </div>
@@ -117,8 +117,8 @@ const Home = () => {
             <CameraPlus size={24} weight="bold" />
           </div>
           <div className="flex-1 space-y-1">
-            <h3 className="font-bold text-amber-900 dark:text-amber-100">Add your photo</h3>
-            <p className="text-sm text-amber-800/80 dark:text-amber-200/80 max-w-lg">
+            <h3 className="font-bold text-amber-900 dark:text-amber-100 select-none">Add your photo</h3>
+            <p className="text-sm text-amber-800/80 dark:text-amber-200/80 max-w-lg select-none">
               Upload a selfie so Momnts can find you in event photos.
             </p>
             <Button
@@ -161,7 +161,7 @@ const Home = () => {
       <div className="space-y-4">
         <div className="flex items-center gap-2">
           
-          <h2 className="text-2xl font-sirage font-bold text-neutral-800 dark:text-neutral-200">
+          <h2 className="text-2xl font-sirage font-bold text-neutral-800 dark:text-neutral-200 select-none">
             Momnts Memory Lanes
           </h2>
         </div>
@@ -197,19 +197,19 @@ const Home = () => {
       {/* 4. Continue where you left off */}
       {isLoading ? (
         <div className="space-y-4">
-          <h2 className="text-2xl font-sirage font-semibold text-neutral-800 dark:text-neutral-200">Continue where you left off</h2>
+          <h2 className="text-2xl font-sirage font-semibold text-neutral-800 dark:text-neutral-200 select-none">Continue where you left off</h2>
           <Skeleton className="h-64 w-full rounded-2xl" />
         </div>
       ) : recentEvent ? (
         <div className="space-y-4">
-          <h2 className="text-2xl font-sirage font-semibold text-neutral-800 dark:text-neutral-200">Continue where you left off</h2>
+          <h2 className="text-2xl font-sirage font-semibold text-neutral-800 dark:text-neutral-200 select-none">Continue where you left off</h2>
           <EventCard event={recentEvent} />
         </div>
       ) : null}
 
       {/* 5. Upcoming events */}
       <div className="space-y-4">
-        <h2 className="text-2xl font-sirage font-semibold text-neutral-800 dark:text-neutral-200">Upcoming Events</h2>
+        <h2 className="text-2xl font-sirage font-semibold text-neutral-800 dark:text-neutral-200 select-none">Upcoming Events</h2>
         {isLoading ? (
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
             <Skeleton className="h-64 rounded-2xl" />
@@ -223,14 +223,14 @@ const Home = () => {
             ))}
           </div>
         ) : (
-          <p className="text-sm text-neutral-500 italic">No upcoming events</p>
+          <p className="text-sm text-neutral-500 italic select-none">No upcoming events</p>
         )}
       </div>
 
       {/* 6. Past events */}
       {isLoading ? (
         <div className="space-y-4">
-          <h2 className="text-2xl font-sirage font-semibold text-neutral-800 dark:text-neutral-200">Past Events</h2>
+          <h2 className="text-2xl font-sirage font-semibold text-neutral-800 dark:text-neutral-200 select-none">Past Events</h2>
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
             <Skeleton className="h-64 rounded-2xl" />
             <Skeleton className="h-64 rounded-2xl" />
@@ -239,7 +239,7 @@ const Home = () => {
         </div>
       ) : pastEvents.length > 0 ? (
         <div className="space-y-4">
-          <h2 className="text-2xl font-sirage font-semibold text-neutral-800 dark:text-neutral-200">Past Events</h2>
+          <h2 className="text-2xl font-sirage font-semibold text-neutral-800 dark:text-neutral-200 select-none">Past Events</h2>
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
             {pastEvents.map((event) => (
               <EventCard key={event.id} event={event} />

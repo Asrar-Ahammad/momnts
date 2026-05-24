@@ -5,7 +5,8 @@ import { cn } from '../lib/utils'
 import { ThemeToggle } from '../components/theme-toggle'
 import NotificationsPopover from '../components/NotificationsPopover'
 import { useAuth } from '../features/auth/hooks/useAuth'
-import { useRef, useEffect, useState } from 'react';
+import { useState } from 'react';
+import { Badge } from '../components/ui/badge'
 
 const DashboardLayout = () => {
   const navigate = useNavigate()
@@ -85,6 +86,7 @@ const DashboardLayout = () => {
           >
             Momnts
           </Link>
+          <Badge variant="secondary" className='ml-2 select-none'>Beta</Badge>
         </div>
 
         {/* Center: Desktop Navigation Pill */}

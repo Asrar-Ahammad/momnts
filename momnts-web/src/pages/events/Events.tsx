@@ -147,7 +147,7 @@ const Events = () => {
     <div className="space-y-6 pt-8">
       {/* Header Row */}
       <div className="flex flex-col md:flex-row items-start justify-between gap-2 px-6">
-        <h1 className="text-6xl font-bold font-sirage">Events</h1>
+        <h1 className="text-6xl font-bold font-sirage select-none">Events</h1>
         <div className="flex items-center gap-3">
           <Button variant="outline" className="cursor-pointer px-4 rounded-full group flex items-center justify-center gap-2" onClick={() => setCreateModalOpen(true)}>
             <Plus size={16} weight="bold" className="" />
