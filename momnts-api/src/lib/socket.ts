@@ -2,6 +2,7 @@ import { Server as SocketIOServer } from 'socket.io'
 import type { Server as HTTPServer } from 'http'
 import Redis from 'ioredis'
 import jwt from 'jsonwebtoken'
+import { redisConnectionOptions } from './redis'
 
 let io: SocketIOServer | null = null
 
@@ -75,14 +76,10 @@ export function initSocketIO(httpServer: HTTPServer) {
     })
   })
 
-  const isTls = process.env.REDIS_URL?.startsWith('rediss://')
-  const subscriber = new Redis(process.env.REDIS_URL!, {
-    maxRetriesPerRequest: null,
-    ...(isTls ? { tls: {} } : {}),
-  })
+  const subscriber = new Redis(process.env.REDIS_URL!, redisConnectionOptions)
 
   subscriber.on('error', (err) => {
-    console.error('[WS] Redis subscriber connection error:', err)
+    console.error('[WS] Redis subscriber connection error:', err.message)
   })
 
   subscriber.subscribe('ws:photo-processed', 'ws:face-matched', (err) => {

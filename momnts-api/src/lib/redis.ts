@@ -9,22 +9,35 @@ import Redis from 'ioredis'
 
 const isTls = process.env.REDIS_URL?.startsWith('rediss://')
 
-export const redis = new Redis(process.env.REDIS_URL!, {
-  // If connection fails, retry 3 times before throwing
-  // maxRetriesPerRequest: 3,
-  
-  // BullMQ recommends null for shared producer/worker connections
-  maxRetriesPerRequest: null,
+/**
+ * Shared Redis connection options for Upstash compatibility.
+ * Upstash drops idle connections — these settings ensure resilient reconnection.
+ */
+export const redisConnectionOptions = {
+  maxRetriesPerRequest: null as null,
   ...(isTls ? { tls: {} } : {}),
   enableReadyCheck: false,
-})
+  // Keep TCP connection alive — prevents Upstash from dropping idle connections
+  keepAlive: 10000,
+  // Reconnect with exponential backoff, max 3 seconds
+  retryStrategy(times: number) {
+    return Math.min(times * 200, 3000)
+  },
+  // Auto-reconnect on ECONNRESET and similar read errors
+  reconnectOnError(err: Error) {
+    const targetErrors = ['ECONNRESET', 'ECONNREFUSED', 'ETIMEDOUT', 'ENOTFOUND']
+    return targetErrors.some(e => err.message.includes(e))
+  },
+}
+
+export const redis = new Redis(process.env.REDIS_URL!, redisConnectionOptions)
 
 redis.on('connect', () => {
   console.log('Connected to Redis')
 })
 
 redis.on('error', (err) => {
-  console.error('Redis connection error:', err)
+  console.error('Redis connection error:', err.message)
 })
 
 // Override duplicate to automatically attach error listeners to duplicated connections (e.g. BullMQ internals)
@@ -32,7 +45,7 @@ const originalDuplicate = redis.duplicate.bind(redis)
 redis.duplicate = (options?: any) => {
   const dup = originalDuplicate(options)
   dup.on('error', (err) => {
-    console.error('Duplicated Redis client connection error:', err)
+    console.error('Duplicated Redis client connection error:', err.message)
   })
   return dup
 }

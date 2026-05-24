@@ -132,7 +132,7 @@ matchWorker.on('failed', (job, err) => {
 })
 
 matchWorker.on('error', (err) => {
-  console.error('[Worker] Face-matching worker error:', err)
+  console.error('[Worker] Face-matching worker error:', err.message)
 })
 
 export default matchWorker

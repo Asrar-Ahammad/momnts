@@ -186,7 +186,7 @@ worker.on('failed', (job, err) => {
 })
 
 worker.on('error', (err) => {
-  console.error('[Worker] Photo processing worker error:', err)
+  console.error('[Worker] Photo processing worker error:', err.message)
 })
 
 console.log('Photo processing worker started')

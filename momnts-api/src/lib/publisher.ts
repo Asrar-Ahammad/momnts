@@ -1,4 +1,5 @@
 import Redis from 'ioredis'
+import { redisConnectionOptions } from './redis'
 
 /**
  * Dedicated Redis publisher for workers.
@@ -6,14 +7,10 @@ import Redis from 'ioredis'
  * They publish to Redis channels, and the API server's subscriber
  * relays messages to Socket.IO clients.
  */
-const isTls = process.env.REDIS_URL?.startsWith('rediss://')
-const publisher = new Redis(process.env.REDIS_URL!, {
-  maxRetriesPerRequest: null,
-  ...(isTls ? { tls: {} } : {}),
-})
+const publisher = new Redis(process.env.REDIS_URL!, redisConnectionOptions)
 
 publisher.on('error', (err) => {
-  console.error('[Publisher] Redis connection error:', err)
+  console.error('[Publisher] Redis connection error:', err.message)
 })
 
 export interface PhotoProcessedEvent {

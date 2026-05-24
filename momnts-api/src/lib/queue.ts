@@ -34,9 +34,9 @@ export const matchingQueue = new Queue('face-matching', {
 })
 
 photoQueue.on('error', (err) => {
-  console.error('[Queue] Photo processing queue error:', err)
+  console.error('[Queue] Photo processing queue error:', err.message)
 })
 
 matchingQueue.on('error', (err) => {
-  console.error('[Queue] Face matching queue error:', err)
+  console.error('[Queue] Face matching queue error:', err.message)
 })
