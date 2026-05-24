@@ -1,5 +1,5 @@
 import Redis from 'ioredis'
-import { redisConnectionOptions } from './redis'
+import { redisConnectionOptions, REDIS_URL } from './redis'
 
 /**
  * Dedicated Redis publisher for workers.
@@ -7,7 +7,7 @@ import { redisConnectionOptions } from './redis'
  * They publish to Redis channels, and the API server's subscriber
  * relays messages to Socket.IO clients.
  */
-const publisher = new Redis(process.env.REDIS_URL!, redisConnectionOptions)
+const publisher = new Redis(REDIS_URL, redisConnectionOptions)
 
 publisher.on('error', (err) => {
   console.error('[Publisher] Redis connection error:', err.message)

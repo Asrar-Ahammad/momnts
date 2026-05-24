@@ -2,7 +2,7 @@ import { Server as SocketIOServer } from 'socket.io'
 import type { Server as HTTPServer } from 'http'
 import Redis from 'ioredis'
 import jwt from 'jsonwebtoken'
-import { redisConnectionOptions } from './redis'
+import { redisConnectionOptions, REDIS_URL } from './redis'
 
 let io: SocketIOServer | null = null
 
@@ -76,7 +76,7 @@ export function initSocketIO(httpServer: HTTPServer) {
     })
   })
 
-  const subscriber = new Redis(process.env.REDIS_URL!, redisConnectionOptions)
+  const subscriber = new Redis(REDIS_URL, redisConnectionOptions)
 
   subscriber.on('error', (err) => {
     console.error('[WS] Redis subscriber connection error:', err.message)

@@ -7,7 +7,9 @@ import Redis from 'ioredis'
 
 // ioredis is the Node.js client library to talk to Redis
 
-const isTls = process.env.REDIS_URL?.startsWith('rediss://')
+// Strip surrounding quotes if accidentally included in env var value
+export const REDIS_URL = (process.env.REDIS_URL || '').replace(/^["']|["']$/g, '')
+const isTls = REDIS_URL.startsWith('rediss://')
 
 /**
  * Shared Redis connection options for Upstash compatibility.
@@ -30,7 +32,7 @@ export const redisConnectionOptions = {
   },
 }
 
-export const redis = new Redis(process.env.REDIS_URL!, redisConnectionOptions)
+export const redis = new Redis(REDIS_URL, redisConnectionOptions)
 
 redis.on('connect', () => {
   console.log('Connected to Redis')
