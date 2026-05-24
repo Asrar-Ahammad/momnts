@@ -7,15 +7,16 @@ import Redis from 'ioredis'
 
 // ioredis is the Node.js client library to talk to Redis
 
+const isTls = process.env.REDIS_URL?.startsWith('rediss://')
+
 export const redis = new Redis(process.env.REDIS_URL!, {
   // If connection fails, retry 3 times before throwing
   // maxRetriesPerRequest: 3,
   
   // BullMQ recommends null for shared producer/worker connections
   maxRetriesPerRequest: null,
-  tls: {},
+  ...(isTls ? { tls: {} } : {}),
   enableReadyCheck: false,
-
 })
 
 redis.on('connect', () => {
