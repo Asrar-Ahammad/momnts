@@ -82,21 +82,6 @@ export default defineConfig({
               },
             },
           },
-          // Cache auth/me for offline user display
-          {
-            urlPattern: /\/api\/auth\/me$/i,
-            handler: 'NetworkFirst',
-            options: {
-              cacheName: 'momnts-auth-cache',
-              expiration: {
-                maxEntries: 1,
-                maxAgeSeconds: 60 * 60, // 1 hour
-              },
-              cacheableResponse: {
-                statuses: [0, 200],
-              },
-            },
-          },
           // Cache notification data
           {
             urlPattern: /\/api\/notifications.*/i,
