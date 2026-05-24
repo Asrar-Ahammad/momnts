@@ -75,11 +75,14 @@ export function initSocketIO(httpServer: HTTPServer) {
     })
   })
 
-  // Subscribe to Redis pub/sub for worker → server bridging
-  // Workers run in separate processes, so they publish to Redis
-  // and this subscriber relays to Socket.IO clients
+  const isTls = process.env.REDIS_URL?.startsWith('rediss://')
   const subscriber = new Redis(process.env.REDIS_URL!, {
     maxRetriesPerRequest: null,
+    ...(isTls ? { tls: {} } : {}),
+  })
+
+  subscriber.on('error', (err) => {
+    console.error('[WS] Redis subscriber connection error:', err)
   })
 
   subscriber.subscribe('ws:photo-processed', 'ws:face-matched', (err) => {

@@ -44,7 +44,7 @@ async function registerUserController(req: Request, res: Response) {
       return res.status(500).json({ message: "Server configuration error" });
     }
 
-    // Generate access token (15 minutes)
+    // Generate access token (1 hr)
     const accessToken = jwt.sign(
       { id: user.id, name: user.name },
       jwtSecret,
