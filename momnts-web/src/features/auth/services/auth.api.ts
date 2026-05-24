@@ -67,6 +67,18 @@ export const authApi = {
     } finally {
       localStorage.removeItem('token')
       localStorage.removeItem('refreshToken')
+      if (typeof window !== 'undefined' && 'caches' in window) {
+        try {
+          const keys = await caches.keys()
+          await Promise.all(
+            keys
+              .filter(key => key.startsWith('momnts-') && !key.includes('fonts'))
+              .map(key => caches.delete(key))
+          )
+        } catch (error) {
+          console.error('Failed to clear caches on logout:', error)
+        }
+      }
     }
   },
 
