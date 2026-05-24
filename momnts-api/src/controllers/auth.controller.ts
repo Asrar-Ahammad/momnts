@@ -53,7 +53,7 @@ async function registerUserController(req: Request, res: Response) {
 
     // Generate refresh token (7 days)
     const refreshToken = jwt.sign(
-      { id: user.id, type: "refresh" },
+      { id: user.id, type: "refresh", jti: Math.random().toString(36).substring(2) },
       jwtSecret,
       { expiresIn: "7d" },
     );
@@ -131,7 +131,7 @@ async function loginUserController(req: Request, res: Response) {
 
     // Generate refresh token (7 days)
     const refreshToken = jwt.sign(
-      { id: user.id, type: "refresh" },
+      { id: user.id, type: "refresh", jti: Math.random().toString(36).substring(2) },
       jwtSecret,
       { expiresIn: "7d" },
     );
@@ -227,7 +227,7 @@ async function refreshUserController(req: Request, res: Response) {
 
     // Generate new refresh token (rotation)
     const newRefreshToken = jwt.sign(
-      { id: decoded.id, type: "refresh" },
+      { id: decoded.id, type: "refresh", jti: Math.random().toString(36).substring(2) },
       jwtSecret,
       { expiresIn: "7d" },
     );
