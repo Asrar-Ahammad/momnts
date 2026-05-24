@@ -1,3 +1,17 @@
+// Polyfill requestIdleCallback for Safari and other unsupporting browsers
+if (typeof requestIdleCallback === 'undefined') {
+  (window as any).requestIdleCallback = (cb: IdleRequestCallback) => {
+    const start = Date.now()
+    return setTimeout(() => {
+      cb({
+        didTimeout: false,
+        timeRemaining: () => Math.max(0, 50 - (Date.now() - start))
+      })
+    }, 1)
+  };
+  (window as any).cancelIdleCallback = (id: number) => clearTimeout(id)
+}
+
 import { StrictMode } from "react";
 import { createRoot } from "react-dom/client";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
