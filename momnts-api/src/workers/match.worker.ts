@@ -29,7 +29,7 @@ const matchWorker = new Worker(
       // 1. Verify user has a selfie embedding
       const userCheck = await prisma.$queryRaw<any[]>`
         SELECT id FROM "User"
-        WHERE id = ${userId} AND selfie_embedding IS NOT NULL
+        WHERE id = ${userId}::text AND selfie_embedding IS NOT NULL
       `
       if (!userCheck.length) {
         console.log(`[MATCH] No selfie embedding for user ${userId}. Skipping.`)
@@ -46,18 +46,18 @@ const matchWorker = new Worker(
       const candidates = matchOnlyAfter
         ? await prisma.$queryRaw<Array<{ id: string; distance: number }>>`
             SELECT fp.id,
-                   fp.embedding_vector <=> (SELECT selfie_embedding FROM "User" WHERE id = ${userId}) AS distance
+                   fp.embedding_vector <=> (SELECT selfie_embedding FROM "User" WHERE id = ${userId}::text) AS distance
             FROM "FaceProfile" fp
-            WHERE fp.event_id = ${eventId}
+            WHERE fp.event_id = ${eventId}::text
               AND fp.is_claimed = false
               AND fp.created_at > ${new Date(matchOnlyAfter)}
             ORDER BY distance ASC
           `
         : await prisma.$queryRaw<Array<{ id: string; distance: number }>>`
             SELECT fp.id,
-                   fp.embedding_vector <=> (SELECT selfie_embedding FROM "User" WHERE id = ${userId}) AS distance
+                   fp.embedding_vector <=> (SELECT selfie_embedding FROM "User" WHERE id = ${userId}::text) AS distance
             FROM "FaceProfile" fp
-            WHERE fp.event_id = ${eventId}
+            WHERE fp.event_id = ${eventId}::text
               AND fp.is_claimed = false
             ORDER BY distance ASC
           `

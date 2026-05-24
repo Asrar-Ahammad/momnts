@@ -25,7 +25,7 @@ export async function uploadSelfieController(req: AuthRequest, res: Response) {
     // Determine before writing whether this is an update or a first upload.
     // We use this later to decide whether to restrict match jobs by timestamp.
     const existingUser = await prisma.$queryRaw<any[]>`
-      SELECT id FROM "User" WHERE id = ${userId} AND selfie_embedding IS NOT NULL
+      SELECT id FROM "User" WHERE id = ${userId}::text AND selfie_embedding IS NOT NULL
     `
     const isSelfieUpdate = existingUser.length > 0
 

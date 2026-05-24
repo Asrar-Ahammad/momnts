@@ -210,7 +210,7 @@ async function getSharedPhotosController(req: AuthRequest, res: Response) {
         ON u.id = p.user_id
       WHERE pf1.face_profile_id = ANY(${userFaceProfileIds}::text[])
         AND pf2.face_profile_id = ANY(${otherFaceProfileIds}::text[])
-        AND p.event_id = ${eventId}
+        AND p.event_id = ${eventId}::text
         AND p.is_visible = true
       ORDER BY p.uploaded_at DESC
     `;

@@ -64,7 +64,7 @@ export async function getMyPhotosController(req: AuthRequest, res: Response) {
     // 1. Check if user has selfie_embedding
     const userCheck = await prisma.$queryRaw<any[]>`
       SELECT id FROM "User" 
-      WHERE id = ${userId} AND selfie_embedding IS NOT NULL
+      WHERE id = ${userId}::text AND selfie_embedding IS NOT NULL
     `
     if (!userCheck.length) {
       return res.status(200).json({
@@ -110,9 +110,9 @@ export async function getMyPhotosController(req: AuthRequest, res: Response) {
       })
       .sort((a, b) => new Date(b.uploaded_at).getTime() - new Date(a.uploaded_at).getTime())
 
-    return res.status(200).json({ 
-      data: photos, 
-      face_profile_ids: profileIds 
+    return res.status(200).json({
+      data: photos,
+      face_profile_ids: profileIds
     })
   } catch (error: any) {
     return res.status(500).json({ message: error.message })

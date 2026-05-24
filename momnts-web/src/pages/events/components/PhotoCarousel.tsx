@@ -95,7 +95,7 @@ const PhotoCarousel = ({
       preloadAdjacentImages(initialIndex)
 
       // Then preload remaining images in background
-      requestIdleCallback?.(() => {
+      window.requestIdleCallback?.(() => {
         photos.forEach((photo) => {
           if (!preloadedRef.current.has(photo.display_url)) {
             preloadedRef.current.add(photo.display_url)
