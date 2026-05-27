@@ -8,6 +8,7 @@ import { authApi } from "../../services/auth.api"
 import { EyeIcon, EyeSlashIcon } from "@phosphor-icons/react"
 import { toast } from "sonner"
 import { Spinner } from "../../../../components/ui/spinner"
+import { ForgotPasswordModal } from "../../components/ForgotPasswordModal"
 
 
 const Login = () => {
@@ -16,6 +17,7 @@ const Login = () => {
     const { user, setUser } = useAuth()
     const [showPassword, setShowPassword] = useState(false)
     const [isLoading, setIsLoading] = useState(false)
+    const [isForgotModalOpen, setIsForgotModalOpen] = useState(false)
 
 
     useEffect(() => {
@@ -79,6 +81,15 @@ const Login = () => {
                                             {showPassword ? <EyeSlashIcon size={20} /> : <EyeIcon size={20} />}
                                         </button>
                                     </div>
+                                    <div className="flex justify-end w-full mt-1">
+                                        <button 
+                                            type="button" 
+                                            onClick={() => setIsForgotModalOpen(true)}
+                                            className="text-sm font-semibold text-slate-300 hover:text-slate-200 cursor-pointer"
+                                        >
+                                            Forgot password?
+                                        </button>
+                                    </div>
                                 </Field>
                                 <Field>
                                     <Button type="submit" className="w-full cursor-pointer" disabled={isLoading}>
@@ -99,6 +110,7 @@ const Login = () => {
                     </div>
                 </div>
             </div>
+            <ForgotPasswordModal open={isForgotModalOpen} onOpenChange={setIsForgotModalOpen} />
         </>
     )
 }

@@ -130,4 +130,71 @@ export const authApi = {
 
     return data
   },
+
+  async forgotPassword(email: string): Promise<{ message: string }> {
+    const response = await fetch(`${API_URL}/api/auth/forgot-password`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ email }),
+    })
+
+    const data = await response.json()
+
+    if (!response.ok) {
+      const error = new Error(data.message || "Failed to send reset link") as Error & { retryAfter?: number }
+      if (data.retryAfter) error.retryAfter = data.retryAfter
+      throw error
+    }
+
+    return data
+  },
+
+  async resetPassword(email: string, otp: string, newPassword: string): Promise<{ message: string }> {
+    const response = await fetch(`${API_URL}/api/auth/reset-password`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ email, otp, newPassword }),
+    })
+
+    const data = await response.json()
+
+    if (!response.ok) {
+      throw new Error(data.message || "Failed to reset password")
+    }
+
+    return data
+  },
+
+  async sendChangePasswordOtp(): Promise<{ message: string }> {
+    const response = await fetch(`${API_URL}/api/auth/send-change-password-otp`, {
+      method: "POST",
+      headers: authHeaders('application/json'),
+    })
+
+    const data = await response.json()
+
+    if (!response.ok) {
+      const error = new Error(data.message || "Failed to send verification code") as Error & { retryAfter?: number }
+      if (data.retryAfter) error.retryAfter = data.retryAfter
+      throw error
+    }
+
+    return data
+  },
+
+  async changePassword(otp: string, newPassword: string): Promise<{ message: string }> {
+    const response = await fetch(`${API_URL}/api/auth/change-password`, {
+      method: "POST",
+      headers: authHeaders('application/json'),
+      body: JSON.stringify({ otp, newPassword }),
+    })
+
+    const data = await response.json()
+
+    if (!response.ok) {
+      throw new Error(data.message || "Failed to change password")
+    }
+
+    return data
+  },
 }

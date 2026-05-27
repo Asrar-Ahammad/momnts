@@ -21,6 +21,7 @@ import {
   Check,
   CheckCircle,
   WarningCircle,
+  Key,
   X
 } from '@phosphor-icons/react'
 import {
@@ -36,6 +37,7 @@ import {
 } from '../../components/ui/alert-dialog'
 import { toast } from 'sonner'
 import { authApi } from '../../features/auth/services/auth.api'
+import { ChangePasswordModal } from './components/ChangePasswordModal'
 
 const Profile = () => {
   const { user, setUser, logout } = useAuth()
@@ -46,6 +48,9 @@ const Profile = () => {
   // Cropping states
   const [selectedImage, setSelectedImage] = useState<string | null>(null)
   const [isCropModalOpen, setIsCropModalOpen] = useState(false)
+
+  // Password reset modal
+  const [isChangePasswordModalOpen, setIsChangePasswordModalOpen] = useState(false)
 
   // Email verification state
   const [isSendingOtp, setIsSendingOtp] = useState(false)
@@ -366,6 +371,21 @@ const Profile = () => {
                   <p className="text-lg font-semibold text-neutral-900 dark:text-neutral-100 break-words">{formatDate(user.created_at)}</p>
                 </div>
               </div>
+
+              <div className="flex items-start gap-4">
+                <div className="p-3 bg-neutral-50 dark:bg-neutral-800 rounded-2xl text-neutral-500 dark:text-neutral-400">
+                  <Key size={24} />
+                </div>
+                <div className="flex-1 min-w-0 flex items-center justify-between">
+                  <div>
+                    <p className="text-xs font-bold text-neutral-400 dark:text-neutral-500 uppercase tracking-widest mb-1 select-none">Password</p>
+                    <p className="text-lg font-semibold text-neutral-900 dark:text-neutral-100 break-words">••••••••</p>
+                  </div>
+                  <Button variant="outline" size="sm" onClick={() => setIsChangePasswordModalOpen(true)} className="rounded-xl font-semibold border-neutral-200 dark:border-neutral-800 hover:bg-neutral-100 dark:hover:bg-neutral-800">
+                    Change
+                  </Button>
+                </div>
+              </div>
             </div>
           </div>
 
@@ -446,6 +466,7 @@ const Profile = () => {
         onOpenChange={setIsUploadModalOpen}
         onImageSelected={handleImageSelected}
       />
+      <ChangePasswordModal open={isChangePasswordModalOpen} onOpenChange={setIsChangePasswordModalOpen} />
     </div>
   )
 }
