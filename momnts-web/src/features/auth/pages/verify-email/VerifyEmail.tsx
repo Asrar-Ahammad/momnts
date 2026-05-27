@@ -12,7 +12,7 @@ const RESEND_COOLDOWN = 60 // seconds
 
 const VerifyEmail = () => {
   const navigate = useNavigate()
-  const { user, setUser } = useAuth()
+  const { user, setUser, loading } = useAuth()
   const [otp, setOtp] = useState("")
   const [isVerifying, setIsVerifying] = useState(false)
   const [isResending, setIsResending] = useState(false)
@@ -20,17 +20,17 @@ const VerifyEmail = () => {
 
   // Redirect if already verified
   useEffect(() => {
-    if (user?.email_verified) {
+    if (!loading && user?.email_verified) {
       navigate("/dashboard", { replace: true })
     }
-  }, [user, navigate])
+  }, [user, loading, navigate])
 
   // Redirect if not logged in
   useEffect(() => {
-    if (!user) {
+    if (!loading && !user) {
       navigate("/login", { replace: true })
     }
-  }, [user, navigate])
+  }, [user, loading, navigate])
 
   // Cooldown timer
   useEffect(() => {
@@ -46,11 +46,6 @@ const VerifyEmail = () => {
     }, 1000)
     return () => clearInterval(timer)
   }, [cooldown])
-
-  // Start cooldown on mount (OTP sent during registration)
-  useEffect(() => {
-    setCooldown(RESEND_COOLDOWN)
-  }, [])
 
   const handleVerify = useCallback(async (code: string) => {
     if (code.length !== 6 || isVerifying) return

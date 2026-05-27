@@ -43,36 +43,41 @@ const otpRateKey = (userId: string) => `otp_rate:${userId}`;
  * Returns false if user is rate-limited.
  */
 async function storeAndSendOtp(userId: string, email: string): Promise<{ success: boolean; retryAfter?: number }> {
-  // Check rate limit
-  const rateCount = await redis.get(otpRateKey(userId));
-  if (rateCount && parseInt(rateCount) >= OTP_RATE_LIMIT_MAX) {
-    const ttl = await redis.ttl(otpRateKey(userId));
-    return { success: false, retryAfter: ttl > 0 ? ttl : OTP_RATE_LIMIT_WINDOW };
-  }
-
-  // Check lockout
+  // Check lockout first
   const lockout = await redis.get(otpLockoutKey(userId));
   if (lockout) {
     const ttl = await redis.ttl(otpLockoutKey(userId));
     return { success: false, retryAfter: ttl > 0 ? ttl : OTP_LOCKOUT_SECONDS };
   }
 
+  // Atomic rate limit check: increment FIRST
+  const newCount = await redis.incr(otpRateKey(userId));
+  if (newCount === 1) {
+    await redis.expire(otpRateKey(userId), OTP_RATE_LIMIT_WINDOW);
+  }
+
+  if (newCount > OTP_RATE_LIMIT_MAX) {
+    const ttl = await redis.ttl(otpRateKey(userId));
+    return { success: false, retryAfter: ttl > 0 ? ttl : OTP_RATE_LIMIT_WINDOW };
+  }
+
   const otp = generateOtp();
   const hashed = await hashOtp(otp);
 
-  // Send email FIRST (OTP never logged)
-  // If this throws (e.g. invalid credentials), the function aborts before eating rate limits
-  await sendOtpEmail(email, otp);
+  try {
+    // Send email FIRST (OTP never logged)
+    // If this throws (e.g. invalid credentials), the function aborts
+    await sendOtpEmail(email, otp);
+  } catch (error) {
+    // Refund the rate limit count since the email failed
+    await redis.decr(otpRateKey(userId));
+    throw error;
+  }
 
   // Store hashed OTP with TTL
   await redis.setex(otpKey(userId), OTP_TTL_SECONDS, hashed);
   // Reset attempt counter
   await redis.del(otpAttemptsKey(userId));
-  // Increment rate limit counter
-  const newCount = await redis.incr(otpRateKey(userId));
-  if (newCount === 1) {
-    await redis.expire(otpRateKey(userId), OTP_RATE_LIMIT_WINDOW);
-  }
 
   return { success: true };
 }
@@ -156,13 +161,10 @@ async function registerUserController(req: Request, res: Response) {
       },
     });
 
-    // Send OTP for email verification (fire-and-forget with error handling)
-    try {
-      await storeAndSendOtp(user.id, user.email);
-    } catch (emailError) {
+    // Send OTP for email verification asynchronously (truly fire-and-forget)
+    storeAndSendOtp(user.id, user.email).catch((emailError) => {
       console.error("Failed to send verification email:", emailError instanceof Error ? emailError.message : emailError);
-      // Don't fail registration if email fails — user can resend
-    }
+    });
 
     return res.status(201).json({
       message: "User created successfully",
