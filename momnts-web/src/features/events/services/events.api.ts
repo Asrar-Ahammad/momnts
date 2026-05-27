@@ -164,4 +164,16 @@ export const eventsApi = {
       throw new Error(error.message || "Failed to leave event")
     }
   },
+
+  async removeAttendee(eventId: string, attendeeId: string): Promise<void> {
+    const response = await fetch(`${API_URL}/api/events/${eventId}/attendees/${attendeeId}`, {
+      method: "DELETE",
+      headers: authHeaders(),
+    })
+
+    if (!response.ok) {
+      const error = await response.json()
+      throw new Error(error.message || "Failed to remove attendee")
+    }
+  },
 }

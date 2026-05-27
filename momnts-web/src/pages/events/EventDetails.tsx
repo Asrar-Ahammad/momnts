@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react'
+wimport { useState, useEffect, useCallback } from 'react'
 import { useParams, useNavigate, useSearchParams } from 'react-router'
 import { useAuth } from '../../features/auth/hooks/useAuth'
 import { Button } from '../../components/ui/button'
@@ -652,6 +652,11 @@ const EventDetails = () => {
           setActiveTab('all')
         }}
         isOrganizer={event?.user_role === 'ORGANIZER'}
+        eventId={eventId}
+        onRefreshAttendees={() => {
+          fetchAttendees()
+          fetchPhotos()
+        }}
       />
 
       <EventSettingsModal
