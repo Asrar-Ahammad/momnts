@@ -1,0 +1,86 @@
+version: '3.8'
+
+services:
+
+  # ── Redis ──────────────────────────────────────────
+  redis:
+    image: redis:7-alpine
+    container_name: momnts-redis
+    restart: unless-stopped
+    volumes:
+      - redis-data:/data
+    command: redis-server --appendonly yes
+    networks:
+      - momnts-network
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # ── Node.js API ────────────────────────────────────
+  momnts-api:
+    image: momnts-api:latest
+    container_name: momnts-api
+    restart: unless-stopped
+    ports:
+      - "3000:3000"
+    environment:
+      - NODE_ENV=production
+      - PORT=3000
+      - DATABASE_URL=${DATABASE_URL}
+      - JWT_SECRET=${JWT_SECRET}
+      - REDIS_URL=redis://redis:6379
+      - PYTHON_SERVICE_URL=${PYTHON_SERVICE_URL}
+      - R2_ACCOUNT_ID=${R2_ACCOUNT_ID}
+      - R2_ACCESS_KEY_ID=${R2_ACCESS_KEY_ID}
+      - R2_SECRET_ACCESS_KEY=${R2_SECRET_ACCESS_KEY}
+      - R2_BUCKET_NAME=${R2_BUCKET_NAME}
+      - R2_PUBLIC_URL=${R2_PUBLIC_URL}
+      - CLIENT_APP_URL=${CLIENT_APP_URL}
+    depends_on:
+      redis:
+        condition: service_healthy
+    networks:
+      - momnts-network
+
+  # ── Photo processing worker ────────────────────────
+  momnts-worker-photos:
+    image: momnts-api:latest
+    container_name: momnts-worker-photos
+    restart: unless-stopped
+    command: node dist/src/workers/photo.worker.js
+    environment:
+      - NODE_ENV=production
+      - DATABASE_URL=${DATABASE_URL}
+      - REDIS_URL=redis://redis:6379
+      - PYTHON_SERVICE_URL=${PYTHON_SERVICE_URL}
+      - R2_PUBLIC_URL=${R2_PUBLIC_URL}
+    depends_on:
+      redis:
+        condition: service_healthy
+    networks:
+      - momnts-network
+
+  # ── Face matching worker ───────────────────────────
+  momnts-worker-matching:
+    image: momnts-api:latest
+    container_name: momnts-worker-matching
+    restart: unless-stopped
+    command: node dist/src/workers/match.worker.js
+    environment:
+      - NODE_ENV=production
+      - DATABASE_URL=${DATABASE_URL}
+      - REDIS_URL=redis://redis:6379
+    depends_on:
+      redis:
+        condition: service_healthy
+    networks:
+      - momnts-network
+
+networks:
+  momnts-network:
+    driver: bridge
+
+volumes:
+  redis-data:

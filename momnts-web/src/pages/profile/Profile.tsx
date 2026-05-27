@@ -10,6 +10,7 @@ import SelfieUploadModal from './components/SelfieUploadModal'
 import {
   User,
   Envelope,
+  EnvelopeSimple,
   CalendarBlank,
   Camera,
   SignOut,
@@ -18,6 +19,8 @@ import {
   CircleNotch,
   PencilSimple,
   Check,
+  CheckCircle,
+  WarningCircle,
   X
 } from '@phosphor-icons/react'
 import {
@@ -32,6 +35,7 @@ import {
   AlertDialogTrigger,
 } from '../../components/ui/alert-dialog'
 import { toast } from 'sonner'
+import { authApi } from '../../features/auth/services/auth.api'
 
 const Profile = () => {
   const { user, setUser, logout } = useAuth()
@@ -42,6 +46,9 @@ const Profile = () => {
   // Cropping states
   const [selectedImage, setSelectedImage] = useState<string | null>(null)
   const [isCropModalOpen, setIsCropModalOpen] = useState(false)
+
+  // Email verification state
+  const [isSendingOtp, setIsSendingOtp] = useState(false)
 
   // Name editing states
   const [isEditingName, setIsEditingName] = useState(false)
@@ -56,6 +63,19 @@ const Profile = () => {
     } catch (error) {
       console.error("Logout failed:", error)
       toast.error("Logout failed. Please try again.")
+    }
+  }
+
+  const handleVerifyEmail = async () => {
+    setIsSendingOtp(true)
+    try {
+      await authApi.sendOtp()
+      toast.success('Verification code sent to your email!')
+      navigate('/verify-email')
+    } catch (error: any) {
+      toast.error(error.message || 'Failed to send verification code')
+    } finally {
+      setIsSendingOtp(false)
     }
   }
 
@@ -316,7 +336,24 @@ const Profile = () => {
                 </div>
                 <div className="flex-1 min-w-0">
                   <p className="text-xs font-bold text-neutral-400 dark:text-neutral-500 uppercase tracking-widest mb-1 select-none">Email Address</p>
-                  <p className="text-lg font-semibold text-neutral-900 dark:text-neutral-100 break-all">{user.email}</p>
+                  <div className="flex items-center gap-2">
+                    <p className="text-lg font-semibold text-neutral-900 dark:text-neutral-100 break-all">{user.email}</p>
+                    {user.email_verified ? (
+                      <Tooltip>
+                        <TooltipTrigger delay={0}>
+                          <CheckCircle size={20} weight="fill" className="text-emerald-500" />
+                        </TooltipTrigger>
+                        <TooltipContent>Email verified</TooltipContent>
+                      </Tooltip>
+                    ) : (
+                      <Tooltip>
+                        <TooltipTrigger delay={0}>
+                          <WarningCircle size={20} weight="fill" className="text-amber-500" />
+                        </TooltipTrigger>
+                        <TooltipContent>Email not verified</TooltipContent>
+                      </Tooltip>
+                    )}
+                  </div>
                 </div>
               </div>
 
@@ -331,6 +368,26 @@ const Profile = () => {
               </div>
             </div>
           </div>
+
+          {!user.email_verified && (
+            <div className="bg-blue-50 dark:bg-blue-950/20 border border-blue-100 dark:border-blue-900/30 rounded-[32px] p-6 sm:p-8">
+              <h4 className="text-blue-900 dark:text-blue-400 font-bold mb-2 flex items-center gap-2 text-lg">
+                <EnvelopeSimple size={24} weight="fill" />
+                Verify your email
+              </h4>
+              <p className="text-blue-800/80 dark:text-blue-400/80 mb-6 max-w-lg leading-relaxed">
+                Verify your email address to secure your account and unlock all features.
+              </p>
+              <Button
+                onClick={handleVerifyEmail}
+                disabled={isSendingOtp}
+                className="bg-blue-600 hover:bg-blue-700 text-white rounded-2xl h-11 px-8 font-bold border-none shadow-lg shadow-blue-500/20"
+              >
+                {isSendingOtp ? <CircleNotch size={18} className="animate-spin mr-2" /> : null}
+                {isSendingOtp ? 'Sending...' : 'Verify Email Now'}
+              </Button>
+            </div>
+          )}
 
           {!user.selfie_url && (
             <div className="bg-amber-50 dark:bg-amber-950/20 border border-amber-100 dark:border-amber-900/30 rounded-[32px] p-6 sm:p-8">

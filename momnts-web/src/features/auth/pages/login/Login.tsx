@@ -92,8 +92,10 @@ const Login = () => {
                     </Form>
                 </div>
                 <div className="register-right md:w-1/2 hidden md:block">
-                    <div className="register-right-content w-full h-full p-2">
+                    <div className="register-right-content w-full h-full p-2 relative">
                         <img src="/register_image.jpg" alt="register-image" className="w-full h-full object-cover rounded-xl" />
+                        <div className="absolute inset-2 rounded-xl pointer-events-none bg-gradient-to-r from-background/60 via-transparent to-transparent" />
+                        <div className="absolute inset-2 rounded-xl pointer-events-none bg-gradient-to-t from-background/50 via-transparent to-transparent" />
                     </div>
                 </div>
             </div>
