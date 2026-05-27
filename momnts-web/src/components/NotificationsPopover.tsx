@@ -129,7 +129,7 @@ const NotificationsPopover = () => {
           </AnimatePresence>
         </button>
       </PopoverTrigger>
-      <PopoverContent className="w-80 sm:w-96 p-0 bg-white/95 dark:bg-neutral-950/95 backdrop-blur-xl border-neutral-100 dark:border-neutral-800 rounded-3xl shadow-2xl overflow-hidden" align="end" sideOffset={8}>
+      <PopoverContent className="w-[calc(100vw-2rem)] sm:w-96 p-0 bg-white/95 dark:bg-neutral-950/95 backdrop-blur-xl border-neutral-100 dark:border-neutral-800 rounded-3xl shadow-2xl overflow-hidden" align="end" sideOffset={8}>
         <div className="p-4 border-b border-neutral-100 dark:border-neutral-800 flex justify-between items-center bg-white dark:bg-neutral-950">
           <h3 className="font-bold text-3xl font-sirage">Notifications</h3>
           {unreadCount > 0 && (

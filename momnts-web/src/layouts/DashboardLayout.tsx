@@ -173,7 +173,7 @@ const DashboardLayout = () => {
               key={item.title}
               onClick={() => navigate(item.path)}
               className={cn(
-                "relative flex flex-col items-center justify-center py-2 px-6 rounded-2xl transition-all duration-300",
+                "relative flex flex-col items-center justify-center py-2 flex-1 rounded-2xl transition-all duration-300",
                 item.active ? "text-neutral-900 dark:text-white" : "text-neutral-400 dark:text-neutral-500 hover:text-neutral-600 dark:hover:text-neutral-400"
               )}
             >

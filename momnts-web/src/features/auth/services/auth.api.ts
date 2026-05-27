@@ -84,8 +84,9 @@ export const authApi = {
   },
 
   async getMe(): Promise<User> {
-    const response = await fetch(`${API_URL}/api/auth/me`, {
+    const response = await fetch(`${API_URL}/api/auth/me?_t=${Date.now()}`, {
       headers: authHeaders(),
+      cache: 'no-store',
     })
 
     if (!response.ok) {
@@ -196,5 +197,39 @@ export const authApi = {
     }
 
     return data
+  },
+
+  async getSessions(): Promise<any[]> {
+    const refreshToken = localStorage.getItem('refreshToken');
+    const headers = { ...authHeaders('application/json') };
+    if (refreshToken) headers['x-refresh-token'] = refreshToken;
+
+    const response = await fetch(`${API_URL}/api/auth/sessions?_t=${Date.now()}`, {
+      headers,
+      cache: 'no-store'
+    });
+
+    if (!response.ok) {
+      throw new Error("Failed to fetch sessions");
+    }
+
+    const data = await response.json();
+    return data.sessions;
+  },
+
+  async revokeSession(sessionId: string): Promise<void> {
+    const refreshToken = localStorage.getItem('refreshToken');
+    const headers = { ...authHeaders('application/json') };
+    if (refreshToken) headers['x-refresh-token'] = refreshToken;
+
+    const response = await fetch(`${API_URL}/api/auth/sessions/${sessionId}`, {
+      method: "DELETE",
+      headers
+    });
+
+    if (!response.ok) {
+      const data = await response.json();
+      throw new Error(data.message || "Failed to revoke session");
+    }
   },
 }

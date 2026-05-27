@@ -1,4 +1,5 @@
-import  type{ Request, Response } from "express";
+import { Request, Response } from "express";
+import { randomUUID } from "crypto";
 import { prisma } from "../lib/prisma";
 import bcrypt from "bcryptjs";
 import jwt from "jsonwebtoken";
@@ -120,6 +121,35 @@ async function storeAndSendOtp(userId: string, email: string): Promise<{ success
   return { success: true };
 }
 
+// ─── User Agent Parser Helper ─────────────────────────────────────────
+function parseUserAgent(userAgent: string | undefined) {
+  if (!userAgent) return { browser: 'Unknown', os: 'Unknown', deviceType: 'desktop', deviceName: 'Unknown Device' };
+
+  // truncate to prevent extremely long malicious strings from causing DB bloating
+  const ua = userAgent.slice(0, 500);
+
+  let browser = 'Unknown';
+  if (ua.includes('Edg/')) browser = 'Edge';
+  else if (ua.includes('Chrome/') && !ua.includes('Edg/')) browser = 'Chrome';
+  else if (ua.includes('Firefox/')) browser = 'Firefox';
+  else if (ua.includes('Safari/') && !ua.includes('Chrome/')) browser = 'Safari';
+
+  let os = 'Unknown';
+  if (ua.includes('Windows')) os = 'Windows';
+  else if (ua.includes('Mac OS X')) os = 'macOS';
+  else if (ua.includes('Android')) os = 'Android';
+  else if (ua.includes('Linux')) os = 'Linux';
+  else if (ua.includes('iOS') || ua.includes('iPhone') || ua.includes('iPad')) os = 'iOS';
+
+  let deviceType = 'desktop';
+  if (ua.includes('Mobi') || ua.includes('Android') || ua.includes('iPhone')) deviceType = 'mobile';
+  if (ua.includes('Tablet') || ua.includes('iPad')) deviceType = 'tablet';
+
+  const deviceName = `${os} Device`;
+
+  return { browser, os, deviceType, deviceName, original: ua };
+}
+
 // ─── User response shape helper ──────────────────────────────────────
 function userResponse(user: { id: string; name: string; email: string; email_verified: boolean; selfie_url: string | null; created_at: Date }) {
   return {
@@ -184,9 +214,11 @@ async function registerUserController(req: Request, res: Response) {
       return res.status(500).json({ message: "Server configuration error" });
     }
 
+    const sessionId = randomUUID();
+
     // Generate access token (1 hr)
     const accessToken = jwt.sign(
-      { id: user.id, name: user.name },
+      { id: user.id, name: user.name, sessionId },
       jwtSecret,
       { expiresIn: "1h" },
     );
@@ -198,12 +230,22 @@ async function registerUserController(req: Request, res: Response) {
       { expiresIn: "7d" },
     );
 
+    const uaMetadata = parseUserAgent(req.headers['user-agent']);
+    const ipAddress = req.ip || req.socket.remoteAddress || 'Unknown';
+
     // Store refresh token in database
     await prisma.refreshToken.create({
       data: {
+        id: sessionId,
         token: refreshToken,
         user_id: user.id,
         expires_at: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000),
+        device_name: uaMetadata.deviceName,
+        device_type: uaMetadata.deviceType,
+        browser: uaMetadata.browser,
+        os: uaMetadata.os,
+        ip_address: ipAddress,
+        last_used_at: new Date(),
       },
     });
 
@@ -271,9 +313,11 @@ async function loginUserController(req: Request, res: Response) {
       return res.status(500).json({ message: "Server configuration error" });
     }
 
+    const sessionId = randomUUID();
+
     // Generate access token (1 hr)
     const accessToken = jwt.sign(
-      { id: user.id, name: user.name },
+      { id: user.id, name: user.name, sessionId },
       jwtSecret,
       { expiresIn: "1h" },
     );
@@ -285,12 +329,22 @@ async function loginUserController(req: Request, res: Response) {
       { expiresIn: "7d" },
     );
 
+    const uaMetadata = parseUserAgent(req.headers['user-agent']);
+    const ipAddress = req.ip || req.socket.remoteAddress || 'Unknown';
+
     // Store refresh token in database
     await prisma.refreshToken.create({
       data: {
+        id: sessionId,
         token: refreshToken,
         user_id: user.id,
         expires_at: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000),
+        device_name: uaMetadata.deviceName,
+        device_type: uaMetadata.deviceType,
+        browser: uaMetadata.browser,
+        os: uaMetadata.os,
+        ip_address: ipAddress,
+        last_used_at: new Date(),
       },
     });
 
@@ -362,9 +416,11 @@ async function refreshUserController(req: Request, res: Response) {
       return res.status(401).json({ message: "Refresh token expired" });
     }
 
+    const sessionId = randomUUID();
+
     // Generate new access token
     const newAccessToken = jwt.sign(
-      { id: decoded.id, name: storedToken.user.name },
+      { id: decoded.id, name: storedToken.user.name, sessionId },
       jwtSecret,
       { expiresIn: "1h" },
     );
@@ -379,12 +435,22 @@ async function refreshUserController(req: Request, res: Response) {
     // Delete old refresh token
     await prisma.refreshToken.delete({ where: { token: refreshToken } });
 
+    const uaMetadata = parseUserAgent(req.headers['user-agent']);
+    const ipAddress = req.ip || req.socket.remoteAddress || 'Unknown';
+
     // Store new refresh token
     await prisma.refreshToken.create({
       data: {
+        id: sessionId,
         token: newRefreshToken,
         user_id: decoded.id,
         expires_at: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000),
+        device_name: uaMetadata.deviceName,
+        device_type: uaMetadata.deviceType,
+        browser: uaMetadata.browser,
+        os: uaMetadata.os,
+        ip_address: ipAddress,
+        last_used_at: new Date(),
       },
     });
 
@@ -850,6 +916,76 @@ async function changePasswordController(req: Request, res: Response) {
   }
 }
 
+/**
+ * @name getSessionsController
+ * @description Get all active sessions for current user
+ * @access Private
+ */
+async function getSessionsController(req: any, res: Response) {
+  try {
+    const refreshToken = req.headers['x-refresh-token'] || req.body.refreshToken;
+
+    const sessions = await prisma.refreshToken.findMany({
+      where: { user_id: req.user.id },
+      orderBy: { last_used_at: 'desc' }
+    });
+
+    const formattedSessions = sessions.map(session => ({
+      id: session.id,
+      device_name: session.device_name,
+      device_type: session.device_type,
+      browser: session.browser,
+      os: session.os,
+      ip_address: session.ip_address,
+      created_at: session.created_at,
+      last_used_at: session.last_used_at,
+      is_current: refreshToken ? session.token === refreshToken : false
+    }));
+
+    return res.status(200).json({ sessions: formattedSessions });
+  } catch (error) {
+    const message = error instanceof Error ? error.message : "Internal server error";
+    return res.status(500).json({ message });
+  }
+}
+
+/**
+ * @name revokeSessionController
+ * @description Revoke a specific session
+ * @access Private
+ */
+async function revokeSessionController(req: any, res: Response) {
+  try {
+    const { sessionId } = req.params;
+    const currentRefreshToken = req.headers['x-refresh-token'] || req.body.refreshToken;
+
+    const session = await prisma.refreshToken.findUnique({
+      where: { id: sessionId }
+    });
+
+    if (!session) {
+      return res.status(404).json({ message: "Session not found" });
+    }
+
+    if (session.user_id !== req.user.id) {
+      return res.status(403).json({ message: "Unauthorized to revoke this session" });
+    }
+
+    if (currentRefreshToken && session.token === currentRefreshToken) {
+      return res.status(400).json({ message: "Cannot revoke current session using this endpoint. Use logout instead." });
+    }
+
+    await prisma.refreshToken.delete({
+      where: { id: sessionId }
+    });
+
+    return res.status(200).json({ message: "Session revoked successfully" });
+  } catch (error) {
+    const message = error instanceof Error ? error.message : "Internal server error";
+    return res.status(500).json({ message });
+  }
+}
+
 export {
   registerUserController,
   loginUserController,
@@ -862,4 +998,6 @@ export {
   resetPasswordController,
   sendChangePasswordOtpController,
   changePasswordController,
+  getSessionsController,
+  revokeSessionController,
 };

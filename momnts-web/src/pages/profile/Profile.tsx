@@ -7,6 +7,9 @@ import { useNavigate } from 'react-router'
 import { Tooltip, TooltipTrigger, TooltipContent } from '../../components/ui/tooltip'
 import SelfieCropModal from './components/SelfieCropModal'
 import SelfieUploadModal from './components/SelfieUploadModal'
+import DevicesTab from './components/DevicesTab'
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '../../components/ui/tabs'
+import { motion } from 'motion/react'
 import {
   User,
   Envelope,
@@ -18,11 +21,12 @@ import {
   CameraPlus,
   CircleNotch,
   PencilSimple,
-  Check,
   CheckCircle,
   WarningCircle,
   Key,
-  X
+  X,
+  UserCircle,
+  Devices
 } from '@phosphor-icons/react'
 import {
   AlertDialog,
@@ -60,7 +64,13 @@ const Profile = () => {
   const [editName, setEditName] = useState('')
   const [isUpdatingName, setIsUpdatingName] = useState(false)
 
-  const handleLogout = async () => {
+  const [activeTab, setActiveTab] = useState('account')
+
+  const [isLoggingOut, setIsLoggingOut] = useState(false)
+
+  const handleLogout = async (e?: React.MouseEvent) => {
+    e?.preventDefault();
+    setIsLoggingOut(true);
     try {
       await logout()
       navigate("/login", { replace: true })
@@ -68,6 +78,7 @@ const Profile = () => {
     } catch (error) {
       console.error("Logout failed:", error)
       toast.error("Logout failed. Please try again.")
+      setIsLoggingOut(false)
     }
   }
 
@@ -262,8 +273,9 @@ const Profile = () => {
                 </AlertDialogHeader>
                 <AlertDialogFooter>
                   <AlertDialogCancel variant="outline" size="default" className="rounded-2xl border-neutral-200 dark:border-neutral-800">Cancel</AlertDialogCancel>
-                  <AlertDialogAction onClick={handleLogout} className="bg-red-500 hover:bg-red-600 text-white rounded-2xl">
-                    Logout
+                  <AlertDialogAction disabled={isLoggingOut} onClick={handleLogout} className="bg-red-500 hover:bg-red-600 text-white rounded-2xl">
+                    {isLoggingOut ? <CircleNotch size={18} className="animate-spin mr-2" /> : null}
+                    {isLoggingOut ? 'Logging out...' : 'Logout'}
                   </AlertDialogAction>
                 </AlertDialogFooter>
               </AlertDialogContent>
@@ -271,13 +283,46 @@ const Profile = () => {
           </div>
         </div>
 
-        <div className="md:col-span-2 space-y-8 w-full min-w-0">
-          <div className="bg-white dark:bg-neutral-900 border border-neutral-100 dark:border-neutral-800 rounded-[32px] p-6 sm:p-8 shadow-sm">
-            <h3 className="text-xl font-bold select-none mb-8 text-neutral-900 dark:text-neutral-100 flex items-center gap-2">
-              Account Information
-            </h3>
-            
-            <div className="space-y-8">
+        <div className="md:col-span-2 w-full min-w-0">
+          <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
+            <TabsList className="flex w-full mb-8 bg-neutral-100/50 dark:bg-neutral-900/50 p-1 rounded-2xl h-14 items-stretch relative">
+              <TabsTrigger value="account" className="relative rounded-xl flex-1 text-base z-10 data-active:bg-transparent data-active:shadow-none transition-colors duration-200">
+                {activeTab === 'account' && (
+                  <motion.div 
+                    layoutId="profile-tab-pill" 
+                    className="absolute inset-0 bg-white dark:bg-neutral-800 rounded-xl shadow-sm -z-10" 
+                    transition={{ type: "spring", stiffness: 400, damping: 30 }}
+                  />
+                )}
+                <UserCircle size={20} weight="fill" className="mr-2" />
+                Account
+              </TabsTrigger>
+              <TabsTrigger value="devices" className="relative rounded-xl flex-1 text-base z-10 data-active:bg-transparent data-active:shadow-none transition-colors duration-200">
+                {activeTab === 'devices' && (
+                  <motion.div 
+                    layoutId="profile-tab-pill" 
+                    className="absolute inset-0 bg-white dark:bg-neutral-800 rounded-xl shadow-sm -z-10" 
+                    transition={{ type: "spring", stiffness: 400, damping: 30 }}
+                  />
+                )}
+                <Devices size={20} weight="fill" className="mr-2" />
+                Devices
+              </TabsTrigger>
+            </TabsList>
+
+            <TabsContent value="account" className="mt-0 focus-visible:outline-none focus-visible:ring-0">
+              <motion.div 
+                initial={{ opacity: 0, y: 10 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ duration: 0.3 }}
+                className="space-y-8"
+              >
+                <div className="bg-white dark:bg-neutral-900 border border-neutral-100 dark:border-neutral-800 rounded-[32px] p-6 sm:p-8 shadow-sm">
+                <h3 className="text-xl font-bold select-none mb-8 text-neutral-900 dark:text-neutral-100 flex items-center gap-2">
+                  Account Information
+                </h3>
+                
+                <div className="space-y-8">
               <div className="flex items-start gap-4">
                 <div className="p-3 bg-neutral-50 dark:bg-neutral-800 rounded-2xl text-neutral-500 dark:text-neutral-400">
                   <User size={24} />
@@ -445,13 +490,27 @@ const Profile = () => {
                 </AlertDialogHeader>
                 <AlertDialogFooter>
                   <AlertDialogCancel variant="outline" size="default" className="rounded-2xl">Cancel</AlertDialogCancel>
-                  <AlertDialogAction onClick={handleLogout} className="bg-red-500 hover:bg-red-600 text-white rounded-2xl">
-                    Logout
+                  <AlertDialogAction disabled={isLoggingOut} onClick={handleLogout} className="bg-red-500 hover:bg-red-600 text-white rounded-2xl">
+                    {isLoggingOut ? <CircleNotch size={18} className="animate-spin mr-2" /> : null}
+                    {isLoggingOut ? 'Logging out...' : 'Logout'}
                   </AlertDialogAction>
                 </AlertDialogFooter>
               </AlertDialogContent>
             </AlertDialog>
           </div>
+              </motion.div>
+            </TabsContent>
+
+            <TabsContent value="devices" className="mt-0 focus-visible:outline-none focus-visible:ring-0">
+              <motion.div
+                initial={{ opacity: 0, y: 10 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ duration: 0.3 }}
+              >
+                <DevicesTab />
+              </motion.div>
+            </TabsContent>
+          </Tabs>
         </div>
       </div>
       <SelfieCropModal
