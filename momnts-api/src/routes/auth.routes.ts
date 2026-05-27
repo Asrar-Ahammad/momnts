@@ -11,6 +11,8 @@ import {
   resetPasswordController,
   sendChangePasswordOtpController,
   changePasswordController,
+  getSessionsController,
+  revokeSessionController,
 } from "../controllers/auth.controller";
 import { authenticate } from "../middleware/auth.middleware";
 
@@ -103,5 +105,21 @@ authRouter.post("/send-change-password-otp", authenticate, sendChangePasswordOtp
  */
 
 authRouter.post("/change-password", authenticate, changePasswordController);
+
+/**
+ * @route GET /api/auth/sessions
+ * @description Get active sessions for current user
+ * @access Private
+ */
+
+authRouter.get("/sessions", authenticate, getSessionsController);
+
+/**
+ * @route DELETE /api/auth/sessions/:sessionId
+ * @description Revoke a specific session
+ * @access Private
+ */
+
+authRouter.delete("/sessions/:sessionId", authenticate, revokeSessionController);
 
 export { authRouter };

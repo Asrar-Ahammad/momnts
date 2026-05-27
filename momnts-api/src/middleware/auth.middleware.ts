@@ -46,7 +46,17 @@ export async function authenticate(
     const decoded = jwt.verify(token, jwtSecret) as unknown as {
       id: string;
       name: string;
+      sessionId?: string;
     };
+
+    if (decoded.sessionId) {
+      const activeSession = await prisma.refreshToken.findUnique({
+        where: { id: decoded.sessionId }
+      });
+      if (!activeSession) {
+        return res.status(401).json({ message: "Session has been revoked" });
+      }
+    }
 
     req.user = decoded;
     next();
