@@ -141,7 +141,7 @@ const Profile = () => {
   }
 
   return (
-    <div className="max-w-screen md:max-w-4xl mx-auto px-14 py-12 pb-24">
+    <div className="max-w-screen-xl md:max-w-4xl mx-auto px-4 sm:px-6 md:px-14 py-12 pb-24">
       <div className="relative mb-12 select-none">
         <h1 className="text-6xl font-bold text-neutral-900 dark:text-neutral-100 mb-2 font-sirage">Profile</h1>
         <p className="text-neutral-500 dark:text-neutral-400">Manage your account and biometric settings.</p>
@@ -246,9 +246,8 @@ const Profile = () => {
           </div>
         </div>
 
-        {/* Right Column: Account Details */}
-        <div className="md:col-span-2 space-y-8 min-w-fit">
-          <div className="bg-white dark:bg-neutral-900 border border-neutral-100 dark:border-neutral-800 rounded-[32px] p-8 shadow-sm">
+        <div className="md:col-span-2 space-y-8 w-full min-w-0">
+          <div className="bg-white dark:bg-neutral-900 border border-neutral-100 dark:border-neutral-800 rounded-[32px] p-6 sm:p-8 shadow-sm">
             <h3 className="text-xl font-bold select-none mb-8 text-neutral-900 dark:text-neutral-100 flex items-center gap-2">
               Account Information
             </h3>
@@ -261,11 +260,11 @@ const Profile = () => {
                 <div className="flex-1">
                   <p className="text-xs font-bold text-neutral-400 dark:text-neutral-500 uppercase tracking-widest mb-1 select-none">Full Name</p>
                   {isEditingName ? (
-                    <div className="flex items-center gap-2">
+                    <div className="flex items-center gap-2 w-full">
                       <Input
                         value={editName}
                         onChange={(e) => setEditName(e.target.value)}
-                        className="h-9 text-lg font-semibold rounded-xl"
+                        className="h-9 text-lg font-semibold rounded-xl flex-1 min-w-0"
                         disabled={isUpdatingName}
                         maxLength={50}
                         autoFocus
@@ -297,8 +296,8 @@ const Profile = () => {
                       </Button>
                     </div>
                   ) : (
-                    <div className="flex items-center gap-2">
-                      <p className="text-lg font-semibold text-neutral-900 dark:text-neutral-100 capitalize">{user.username}</p>
+                    <div className="flex items-center gap-2 w-full min-w-0">
+                      <p className="text-lg font-semibold text-neutral-900 dark:text-neutral-100 capitalize truncate">{user.username}</p>
                       <button
                         onClick={handleStartEditingName}
                         className="p-1.5 rounded-lg text-neutral-400 hover:text-neutral-600 hover:bg-neutral-100 dark:hover:bg-neutral-800 dark:hover:text-neutral-300 transition-colors cursor-pointer"
@@ -315,9 +314,9 @@ const Profile = () => {
                 <div className="p-3 bg-neutral-50 dark:bg-neutral-800 rounded-2xl text-neutral-500 dark:text-neutral-400">
                   <Envelope size={24} />
                 </div>
-                <div>
+                <div className="flex-1 min-w-0">
                   <p className="text-xs font-bold text-neutral-400 dark:text-neutral-500 uppercase tracking-widest mb-1 select-none">Email Address</p>
-                  <p className="text-lg font-semibold text-neutral-900 dark:text-neutral-100">{user.email}</p>
+                  <p className="text-lg font-semibold text-neutral-900 dark:text-neutral-100 break-all">{user.email}</p>
                 </div>
               </div>
 
@@ -325,16 +324,16 @@ const Profile = () => {
                 <div className="p-3 bg-neutral-50 dark:bg-neutral-800 rounded-2xl text-neutral-500 dark:text-neutral-400">
                   <CalendarBlank size={24} />
                 </div>
-                <div>
+                <div className="flex-1 min-w-0">
                   <p className="text-xs font-bold text-neutral-400 dark:text-neutral-500 uppercase tracking-widest mb-1 select-none">Member Since</p>
-                  <p className="text-lg font-semibold text-neutral-900 dark:text-neutral-100">{formatDate(user.created_at)}</p>
+                  <p className="text-lg font-semibold text-neutral-900 dark:text-neutral-100 break-words">{formatDate(user.created_at)}</p>
                 </div>
               </div>
             </div>
           </div>
 
           {!user.selfie_url && (
-            <div className="bg-amber-50 dark:bg-amber-950/20 border border-amber-100 dark:border-amber-900/30 rounded-[32px] p-8">
+            <div className="bg-amber-50 dark:bg-amber-950/20 border border-amber-100 dark:border-amber-900/30 rounded-[32px] p-6 sm:p-8">
               <h4 className="text-amber-900 dark:text-amber-400 font-bold mb-2 flex items-center gap-2 text-lg">
                 <Camera size={24} weight="fill" />
                 Finish setting up your profile
