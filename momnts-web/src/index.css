@@ -229,3 +229,90 @@ body.slideshow-active header {
   opacity: 0 !important;
   pointer-events: none !important;
 }
+
+/* Auth page animated gradient blobs */
+@keyframes blob-drift-1 {
+  0%, 100% { transform: translate(0, 0) scale(1); }
+  25% { transform: translate(30px, -50px) scale(1.1); }
+  50% { transform: translate(-20px, 20px) scale(0.9); }
+  75% { transform: translate(50px, 30px) scale(1.05); }
+}
+
+@keyframes blob-drift-2 {
+  0%, 100% { transform: translate(0, 0) scale(1); }
+  25% { transform: translate(-40px, 30px) scale(0.95); }
+  50% { transform: translate(30px, -40px) scale(1.1); }
+  75% { transform: translate(-20px, -20px) scale(1); }
+}
+
+@keyframes blob-drift-3 {
+  0%, 100% { transform: translate(0, 0) scale(1.05); }
+  33% { transform: translate(40px, 40px) scale(0.9); }
+  66% { transform: translate(-30px, -30px) scale(1.1); }
+}
+
+.auth-gradient-bg {
+  position: relative;
+  overflow: hidden;
+}
+
+.auth-gradient-bg::before,
+.auth-gradient-bg::after {
+  content: '';
+  position: absolute;
+  border-radius: 50%;
+  filter: blur(80px);
+  opacity: 0.5;
+  pointer-events: none;
+  z-index: 0;
+}
+
+.auth-gradient-bg::before {
+  width: 400px;
+  height: 400px;
+  top: -10%;
+  left: -10%;
+  background: oklch(0.85 0.08 290);
+  animation: blob-drift-1 20s ease-in-out infinite;
+}
+
+.auth-gradient-bg::after {
+  width: 350px;
+  height: 350px;
+  bottom: -5%;
+  right: -5%;
+  background: oklch(0.88 0.07 200);
+  animation: blob-drift-2 25s ease-in-out infinite;
+}
+
+/* Third blob via a child element — added in markup as .auth-blob */
+.auth-blob {
+  position: absolute;
+  width: 300px;
+  height: 300px;
+  top: 50%;
+  left: 50%;
+  border-radius: 50%;
+  filter: blur(80px);
+  opacity: 0.4;
+  background: oklch(0.9 0.06 50);
+  animation: blob-drift-3 22s ease-in-out infinite;
+  pointer-events: none;
+  z-index: 0;
+}
+
+/* Dark mode variants */
+.dark .auth-gradient-bg::before {
+  background: oklch(0.3 0.08 290);
+  opacity: 0.35;
+}
+
+.dark .auth-gradient-bg::after {
+  background: oklch(0.28 0.07 200);
+  opacity: 0.35;
+}
+
+.dark .auth-blob {
+  background: oklch(0.32 0.06 50);
+  opacity: 0.25;
+}
