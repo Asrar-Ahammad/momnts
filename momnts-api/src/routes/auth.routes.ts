@@ -5,6 +5,8 @@ import {
   registerUserController,
   getMeController,
   refreshUserController,
+  sendOtpController,
+  verifyOtpController,
 } from "../controllers/auth.controller";
 import { authenticate } from "../middleware/auth.middleware";
 
@@ -50,4 +52,21 @@ authRouter.post("/logout", authenticate, logoutUserController);
 
 authRouter.get("/me", authenticate, getMeController);
 
+/**
+ * @route POST /api/auth/send-otp
+ * @description Send OTP to user's email for verification (rate-limited)
+ * @access Private
+ */
+
+authRouter.post("/send-otp", authenticate, sendOtpController);
+
+/**
+ * @route POST /api/auth/verify-otp
+ * @description Verify OTP and mark email as verified (brute-force protected)
+ * @access Private
+ */
+
+authRouter.post("/verify-otp", authenticate, verifyOtpController);
+
 export { authRouter };
+

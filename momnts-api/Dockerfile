@@ -1,42 +1,51 @@
-# Use the official Bun image as the base
-FROM oven/bun:1.1-alpine AS builder
+# ── Stage 1: Build stage ──────────────────────────────────────────────────────
+FROM node:22-alpine AS builder
 
-WORKDIR /usr/src/app
+WORKDIR /app
 
-# Copy dependency manifests
-COPY package.json bun.lock ./
+# Install dependencies (including devDependencies)
+COPY package*.json ./
+RUN npm ci
 
-# Install all dependencies (including devDependencies for prisma)
-RUN bun install
-
-# Copy Prisma schema and generate client
-COPY prisma ./prisma/
-RUN bun prisma generate
-
-# Copy the rest of the application source code
+# Copy source and prisma configuration
 COPY . .
 
-# Final stage: build a lean production image
-FROM oven/bun:1.1-alpine AS runner
+# Set placeholder DATABASE_URL to satisfy Prisma schema validation during build
+ENV DATABASE_URL="postgresql://placeholder:placeholder@localhost:5432/placeholder"
 
-WORKDIR /usr/src/app
+# Build TypeScript to JavaScript and generate Prisma Client
+RUN npm run build
+
+
+# ── Stage 2: Runtime stage ────────────────────────────────────────────────────
+FROM node:22-alpine AS runner
+
+WORKDIR /app
 
 # Set production environment
 ENV NODE_ENV=production
 
-# Copy node_modules, package files, and prisma client from builder
-COPY --from=builder /usr/src/app/node_modules ./node_modules
-COPY --from=builder /usr/src/app/package.json ./package.json
-COPY --from=builder /usr/src/app/generated ./generated
-COPY --from=builder /usr/src/app/prisma ./prisma
-COPY --from=builder /usr/src/app/src ./src
-COPY --from=builder /usr/src/app/index.ts ./index.ts
+# Limit V8 heap memory size to prevent OOM on t3.small (2GB RAM)
+# 384MB is optimal for running API + 2 Workers + Redis on a single t3.small
+ENV NODE_OPTIONS="--max-old-space-size=384"
 
-# Create directory for temporary uploads
-RUN mkdir -p temp-uploads && chmod 777 temp-uploads
+# Create non-root user for security
+RUN addgroup -S appgroup && adduser -S appuser -G appgroup
 
-# Expose HTTP port (configured via environment variable in AWS)
+# Copy dependencies list and install only production dependencies
+COPY package*.json ./
+RUN npm ci --omit=dev
+
+# Copy compiled code from builder stage
+COPY --from=builder /app/dist ./dist
+
+# Create temp uploads folder for multer with correct permissions
+RUN mkdir -p temp-uploads && chown appuser:appgroup temp-uploads
+
+# Switch to non-root user
+USER appuser
+
 EXPOSE 3000
 
-# Default command to run the API server
-CMD ["bun", "index.ts"]
+# Default command — API server
+CMD ["node", "dist/index.js"]

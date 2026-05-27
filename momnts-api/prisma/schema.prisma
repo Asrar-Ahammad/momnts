@@ -19,6 +19,7 @@ model User {
   name             String
   email            String                      @unique
   password_hash    String
+  email_verified   Boolean                     @default(false)
   selfie_url       String?
   selfie_embedding Unsupported("vector(512)")?
   created_at       DateTime                    @default(now())

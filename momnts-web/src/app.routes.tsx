@@ -4,6 +4,7 @@ import Protected from './features/auth/components/Protected'
 import DashboardLayout from './layouts/DashboardLayout'
 import Register from './features/auth/pages/register/Register'
 import Login from './features/auth/pages/login/Login'
+import VerifyEmail from './features/auth/pages/verify-email/VerifyEmail'
 import Home from './pages/home/Home'
 import Events from './pages/events/Events'
 import EventDetails from './pages/events/EventDetails'
@@ -36,6 +37,10 @@ export const router = createBrowserRouter([
       {
         path: "/onboarding",
         element: <Onboarding />,
+      },
+      {
+        path: "/verify-email",
+        element: <VerifyEmail />,
       },
       {
         element: (

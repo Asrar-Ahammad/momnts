@@ -6,6 +6,7 @@ export interface User {
   id: string
   username: string
   email: string
+  email_verified: boolean
   selfie_url?: string
   created_at?: string
 }
@@ -93,5 +94,40 @@ export const authApi = {
 
     const data = await response.json()
     return data.user
+  },
+
+  async sendOtp(): Promise<{ message: string; retryAfter?: number }> {
+    const response = await fetch(`${API_URL}/api/auth/send-otp`, {
+      method: "POST",
+      headers: authHeaders('application/json'),
+    })
+
+    const data = await response.json()
+
+    if (!response.ok) {
+      const error = new Error(data.message || "Failed to send verification code") as Error & { retryAfter?: number }
+      if (data.retryAfter) error.retryAfter = data.retryAfter
+      throw error
+    }
+
+    return data
+  },
+
+  async verifyOtp(otp: string): Promise<{ message: string; user: User }> {
+    const response = await fetch(`${API_URL}/api/auth/verify-otp`, {
+      method: "POST",
+      headers: authHeaders('application/json'),
+      body: JSON.stringify({ otp }),
+    })
+
+    const data = await response.json()
+
+    if (!response.ok) {
+      const error = new Error(data.message || "Verification failed") as Error & { retryAfter?: number }
+      if (data.retryAfter) error.retryAfter = data.retryAfter
+      throw error
+    }
+
+    return data
   },
 }
