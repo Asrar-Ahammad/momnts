@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { useConnectionsSummary } from '../../../features/connections/hooks/useConnections'
 import { Button } from '../../../components/ui/button'
 import { Badge } from '../../../components/ui/badge'
@@ -116,9 +116,50 @@ const EventHeader = ({
     return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
   }
 
+  const [visible, setVisible] = useState(true)
+  const lastScrollY = useRef(0)
+
+  useEffect(() => {
+    const handleScroll = (e: Event) => {
+      const target = e.target
+      if (!(target instanceof HTMLElement)) return
+
+      const currentScrollY = target.scrollTop
+
+      // Always show header at the top
+      if (currentScrollY < 10) {
+        setVisible(true)
+        lastScrollY.current = currentScrollY
+        return
+      }
+
+      // Check if scroll difference is significant to avoid micro-adjustments
+      if (Math.abs(currentScrollY - lastScrollY.current) < 5) {
+        return
+      }
+
+      if (currentScrollY > lastScrollY.current) {
+        // Scrolling down -> hide header
+        setVisible(false)
+      } else {
+        // Scrolling up -> show header
+        setVisible(true)
+      }
+
+      lastScrollY.current = currentScrollY
+    }
+
+    window.addEventListener('scroll', handleScroll, true)
+    return () => {
+      window.removeEventListener('scroll', handleScroll, true)
+    }
+  }, [])
+
   return (
     <>
-      <div className="sticky top-0 z-30 bg-white/80 dark:bg-neutral-900/80 backdrop-blur-md border-b border-neutral-200 dark:border-neutral-800">
+      <div className={`sticky top-0 z-30 bg-white/80 dark:bg-neutral-900/80 backdrop-blur-md border-b border-neutral-200 dark:border-neutral-800 transition-all duration-300 ease-in-out ${
+        visible ? 'translate-y-0 opacity-100' : '-translate-y-full opacity-0 pointer-events-none'
+      }`}>
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4 flex flex-col gap-4">
           
           {/* Row 1: Title Section (Left) & Actions Section (Right) */}
