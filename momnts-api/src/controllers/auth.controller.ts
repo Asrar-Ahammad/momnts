@@ -141,7 +141,10 @@ function userResponse(user: { id: string; name: string; email: string; email_ver
 async function registerUserController(req: Request, res: Response) {
   try {
     const { name, password } = req.body;
-    const email = req.body.email?.toLowerCase().trim();
+    if (typeof req.body.email !== "string") {
+      return res.status(400).json({ message: "Please provide a valid email string" });
+    }
+    const email = req.body.email.toLowerCase().trim();
 
     if (!name || !email || !password) {
       return res.status(400).json({
@@ -229,7 +232,10 @@ async function registerUserController(req: Request, res: Response) {
 async function loginUserController(req: Request, res: Response) {
   try {
     const { password } = req.body;
-    const email = req.body.email?.toLowerCase().trim();
+    if (typeof req.body.email !== "string") {
+      return res.status(400).json({ message: "Please provide a valid email string" });
+    }
+    const email = req.body.email.toLowerCase().trim();
 
     if (!email || !password) {
       return res.status(400).json({
@@ -625,7 +631,10 @@ async function verifyOtpController(req: any, res: any) {
  */
 async function forgotPasswordController(req: Request, res: Response) {
   try {
-    const email = req.body.email?.toLowerCase().trim();
+    if (typeof req.body.email !== "string") {
+      return res.status(400).json({ message: "Email is required and must be a string" });
+    }
+    const email = req.body.email.toLowerCase().trim();
     if (!email) {
       return res.status(400).json({ message: "Email is required" });
     }
@@ -633,8 +642,9 @@ async function forgotPasswordController(req: Request, res: Response) {
       return res.status(400).json({ message: "Invalid email" });
     }
 
-    // Security: Rate limit by email string *before* DB query to prevent enumeration
-    const ipOrEmailRateKey = `pwd_req_rate:${email}`;
+    // Security: Rate limit by IP + email to prevent enumeration AND targeted DoS
+    const clientIp = req.ip || req.socket.remoteAddress || 'unknown';
+    const ipOrEmailRateKey = `pwd_req_rate:${clientIp}:${email}`;
     const reqCount = await redis.incr(ipOrEmailRateKey);
     if (reqCount === 1) {
       await redis.expire(ipOrEmailRateKey, OTP_RATE_LIMIT_WINDOW);
@@ -671,9 +681,18 @@ async function forgotPasswordController(req: Request, res: Response) {
 async function resetPasswordController(req: Request, res: Response) {
   try {
     const { otp, newPassword } = req.body;
-    const email = req.body.email?.toLowerCase().trim();
+    if (typeof req.body.email !== "string") {
+      return res.status(400).json({ message: "Email must be a string" });
+    }
+    const email = req.body.email.toLowerCase().trim();
     if (!email || !otp || !newPassword) {
       return res.status(400).json({ message: "Email, OTP, and new password are required" });
+    }
+    if (typeof otp !== "string" || !/^\d{6}$/.test(otp)) {
+      return res.status(400).json({ message: "Please provide a valid 6-digit code" });
+    }
+    if (typeof newPassword !== "string" || newPassword.length > 100) {
+      return res.status(400).json({ message: "Invalid password length" });
     }
 
     const user = await prisma.user.findUnique({ where: { email } });
@@ -776,6 +795,12 @@ async function changePasswordController(req: Request, res: Response) {
 
     if (!otp || !newPassword) {
       return res.status(400).json({ message: "OTP and new password are required" });
+    }
+    if (typeof otp !== "string" || !/^\d{6}$/.test(otp)) {
+      return res.status(400).json({ message: "Please provide a valid 6-digit code" });
+    }
+    if (typeof newPassword !== "string" || newPassword.length > 100) {
+      return res.status(400).json({ message: "Invalid password length" });
     }
 
     const lockout = await redis.get(pwdOtpLockoutKey(userId));
