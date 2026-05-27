@@ -4,7 +4,7 @@ import bcrypt from "bcryptjs";
 import jwt from "jsonwebtoken";
 import crypto from "crypto";
 import { redis } from "../lib/redis";
-import { sendOtpEmail } from "../lib/mailer";
+import { sendOtpEmail, sendPasswordResetOtpEmail } from "../lib/mailer";
 
 // ─── OTP Constants ───────────────────────────────────────────────────
 const OTP_LENGTH = 6;
@@ -37,6 +37,44 @@ const otpKey = (userId: string) => `otp:${userId}`;
 const otpAttemptsKey = (userId: string) => `otp_attempts:${userId}`;
 const otpLockoutKey = (userId: string) => `otp_lockout:${userId}`;
 const otpRateKey = (userId: string) => `otp_rate:${userId}`;
+
+const pwdOtpKey = (userId: string) => `pwd_otp:${userId}`;
+const pwdOtpAttemptsKey = (userId: string) => `pwd_otp_attempts:${userId}`;
+const pwdOtpLockoutKey = (userId: string) => `pwd_otp_lockout:${userId}`;
+const pwdOtpRateKey = (userId: string) => `pwd_otp_rate:${userId}`;
+
+async function storeAndSendPasswordOtp(userId: string, email: string): Promise<{ success: boolean; retryAfter?: number }> {
+  const lockout = await redis.get(pwdOtpLockoutKey(userId));
+  if (lockout) {
+    const ttl = await redis.ttl(pwdOtpLockoutKey(userId));
+    return { success: false, retryAfter: ttl > 0 ? ttl : OTP_LOCKOUT_SECONDS };
+  }
+
+  const newCount = await redis.incr(pwdOtpRateKey(userId));
+  if (newCount === 1) {
+    await redis.expire(pwdOtpRateKey(userId), OTP_RATE_LIMIT_WINDOW);
+  }
+
+  if (newCount > OTP_RATE_LIMIT_MAX) {
+    const ttl = await redis.ttl(pwdOtpRateKey(userId));
+    return { success: false, retryAfter: ttl > 0 ? ttl : OTP_RATE_LIMIT_WINDOW };
+  }
+
+  const otp = generateOtp();
+  const hashed = await hashOtp(otp);
+
+  try {
+    await sendPasswordResetOtpEmail(email, otp);
+  } catch (error) {
+    await redis.decr(pwdOtpRateKey(userId));
+    throw error;
+  }
+
+  await redis.setex(pwdOtpKey(userId), OTP_TTL_SECONDS, hashed);
+  await redis.del(pwdOtpAttemptsKey(userId));
+
+  return { success: true };
+}
 
 /**
  * Store hashed OTP in Redis with TTL. Resets attempt counter.
@@ -97,18 +135,23 @@ function userResponse(user: { id: string; name: string; email: string; email_ver
 // ─── Controllers ─────────────────────────────────────────────────────
 
 /**
- * @name registerUserController
  * @description Register a new user, expecting name, email, and password in the request body.
  * @access Public
  */
 async function registerUserController(req: Request, res: Response) {
   try {
-    const { name, email, password } = req.body;
+    const { name, password } = req.body;
+    const email = req.body.email?.toLowerCase().trim();
 
     if (!name || !email || !password) {
       return res.status(400).json({
         message: "Please provide name, email and password",
       });
+    }
+
+    // Security: Bound input lengths to prevent resource exhaustion (DoS)
+    if (email.length > 255 || password.length > 100 || name.length > 100) {
+      return res.status(400).json({ message: "Input exceeds maximum allowed length" });
     }
 
     const userAlreadyExists = await prisma.user.findUnique({
@@ -185,12 +228,18 @@ async function registerUserController(req: Request, res: Response) {
 
 async function loginUserController(req: Request, res: Response) {
   try {
-    const { email, password } = req.body;
+    const { password } = req.body;
+    const email = req.body.email?.toLowerCase().trim();
 
     if (!email || !password) {
       return res.status(400).json({
         message: "Please provide email and password",
       });
+    }
+
+    // Security: Bound input lengths to prevent resource exhaustion (DoS)
+    if (email.length > 255 || password.length > 100) {
+      return res.status(400).json({ message: "Invalid email or password" });
     }
 
     const user = await prisma.user.findUnique({
@@ -569,6 +618,213 @@ async function verifyOtpController(req: any, res: any) {
   }
 }
 
+/**
+ * @name forgotPasswordController
+ * @description Initiate password reset by sending OTP to email
+ * @access Public
+ */
+async function forgotPasswordController(req: Request, res: Response) {
+  try {
+    const email = req.body.email?.toLowerCase().trim();
+    if (!email) {
+      return res.status(400).json({ message: "Email is required" });
+    }
+    if (email.length > 255) {
+      return res.status(400).json({ message: "Invalid email" });
+    }
+
+    // Security: Rate limit by email string *before* DB query to prevent enumeration
+    const ipOrEmailRateKey = `pwd_req_rate:${email}`;
+    const reqCount = await redis.incr(ipOrEmailRateKey);
+    if (reqCount === 1) {
+      await redis.expire(ipOrEmailRateKey, OTP_RATE_LIMIT_WINDOW);
+    }
+    if (reqCount > OTP_RATE_LIMIT_MAX) {
+      const ttl = await redis.ttl(ipOrEmailRateKey);
+      return res.status(429).json({
+        message: "Too many requests. Please try again later.",
+        retryAfter: ttl > 0 ? ttl : OTP_RATE_LIMIT_WINDOW,
+      });
+    }
+
+    const user = await prisma.user.findUnique({ where: { email } });
+    if (user) {
+      // Fire and forget
+      storeAndSendPasswordOtp(user.id, user.email).catch((e) => console.error(e));
+    } else {
+      // Dummy hash to normalize timing and prevent timing attacks
+      bcrypt.hash(email, 10).catch(() => {});
+    }
+
+    return res.status(200).json({ message: "If an account with that email exists, we sent a password reset code." });
+  } catch (error) {
+    const message = error instanceof Error ? error.message : "Internal server error";
+    return res.status(500).json({ message });
+  }
+}
+
+/**
+ * @name resetPasswordController
+ * @description Reset password using email, OTP, and new password
+ * @access Public
+ */
+async function resetPasswordController(req: Request, res: Response) {
+  try {
+    const { otp, newPassword } = req.body;
+    const email = req.body.email?.toLowerCase().trim();
+    if (!email || !otp || !newPassword) {
+      return res.status(400).json({ message: "Email, OTP, and new password are required" });
+    }
+
+    const user = await prisma.user.findUnique({ where: { email } });
+    if (!user) {
+      return res.status(400).json({ message: "Invalid verification code or email" });
+    }
+
+    const userId = user.id;
+
+    // Check lockout
+    const lockout = await redis.get(pwdOtpLockoutKey(userId));
+    if (lockout) {
+      return res.status(403).json({
+        message: "Too many failed attempts. Your account is temporarily locked from resetting password. Please try again in 30 minutes.",
+      });
+    }
+
+    const hashedOtp = await redis.get(pwdOtpKey(userId));
+    if (!hashedOtp) {
+      return res.status(400).json({ message: "Verification code expired or invalid" });
+    }
+
+    const isValid = await verifyOtp(otp, hashedOtp);
+    if (!isValid) {
+      const attempts = await redis.incr(pwdOtpAttemptsKey(userId));
+      if (attempts >= OTP_MAX_ATTEMPTS) {
+        await redis.setex(pwdOtpLockoutKey(userId), OTP_LOCKOUT_SECONDS, "locked");
+        await redis.del(pwdOtpKey(userId), pwdOtpAttemptsKey(userId));
+        return res.status(403).json({
+          message: "Too many failed attempts. Your account is temporarily locked from resetting password. Please try again in 30 minutes.",
+        });
+      }
+      return res.status(400).json({
+        message: `Invalid verification code. ${OTP_MAX_ATTEMPTS - attempts} attempt(s) remaining.`,
+      });
+    }
+
+    // OTP valid — update password
+    const hashedPassword = await bcrypt.hash(newPassword, 10);
+    await prisma.user.update({
+      where: { id: userId },
+      data: { password_hash: hashedPassword },
+    });
+
+    // Security: Revoke all existing sessions for this user on password reset
+    await prisma.refreshToken.deleteMany({
+      where: { user_id: userId },
+    });
+
+    // Cleanup Redis
+    await redis.del(pwdOtpKey(userId), pwdOtpAttemptsKey(userId), pwdOtpRateKey(userId));
+
+    return res.status(200).json({ message: "Password has been successfully reset" });
+  } catch (error) {
+    const message = error instanceof Error ? error.message : "Internal server error";
+    return res.status(500).json({ message });
+  }
+}
+
+/**
+ * @name sendChangePasswordOtpController
+ * @description Initiate password change for logged-in user
+ * @access Private
+ */
+async function sendChangePasswordOtpController(req: Request, res: Response) {
+  try {
+    // @ts-ignore
+    const userId = req.user.id;
+
+    const user = await prisma.user.findUnique({ where: { id: userId } });
+    if (!user) {
+      return res.status(404).json({ message: "User not found" });
+    }
+
+    const result = await storeAndSendPasswordOtp(userId, user.email);
+    if (!result.success) {
+      return res.status(429).json({
+        message: "Too many requests. Please try again later.",
+        retryAfter: result.retryAfter,
+      });
+    }
+
+    return res.status(200).json({ message: "Verification code sent to your email" });
+  } catch (error) {
+    const message = error instanceof Error ? error.message : "Internal server error";
+    return res.status(500).json({ message });
+  }
+}
+
+/**
+ * @name changePasswordController
+ * @description Change password for logged-in user
+ * @access Private
+ */
+async function changePasswordController(req: Request, res: Response) {
+  try {
+    // @ts-ignore
+    const userId = req.user.id;
+    const { otp, newPassword } = req.body;
+
+    if (!otp || !newPassword) {
+      return res.status(400).json({ message: "OTP and new password are required" });
+    }
+
+    const lockout = await redis.get(pwdOtpLockoutKey(userId));
+    if (lockout) {
+      return res.status(403).json({
+        message: "Too many failed attempts. Your account is temporarily locked from changing password. Please try again in 30 minutes.",
+      });
+    }
+
+    const hashedOtp = await redis.get(pwdOtpKey(userId));
+    if (!hashedOtp) {
+      return res.status(400).json({ message: "Verification code expired or invalid" });
+    }
+
+    const isValid = await verifyOtp(otp, hashedOtp);
+    if (!isValid) {
+      const attempts = await redis.incr(pwdOtpAttemptsKey(userId));
+      if (attempts >= OTP_MAX_ATTEMPTS) {
+        await redis.setex(pwdOtpLockoutKey(userId), OTP_LOCKOUT_SECONDS, "locked");
+        await redis.del(pwdOtpKey(userId), pwdOtpAttemptsKey(userId));
+        return res.status(403).json({
+          message: "Too many failed attempts. Your account is temporarily locked. Please try again in 30 minutes.",
+        });
+      }
+      return res.status(400).json({
+        message: `Invalid verification code. ${OTP_MAX_ATTEMPTS - attempts} attempt(s) remaining.`,
+      });
+    }
+
+    const hashedPassword = await bcrypt.hash(newPassword, 10);
+    await prisma.user.update({
+      where: { id: userId },
+      data: { password_hash: hashedPassword },
+    });
+
+    // Security: Revoke all existing sessions (except maybe current, but safest to force re-login)
+    await prisma.refreshToken.deleteMany({
+      where: { user_id: userId },
+    });
+
+    await redis.del(pwdOtpKey(userId), pwdOtpAttemptsKey(userId), pwdOtpRateKey(userId));
+
+    return res.status(200).json({ message: "Password has been successfully changed" });
+  } catch (error) {
+    const message = error instanceof Error ? error.message : "Internal server error";
+    return res.status(500).json({ message });
+  }
+}
+
 export {
   registerUserController,
   loginUserController,
@@ -577,4 +833,8 @@ export {
   refreshUserController,
   sendOtpController,
   verifyOtpController,
+  forgotPasswordController,
+  resetPasswordController,
+  sendChangePasswordOtpController,
+  changePasswordController,
 };

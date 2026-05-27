@@ -7,6 +7,10 @@ import {
   refreshUserController,
   sendOtpController,
   verifyOtpController,
+  forgotPasswordController,
+  resetPasswordController,
+  sendChangePasswordOtpController,
+  changePasswordController,
 } from "../controllers/auth.controller";
 import { authenticate } from "../middleware/auth.middleware";
 
@@ -68,5 +72,36 @@ authRouter.post("/send-otp", authenticate, sendOtpController);
 
 authRouter.post("/verify-otp", authenticate, verifyOtpController);
 
-export { authRouter };
+/**
+ * @route POST /api/auth/forgot-password
+ * @description Send OTP for forgot password
+ * @access Public
+ */
 
+authRouter.post("/forgot-password", forgotPasswordController);
+
+/**
+ * @route POST /api/auth/reset-password
+ * @description Reset password with OTP
+ * @access Public
+ */
+
+authRouter.post("/reset-password", resetPasswordController);
+
+/**
+ * @route POST /api/auth/send-change-password-otp
+ * @description Send OTP for changing password
+ * @access Private
+ */
+
+authRouter.post("/send-change-password-otp", authenticate, sendChangePasswordOtpController);
+
+/**
+ * @route POST /api/auth/change-password
+ * @description Change password with OTP
+ * @access Private
+ */
+
+authRouter.post("/change-password", authenticate, changePasswordController);
+
+export { authRouter };
