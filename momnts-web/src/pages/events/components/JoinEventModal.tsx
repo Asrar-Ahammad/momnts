@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router'
 import { Button } from '../../../components/ui/button'
 import { InputOTP, InputOTPGroup, InputOTPSlot } from '../../../components/ui/input-otp'
+import { REGEXP_ONLY_DIGITS_AND_CHARS } from 'input-otp'
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '../../../components/ui/dialog'
 import { X } from '@phosphor-icons/react'
 import { eventsApi, EventData } from '../../../features/events/services/events.api'
@@ -75,6 +76,8 @@ export const JoinEventModal = ({ open, onOpenChange, onEventJoined, initialInvit
             maxLength={6}
             value={inviteCode}
             onChange={(value: string) => setInviteCode(value.toUpperCase())}
+            pattern={REGEXP_ONLY_DIGITS_AND_CHARS}
+            inputMode="text"
           >
             <InputOTPGroup>
               <InputOTPSlot index={0} />
