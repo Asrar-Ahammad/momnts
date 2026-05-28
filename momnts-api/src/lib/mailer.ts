@@ -1,14 +1,45 @@
 import nodemailer from "nodemailer";
+import type { Transporter } from "nodemailer";
 
-const transporter = nodemailer.createTransport({
-  host: "smtp.gmail.com",
-  port: 587,
-  secure: false, // STARTTLS
-  auth: {
-    user: process.env.SMTP_EMAIL,
-    pass: process.env.SMTP_APP_PASSWORD,
-  },
-});
+let _transporter: Transporter | null = null;
+let _verified = false;
+
+function getTransporter(): Transporter {
+  if (!_transporter) {
+    const email = process.env.SMTP_EMAIL;
+    const pass = process.env.SMTP_APP_PASSWORD;
+
+    if (!email || !pass) {
+      console.error("[Mailer] SMTP_EMAIL or SMTP_APP_PASSWORD is missing from environment variables");
+      throw new Error("SMTP credentials not configured");
+    }
+
+    _transporter = nodemailer.createTransport({
+      host: "smtp.gmail.com",
+      port: 587,
+      secure: false, // STARTTLS
+      auth: { user: email, pass },
+      connectionTimeout: 10000,
+      greetingTimeout: 10000,
+      socketTimeout: 15000,
+    });
+  }
+  return _transporter;
+}
+
+async function ensureVerified(): Promise<void> {
+  if (_verified) return;
+  try {
+    await getTransporter().verify();
+    _verified = true;
+    console.log("[Mailer] SMTP connection verified successfully");
+  } catch (err) {
+    _transporter = null; // reset so next attempt rebuilds
+    _verified = false;
+    console.error("[Mailer] SMTP connection verification failed:", err);
+    throw err;
+  }
+}
 
 /**
  * Send OTP verification email with styled HTML template.
@@ -39,7 +70,8 @@ export async function sendOtpEmail(to: string, otp: string): Promise<void> {
     </div>
   `;
 
-  await transporter.sendMail({
+  await ensureVerified();
+  await getTransporter().sendMail({
     from: `"Momnts" <${process.env.SMTP_EMAIL}>`,
     to,
     subject: "Your Momnts verification code",
@@ -75,7 +107,8 @@ export async function sendPasswordResetOtpEmail(to: string, otp: string): Promis
     </div>
   `;
 
-  await transporter.sendMail({
+  await ensureVerified();
+  await getTransporter().sendMail({
     from: `"Momnts" <${process.env.SMTP_EMAIL}>`,
     to,
     subject: "Reset your Momnts password",
