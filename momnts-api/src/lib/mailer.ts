@@ -19,9 +19,9 @@ function getTransporter(): Transporter {
       port: 587,
       secure: false, // STARTTLS
       auth: { user: email, pass },
-      connectionTimeout: 10000,
-      greetingTimeout: 10000,
-      socketTimeout: 15000,
+      connectionTimeout: 30000,
+      greetingTimeout: 30000,
+      socketTimeout: 60000,
     });
   }
   return _transporter;

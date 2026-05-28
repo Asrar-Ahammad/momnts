@@ -1,51 +1,55 @@
-# ── Stage 1: Build stage ──────────────────────────────────────────────────────
+# ── Stage 1: Build ─────────────────────────────────────────────────────────────
 FROM node:22-alpine AS builder
 
 WORKDIR /app
 
-# Install dependencies (including devDependencies)
+# Install deps (including devDeps for tsc + prisma generate)
 COPY package*.json ./
 RUN npm ci
 
-# Copy source and prisma configuration
+# Copy source
 COPY . .
 
-# Set placeholder DATABASE_URL to satisfy Prisma schema validation during build
+# Prisma generate needs a DATABASE_URL at schema-validation time (not used at runtime)
 ENV DATABASE_URL="postgresql://placeholder:placeholder@localhost:5432/placeholder"
 
-# Build TypeScript to JavaScript and generate Prisma Client
+# Build: prisma generate → tsc → copy generated client
 RUN npm run build
 
-
-# ── Stage 2: Runtime stage ────────────────────────────────────────────────────
+# ── Stage 2: Runtime ───────────────────────────────────────────────────────────
 FROM node:22-alpine AS runner
 
 WORKDIR /app
 
-# Set production environment
 ENV NODE_ENV=production
 
-# Limit V8 heap memory size to prevent OOM on t3.small (2GB RAM)
-# 384MB is optimal for running API + 2 Workers + Redis on a single t3.small
-ENV NODE_OPTIONS="--max-old-space-size=384"
+# t3.small = 2GB RAM shared across API + 2 workers + Redis
+# 512MB per Node process is safe (3 × 512 = 1.5GB, leaves ~500MB for Redis + OS)
+ENV NODE_OPTIONS="--max-old-space-size=512"
 
-# Create non-root user for security
+# Non-root user
 RUN addgroup -S appgroup && adduser -S appuser -G appgroup
 
-# Copy dependencies list and install only production dependencies
+# Production deps only
 COPY package*.json ./
 RUN npm ci --omit=dev
 
-# Copy compiled code from builder stage
+# Compiled JS output
 COPY --from=builder /app/dist ./dist
 
-# Create temp uploads folder for multer with correct permissions
+# Prisma Client needs these at runtime for the pg adapter
+COPY --from=builder /app/prisma ./prisma
+COPY --from=builder /app/prisma.config.ts ./prisma.config.ts
+
+# Multer temp dir
 RUN mkdir -p temp-uploads && chown appuser:appgroup temp-uploads
 
-# Switch to non-root user
 USER appuser
 
 EXPOSE 3000
 
-# Default command — API server
+HEALTHCHECK --interval=30s --timeout=5s --start-period=10s --retries=3 \
+  CMD wget -qO- http://localhost:3000/ || exit 1
+
+# Default: API server (workers override via docker-compose command)
 CMD ["node", "dist/index.js"]
