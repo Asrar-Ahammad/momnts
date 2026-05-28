@@ -29,27 +29,23 @@ export async function processImage(input: Buffer | string): Promise<ProcessedPho
   const height = metadata.height || 0
 
   const [thumb, display, original] = await Promise.all([
-    // thumb — small square crop, heavily compressed
-    pipeline
-      .clone() // clone so we can process the same image multiple times
-      .webp({ quality: 70, effort: 3 })
-      .toBuffer(),
-
-    // display — max 2400px wide, good quality
+    // thumb — full resolution, heavily compressed for fast grid loading
     pipeline
       .clone()
-      .resize(2400, 2400, {
-        fit: 'inside',            // preserve aspect ratio, don't crop
-        withoutEnlargement: true, // don't upscale small images
-      })
-      .webp({ quality: 82, effort: 4 })
+      .webp({ quality: 60, effort: 2 })
       .toBuffer(),
 
-    // original — lossless WebP, closest to the uploaded file
+    // display — full resolution, good quality for photo viewer
     pipeline
       .clone()
-      .webp({ lossless: true }) // lossless = no quality loss, just better compression
-      .toBuffer()
+      .webp({ quality: 82, effort: 3 })
+      .toBuffer(),
+
+    // original — full resolution, high quality for download
+    pipeline
+      .clone()
+      .webp({ quality: 90, effort: 4 })
+      .toBuffer(),
   ])
 
   return { thumb, display, original, width, height }

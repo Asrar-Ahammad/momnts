@@ -2,7 +2,6 @@ import type { Response } from 'express'
 import type { AuthRequest } from '../middleware/auth.middleware.js'
 import { prisma } from '../lib/prisma.js'
 import { uploadToR2, deleteFromR2, extractKeyFromUrl } from '../lib/r2.js'
-import { processImage } from '../lib/imageProcesser.js'
 import { photoQueue } from '../lib/queue.js'
 import crypto from 'crypto'
 import fs from 'fs'
@@ -23,8 +22,6 @@ export async function uploadPhotoController(req: AuthRequest, res: Response) {
 
         const eventId = req.params.eventId as string
 
-        // req.files is populated by multer middleware
-        // It contains the uploaded file bytes in memory
         const files = req.files as Express.Multer.File[]
         if (!files || files.length === 0) {
             return res.status(400).json({ message: 'No files uploaded' })
@@ -38,17 +35,14 @@ export async function uploadPhotoController(req: AuthRequest, res: Response) {
                     user_id: req.user.id,
                 }
             },
-            include: {
-                // Include event so we can check the upload limit
-                event: true,
-            }
+            include: { event: true }
         })
 
         if (!eventAccess) {
             return res.status(403).json({ message: 'You do not have access to this event' })
         }
 
-        // Enforce upload limit for attendees and track upload count for all users
+        // Enforce upload limit for attendees
         const userId = req.user.id
         const result = await prisma.$transaction(async (tx: any) => {
             const current = await tx.eventAccess.findUnique({
@@ -62,12 +56,10 @@ export async function uploadPhotoController(req: AuthRequest, res: Response) {
             })
             if (!current) throw new Error('Event access not found')
 
-            // Count actual photos in DB (not the drifting upload_count field)
             const actualCount = await tx.photo.count({
                 where: { event_id: eventId, user_id: userId }
             })
 
-            // Enforce limit for attendees only
             if (current.role === 'ATTENDEE') {
                 const limit = eventAccess.event.attendee_upload_limit
                 if (actualCount + files.length > limit) {
@@ -90,144 +82,83 @@ export async function uploadPhotoController(req: AuthRequest, res: Response) {
             })
         }
 
-        // Store the new count for response
-        ; (eventAccess as any).newUploadCount = result.newCount
-            ; (eventAccess as any).role = result.role
+        ;(eventAccess as any).newUploadCount = result.newCount
+        ;(eventAccess as any).role = result.role
 
-        // Validate each file is a valid image using sharp (not just client-controlled mimetype)
+        // Validate each file is a valid image
         for (const file of files) {
             try {
                 await sharp(file.path).metadata()
             } catch (error) {
-                // Clean up invalid file
-                try {
-                    if (fs.existsSync(file.path)) {
-                        fs.unlinkSync(file.path)
-                    }
-                } catch (cleanupError) {
-                    console.error(`Failed to delete invalid file ${file.path}:`, cleanupError)
-                }
+                try { if (fs.existsSync(file.path)) fs.unlinkSync(file.path) } catch {}
                 return res.status(400).json({
                     message: `Invalid image file: ${file.originalname}. Only JPEG, PNG, WebP and HEIC images are allowed.`,
                 })
             }
         }
 
-        // Process and upload files in parallel with compensation logic
-        let results;
-        let uploadedPhotos: any[] = [];
+        // Upload raw files to R2 temp location → DB record → queue worker
+        // No image processing here — that happens async in the worker
+        const uploadedPhotos: any[] = []
+
         try {
             const uploadPromises = files.map(async (file) => {
                 const photoId = crypto.randomUUID()
-                const basePath = `events/${eventId}/${photoId}`
+                const ext = file.originalname.split('.').pop()?.toLowerCase() || 'jpg'
+                const tempKey = `temp/${eventId}/${photoId}/raw.${ext}`
 
-                // Compress image into 3 versions
-                const { thumb, display, original, width, height } = await processImage(file.path)
+                // Read from disk and upload raw to R2
+                const fileBuffer = fs.readFileSync(file.path)
+                const contentType = file.mimetype || 'image/jpeg'
 
-                // Upload all 3 versions to R2 with compensation tracking
-                const uploadResults = await Promise.allSettled([
-                    uploadToR2(`${basePath}/thumb.webp`, thumb, 'image/webp', { cacheControl: 'public, max-age=31536000, immutable' }),
-                    uploadToR2(`${basePath}/display.webp`, display, 'image/webp', { cacheControl: 'public, max-age=31536000, immutable' }),
-                    uploadToR2(`${basePath}/original.webp`, original, 'image/webp', { cacheControl: 'public, max-age=31536000, immutable', contentDisposition: `attachment; filename="${photoId}-original.webp"` }),
-                ])
+                await uploadToR2(tempKey, fileBuffer, contentType)
 
-                const rejected = uploadResults.filter(r => r.status === 'rejected')
-                if (rejected.length > 0) {
-                    const successfulUrls = uploadResults
-                        .filter((r): r is PromiseFulfilledResult<string> => r.status === 'fulfilled')
-                        .map(r => r.value)
-                    
-                    if (successfulUrls.length > 0) {
-                        await Promise.allSettled(successfulUrls.map(url => deleteFromR2(extractKeyFromUrl(url))))
-                    }
-                    throw new Error(`Failed to upload one or more variants for ${file.originalname}`)
-                }
+                // Get dimensions
+                const metadata = await sharp(file.path).metadata()
 
-                const [thumbUrl, displayUrl, originalUrl] = uploadResults.map((r: any) => r.value)
-                return { photoId, thumbUrl, displayUrl, originalUrl, width, height }
-            })
-
-            const batchResults = await Promise.allSettled(uploadPromises)
-            
-            const anyFailed = batchResults.some(r => r.status === 'rejected')
-            if (anyFailed) {
-                // Compensation: cleanup all files that succeeded in the batch
-                const successfulFiles = batchResults
-                    .filter((r): r is PromiseFulfilledResult<any> => r.status === 'fulfilled')
-                    .map(r => r.value)
-                
-                const deletePromises = successfulFiles.flatMap(file => [
-                    deleteFromR2(extractKeyFromUrl(file.thumbUrl)),
-                    deleteFromR2(extractKeyFromUrl(file.displayUrl)),
-                    deleteFromR2(extractKeyFromUrl(file.originalUrl))
-                ])
-
-                if (deletePromises.length > 0) {
-                    await Promise.allSettled(deletePromises)
-                }
-
-                throw new Error('One or more photo uploads failed. All changes reverted.')
-            }
-
-            results = batchResults.map((r: any) => r.value)
-
-        uploadedPhotos = await Promise.all(
-            results.map(async ({ photoId, thumbUrl, displayUrl, originalUrl, width, height }) => {
+                // Create DB record — worker will replace URLs with processed variants
+                const tempUrl = `${process.env.R2_PUBLIC_URL}/${tempKey}`
                 const photo = await prisma.photo.create({
                     data: {
                         id: photoId,
                         event_id: eventId,
                         user_id: req.user!.id,
-                        thumb_url: thumbUrl,
-                        display_url: displayUrl,
-                        original_url: originalUrl,
-                        width: width || null,
-                        height: height || null,
+                        thumb_url: tempUrl,
+                        display_url: tempUrl,
+                        original_url: tempUrl,
+                        width: metadata.width || null,
+                        height: metadata.height || null,
                         processed: false,
                         is_visible: true,
                     }
                 })
 
-                try {
-                    // Add job to queue for face detection
-                    await photoQueue.add('detect-faces', {
-                        photoId: photo.id,
-                        eventId: eventId,
-                        displayUrl: displayUrl,
-                    })
-                } catch (queueError) {
-                    console.error(`Queue failed for photo ${photo.id}, rolling back:`, queueError)
-                    await prisma.photo.delete({ where: { id: photo.id } }).catch(() => {})
-                    await Promise.allSettled([
-                        deleteFromR2(extractKeyFromUrl(thumbUrl)),
-                        deleteFromR2(extractKeyFromUrl(displayUrl)),
-                        deleteFromR2(extractKeyFromUrl(originalUrl))
-                    ])
-                    throw queueError
-                }
+                // Queue background processing
+                await photoQueue.add('process-photo', {
+                    photoId: photo.id,
+                    eventId: eventId,
+                    tempKey: tempKey,
+                }, {
+                    priority: 1,
+                })
 
                 return photo
             })
-        )
+
+            const photos = await Promise.all(uploadPromises)
+            uploadedPhotos.push(...photos)
         } finally {
-            // Clean up temp files regardless of success or error
+            // Clean up multer temp files
             for (const file of files) {
-                try {
-                    if (fs.existsSync(file.path)) {
-                        fs.unlinkSync(file.path)
-                    }
-                } catch (err) {
-                    console.error(`Failed to delete temp file ${file.path}:`, err)
-                }
+                try { if (fs.existsSync(file.path)) fs.unlinkSync(file.path) } catch {}
             }
         }
 
-
-        // Build response — include upload count for all users
+        // Build response
         const newCount = (eventAccess as any).newUploadCount
         const userRole = (eventAccess as any).role
         const response: Record<string, unknown> = {
-            message: `${uploadedPhotos.length} photo(s) uploaded successfully. Face detection is running in the background.`,
+            message: `${uploadedPhotos.length} photo(s) uploaded. Processing in background.`,
             photos: uploadedPhotos,
         }
 
@@ -240,7 +171,7 @@ export async function uploadPhotoController(req: AuthRequest, res: Response) {
         } else {
             response.quota = {
                 used: newCount,
-                limit: null, // Organizers have no limit
+                limit: null,
                 remaining: null,
             }
         }

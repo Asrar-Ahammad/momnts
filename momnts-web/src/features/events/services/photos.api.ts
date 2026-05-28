@@ -1,4 +1,5 @@
 import { authHeaders } from "../../../lib/authHeaders"
+import { compressImages } from "../../../lib/compressImage"
 
 const API_URL = import.meta.env.VITE_SERVER_URL || "http://localhost:3000"
 
@@ -84,8 +85,11 @@ export const photosApi = {
   ): Promise<UploadResponse> {
     const results: PhotoData[] = []
     const errors: Array<{ index: number; error: Error }> = []
-    const BATCH_SIZE = 5 // Reduced to 5 to prevent server overload
-    const TIMEOUT_MS = 120000 // 2 minutes timeout per batch
+    const BATCH_SIZE = 5
+    const TIMEOUT_MS = 120000
+
+    // Compress images on the client before uploading
+    const compressedFiles = await compressImages(files)
 
     // Helper to upload a batch of files in a single request with timeout
     const uploadBatch = async (batchFiles: File[], startIndex: number): Promise<PhotoData[]> => {
@@ -142,11 +146,11 @@ export const photosApi = {
       }
     }
 
-    // Upload files in batches sequentially to avoid overwhelming the server
+    // Upload compressed files in batches sequentially
     const uploadBatches = async () => {
       const batchResults: PhotoData[] = []
-      for (let i = 0; i < files.length; i += BATCH_SIZE) {
-        const batch = files.slice(i, i + BATCH_SIZE)
+      for (let i = 0; i < compressedFiles.length; i += BATCH_SIZE) {
+        const batch = compressedFiles.slice(i, i + BATCH_SIZE)
         const batchPhotos = await uploadBatch(batch, i)
         batchResults.push(...batchPhotos)
       }

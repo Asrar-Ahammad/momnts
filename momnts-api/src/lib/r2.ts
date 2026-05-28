@@ -35,10 +35,10 @@ export const r2 = new S3Client({
     secretAccessKey: requiredEnvVars.R2_SECRET_ACCESS_KEY!,
   },
   requestHandler: new NodeHttpHandler({
-    connectionTimeout: 5000,
-    socketTimeout: 30000,
-    httpAgent: new http.Agent({ maxSockets: 25 }),
-    httpsAgent: new https.Agent({ maxSockets: 25 }),
+    connectionTimeout: 15000,
+    socketTimeout: 60000,
+    httpAgent: new http.Agent({ maxSockets: 50, keepAlive: true }),
+    httpsAgent: new https.Agent({ maxSockets: 50, keepAlive: true }),
   }),
 })
 
