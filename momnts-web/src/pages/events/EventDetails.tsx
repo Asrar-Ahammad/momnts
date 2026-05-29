@@ -10,6 +10,8 @@ import { toast } from 'sonner'
 import { authHeaders } from '../../lib/authHeaders'
 import { useEventSocket } from '../../hooks/useEventSocket'
 import EventHeader from './components/EventHeader'
+import { useQueryClient } from '@tanstack/react-query'
+import { useEventDetails, useEventPhotos, useMyPhotos, useEventAttendees } from '../../features/events/hooks/useEvents'
 import PhotoGrid from './components/PhotoGrid'
 import UploadModal, { FileUploadStatus } from './components/UploadModal'
 import EventSettingsModal from './components/EventSettingsModal'
@@ -27,11 +29,14 @@ const EventDetails = () => {
   const [searchParams, setSearchParams] = useSearchParams()
 
   const [activeTab, setActiveTab] = useState<TabType>('all')
-  const [event, setEvent] = useState<EventData | null>(null)
-  const [photos, setPhotos] = useState<PhotoData[]>([])
-  const [myPhotos, setMyPhotos] = useState<PhotoData[]>([])
-  const [myPhotosPrompt, setMyPhotosPrompt] = useState<string | undefined>(undefined)
-  const [loading, setLoading] = useState(true)
+  const queryClient = useQueryClient()
+  const { data: event, isLoading: eventLoading } = useEventDetails(eventId)
+  const { data: photos = [], isLoading: photosLoading } = useEventPhotos(eventId)
+  const { data: myPhotosResponse, isLoading: myPhotosLoading } = useMyPhotos(eventId)
+  const myPhotos = myPhotosResponse?.data || []
+  const loading = eventLoading || photosLoading || myPhotosLoading
+  const { data: attendees = [], isLoading: attendeesLoading } = useEventAttendees(eventId)
+
   const [uploadModalOpen, setUploadModalOpen] = useState(false)
   const [uploading, setUploading] = useState(false)
   const [selectedFiles, setSelectedFiles] = useState<File[]>([])
@@ -51,8 +56,6 @@ const EventDetails = () => {
   const [isSelectMode, setIsSelectMode] = useState(false)
   const [selectedPhotoIds, setSelectedPhotoIds] = useState<Set<string>>(new Set())
   const [attendeesModalOpen, setAttendeesModalOpen] = useState(false)
-  const [attendees, setAttendees] = useState<any[]>([])
-  const [attendeesLoading, setAttendeesLoading] = useState(false)
   const [fileStatuses, setFileStatuses] = useState<FileUploadStatus[]>([])
   const [sortOrder, setSortOrder] = useState<'desc' | 'asc'>('desc')
   const [selectedAttendeeId, setSelectedAttendeeId] = useState<string | null>(null)
@@ -71,109 +74,50 @@ const EventDetails = () => {
   useEventSocket({
     eventId,
     onPhotoProcessed: useCallback((data) => {
-      // Update the photo's processed flag in state (no full refetch needed)
-      setPhotos(prev => prev.map(p =>
-        p.id === data.photoId ? { ...p, processed: true, _count: { photo_faces: data.totalFaces } } : p
-      ))
+      // Update the photo's processed flag in the query cache
+      queryClient.setQueryData<PhotoData[]>(["photos", eventId], (prev) =>
+        prev?.map((p) =>
+          p.id === data.photoId
+            ? { ...p, processed: true, _count: { photo_faces: data.totalFaces } }
+            : p
+        )
+      )
 
       if (data.totalFaces > 0) {
         toast.info(`${data.totalFaces} face(s) detected in a photo`, {
           duration: 3000,
         })
       }
-    }, []),
+    }, [eventId, queryClient]),
     onFaceMatched: useCallback((data) => {
       // Only show toast to the matched user
       if (data.userId === user?.id) {
         toast.success(`Your face found in ${data.matchedPhotoCount} photo(s)! 🎉`, {
           duration: 5000,
         })
-        // Refetch "Your Photos" tab data so it's ready when user switches
+        // Invalidate "Your Photos" query to fetch updated data
         if (eventId) {
-          photosApi.getMyPhotos(eventId).then(response => {
-            setMyPhotos(response.data)
-            setMyPhotosPrompt(response.prompt)
-          }).catch(console.error)
+          queryClient.invalidateQueries({ queryKey: ["my-photos", eventId] })
         }
       }
-    }, [user?.id, eventId]),
+    }, [user?.id, eventId, queryClient]),
   })
 
-  const fetchEventDetails = useCallback(async () => {
-    if (!eventId) return
-    try {
-      const eventData = await eventsApi.getEventDetails(eventId)
-      setEvent(eventData)
-    } catch (error) {
-      console.error('Failed to fetch event details:', error)
-      toast.error('Failed to load event details')
-    }
-  }, [eventId])
-
-  const fetchPhotos = useCallback(async () => {
-    if (!eventId) return
-    try {
-      setLoading(true)
-      const photosData = await photosApi.getEventPhotos(eventId)
-      setPhotos(photosData)
-
-      // Initialize favourites from database photo records
-      const favIds = new Set<string>()
-      photosData.forEach((p) => {
-        if (p.favourites && p.favourites.length > 0) {
-          favIds.add(p.id)
-        }
-      })
-      setFavouritePhotoIds(favIds)
-    } catch (error) {
-      console.error('Failed to fetch photos:', error)
-      toast.error('Failed to load photos')
-    } finally {
-      setLoading(false)
-    }
-  }, [eventId])
-
-  const fetchMyPhotos = useCallback(async () => {
-    if (!eventId) return
-    try {
-      setLoading(true)
-      const response = await photosApi.getMyPhotos(eventId)
-      setMyPhotos(response.data)
-      setMyPhotosPrompt(response.prompt)
-
-      // Initialize/sync favourites for myPhotos too
-      setFavouritePhotoIds((prev) => {
-        const next = new Set(prev)
-        response.data.forEach((p) => {
-          if (p.favourites && p.favourites.length > 0) {
-            next.add(p.id)
-          } else {
-            next.delete(p.id)
-          }
-        })
-        return next
-      })
-    } catch (error) {
-      console.error('Failed to fetch your photos:', error)
-      toast.error('Failed to load your photos')
-    } finally {
-      setLoading(false)
-    }
-  }, [eventId])
-
-  const fetchAttendees = useCallback(async () => {
-    if (!eventId) return
-    try {
-      setAttendeesLoading(true)
-      const data = await eventsApi.getEventAttendees(eventId)
-      setAttendees(data)
-    } catch (error) {
-      console.error('Failed to fetch attendees:', error)
-      toast.error('Failed to load attendees')
-    } finally {
-      setAttendeesLoading(false)
-    }
-  }, [eventId])
+  // Sync favorites
+  useEffect(() => {
+    const favIds = new Set<string>()
+    photos.forEach((p) => {
+      if (p.favourites && p.favourites.length > 0) {
+        favIds.add(p.id)
+      }
+    })
+    myPhotos.forEach((p) => {
+      if (p.favourites && p.favourites.length > 0) {
+        favIds.add(p.id)
+      }
+    })
+    setFavouritePhotoIds(favIds)
+  }, [photos, myPhotos])
 
   const handleToggleFavourite = async (photoId: string) => {
     if (!eventId) return
@@ -208,11 +152,14 @@ const EventDetails = () => {
       } else {
         toast.success('Removed from Favourites')
       }
+      queryClient.invalidateQueries({ queryKey: ['photos', eventId] })
+      queryClient.invalidateQueries({ queryKey: ['my-photos', eventId] })
     } catch (error) {
       console.error('Failed to toggle favourite:', error)
       toast.error('Failed to toggle favourite')
       // Rollback
-      fetchPhotos()
+      queryClient.invalidateQueries({ queryKey: ['photos', eventId] })
+      queryClient.invalidateQueries({ queryKey: ['my-photos', eventId] })
     }
   }
 
@@ -273,39 +220,16 @@ const EventDetails = () => {
     }
   }
 
-  useEffect(() => {
-    fetchEventDetails()
-    fetchPhotos()
-  }, [fetchEventDetails, fetchPhotos])
-
   // Handle URL view parameters (e.g., from notifications)
   useEffect(() => {
     if (searchParams.get('view') === 'attendees') {
       setAttendeesModalOpen(true)
-      fetchAttendees()
       // Clean up URL without removing other parameters in sync with React Router
       const newParams = new URLSearchParams(searchParams)
       newParams.delete('view')
       setSearchParams(newParams, { replace: true })
     }
-  }, [searchParams, setSearchParams, fetchAttendees])
-
-  const fetchPhotosForTab = useCallback(async (tab: TabType) => {
-    if (tab === 'connections') return // connections tab handles its own data
-    if (tab === 'your-photos') {
-      await fetchMyPhotos()
-    } else if (tab === 'all' || tab === 'your-uploads' || tab === 'favourites') {
-      // For 'all', 'your-uploads', and 'favourites', we still use the main photos list
-      if (photos.length === 0) {
-        await fetchPhotos()
-      }
-    }
-  }, [fetchMyPhotos, fetchPhotos, photos.length])
-
-  // Handle tab changes
-  useEffect(() => {
-    fetchPhotosForTab(activeTab)
-  }, [activeTab, fetchPhotosForTab])
+  }, [searchParams, setSearchParams])
 
   const sourcePhotos =
     activeTab === 'your-photos'
@@ -393,7 +317,9 @@ const EventDetails = () => {
       setUploadModalOpen(false)
       setSelectedFiles([])
       setFileStatuses([])
-      fetchPhotos()
+      queryClient.invalidateQueries({ queryKey: ['photos', eventId] })
+      queryClient.invalidateQueries({ queryKey: ['my-photos', eventId] })
+      queryClient.invalidateQueries({ queryKey: ['event', eventId] })
     } catch (error) {
       console.error('Failed to upload photos:', error)
       toast.error(error instanceof Error ? error.message : 'Failed to upload photos')
@@ -439,7 +365,8 @@ const EventDetails = () => {
       )
       toast.success('Event updated successfully!')
       setSettingsModalOpen(false)
-      fetchEventDetails()
+      queryClient.invalidateQueries({ queryKey: ['event', eventId] })
+      queryClient.invalidateQueries({ queryKey: ['events'] })
     } catch (error) {
       console.error('Failed to update event:', error)
       toast.error(error instanceof Error ? error.message : 'Failed to update event')
@@ -464,7 +391,9 @@ const EventDetails = () => {
     try {
       await photosApi.deletePhoto(eventId, photoId)
       toast.success('Photo deleted')
-      fetchPhotos()
+      queryClient.invalidateQueries({ queryKey: ['photos', eventId] })
+      queryClient.invalidateQueries({ queryKey: ['my-photos', eventId] })
+      queryClient.invalidateQueries({ queryKey: ['event', eventId] })
     } catch (error) {
       console.error('Failed to delete photo:', error)
       toast.error('Failed to delete photo')
@@ -578,7 +507,6 @@ const EventDetails = () => {
         onDownloadSelected={handleDownloadSelected}
         onAttendeesClick={() => {
           setAttendeesModalOpen(true)
-          fetchAttendees()
         }}
         userUploadCount={photos.filter(p => p.user_id === user?.id || p.user?.id === user?.id).length}
         sortOrder={sortOrder}
@@ -588,6 +516,7 @@ const EventDetails = () => {
           try {
             await eventsApi.leaveEvent(eventId)
             toast.success('Left event successfully')
+            queryClient.invalidateQueries({ queryKey: ['events'] })
             navigate('/events')
           } catch (error) {
             toast.error(error instanceof Error ? error.message : 'Failed to leave event')
@@ -673,8 +602,8 @@ const EventDetails = () => {
         isOrganizer={event?.user_role === 'ORGANIZER'}
         eventId={eventId}
         onRefreshAttendees={() => {
-          fetchAttendees()
-          fetchPhotos()
+          queryClient.invalidateQueries({ queryKey: ['attendees', eventId] })
+          queryClient.invalidateQueries({ queryKey: ['photos', eventId] })
         }}
       />
 
@@ -690,6 +619,7 @@ const EventDetails = () => {
           try {
             await eventsApi.deleteEvent(eventId)
             toast.success('Event deleted successfully')
+            queryClient.invalidateQueries({ queryKey: ['events'] })
             navigate('/events')
           } catch (error) {
             toast.error(error instanceof Error ? error.message : 'Failed to delete event')

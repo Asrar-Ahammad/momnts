@@ -1,5 +1,6 @@
 import { useQuery } from "@tanstack/react-query"
 import { eventsApi, EventData } from "../services/events.api"
+import { photosApi, PhotoData } from "../services/photos.api"
 
 export const useEvents = () => {
   const { data: events = [], isLoading, error } = useQuery({
@@ -24,4 +25,36 @@ export const useEvents = () => {
     isLoading,
     error,
   }
+}
+
+export const useEventDetails = (eventId: string | undefined) => {
+  return useQuery({
+    queryKey: ["event", eventId],
+    queryFn: () => eventsApi.getEventDetails(eventId!),
+    enabled: !!eventId,
+  })
+}
+
+export const useEventPhotos = (eventId: string | undefined) => {
+  return useQuery({
+    queryKey: ["photos", eventId],
+    queryFn: () => photosApi.getEventPhotos(eventId!),
+    enabled: !!eventId,
+  })
+}
+
+export const useMyPhotos = (eventId: string | undefined) => {
+  return useQuery({
+    queryKey: ["my-photos", eventId],
+    queryFn: () => photosApi.getMyPhotos(eventId!),
+    enabled: !!eventId,
+  })
+}
+
+export const useEventAttendees = (eventId: string | undefined) => {
+  return useQuery({
+    queryKey: ["attendees", eventId],
+    queryFn: () => eventsApi.getEventAttendees(eventId!),
+    enabled: !!eventId,
+  })
 }
