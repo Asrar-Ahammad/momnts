@@ -6,7 +6,6 @@ import { EventData } from '../../../features/events/services/events.api'
 import { Button } from "../../../components/ui/button"
 import { CalendarDots, MapPin, ArrowRight, Crown, User, Image as ImageIcon } from '@phosphor-icons/react'
 import { cn } from '../../../lib/utils'
-import { ProgressiveBlur } from '../../../../components/motion-primitives/progressive-blur'
 import { photosApi } from '../../../features/events/services/photos.api'
 
 interface EventCardProps {
@@ -70,7 +69,7 @@ export const EventCard = ({ event }: EventCardProps) => {
       tabIndex={0}
       role="button"
       aria-label={`View details for event: ${event.name}`}
-      className="group cursor-pointer w-full relative rounded-[32px] overflow-hidden shadow-sm hover:shadow-2xl border border-neutral-100 dark:border-neutral-800 transition-all duration-500 focus:outline-none focus:ring-2 focus:ring-neutral-400 dark:focus:ring-neutral-500 aspect-[4/5] sm:aspect-video flex flex-col justify-end"
+      className="group cursor-pointer w-full relative rounded-[32px] overflow-hidden shadow-sm hover:shadow-2xl border border-neutral-100 dark:border-neutral-800 transition-all duration-500 focus:outline-none focus:ring-2 focus:ring-neutral-400 dark:focus:ring-neutral-500 aspect-[4/5] sm:aspect-video"
     >
       {/* Background Section */}
       <div className="absolute inset-0 z-0">
@@ -78,10 +77,10 @@ export const EventCard = ({ event }: EventCardProps) => {
           <img 
             src={coverPhoto} 
             alt={event.name} 
-            className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-110"
+            className="absolute inset-0 w-full h-full object-cover transition-transform duration-700 group-hover:scale-110"
           />
         ) : (
-          <div className={cn("w-full h-full bg-gradient-to-br", theme.bg)}>
+          <div className={cn("absolute inset-0 bg-gradient-to-br", theme.bg)}>
             {/* Organic Animated Waves for gradient fallback */}
             <div className="absolute inset-0 overflow-hidden pointer-events-none">
               <motion.div 
@@ -125,19 +124,11 @@ export const EventCard = ({ event }: EventCardProps) => {
         </div>
       </div>
 
-      {/* Blur & Gradient Overlay at the bottom */}
-      <div className="absolute bottom-0 inset-x-0 h-4/5 z-10 pointer-events-none">
-        <ProgressiveBlur 
-          direction="bottom" 
-          blurLayers={8} 
-          blurIntensity={1.5} 
-          className="absolute inset-0 h-full w-full" 
-        />
-        <div className="absolute inset-0 bg-gradient-to-t from-black/95 via-black/70 to-transparent" />
-      </div>
+      {/* Gradient Overlay at the bottom */}
+      <div className="absolute bottom-0 inset-x-0 h-2/3 z-10 pointer-events-none bg-gradient-to-t from-black to-transparent" />
 
       {/* Bottom Content Area */}
-      <div className="relative z-20 w-full p-6 mt-auto">
+      <div className="absolute bottom-0 inset-x-0 z-20 p-6">
         <div className="mb-4 flex flex-col sm:flex-row sm:justify-between items-start sm:items-end gap-3 sm:gap-4">
             <h2 className="text-3xl sm:text-4xl font-black text-white tracking-tight leading-tight capitalize line-clamp-2 drop-shadow-lg group-hover:text-white transition-colors flex-1 pb-1 w-full sm:w-auto">
               {event.name}
