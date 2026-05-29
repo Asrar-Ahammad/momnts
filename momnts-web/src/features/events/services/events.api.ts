@@ -127,8 +127,12 @@ export const eventsApi = {
     return data.event
   },
 
-  async getEventAttendees(eventId: string): Promise<any[]> {
-    const response = await fetch(`${API_URL}/api/events/${eventId}/attendees`, {
+  async getEventAttendees(eventId: string, search?: string): Promise<any[]> {
+    const url = new URL(`${API_URL}/api/events/${eventId}/attendees`)
+    if (search) {
+      url.searchParams.append('search', search)
+    }
+    const response = await fetch(url.toString(), {
       headers: authHeaders(),
     })
 
@@ -139,6 +143,19 @@ export const eventsApi = {
 
     const data = await response.json()
     return data.data
+  },
+
+  async updateAttendeeLimit(eventId: string, userId: string, limit: number | null): Promise<void> {
+    const response = await fetch(`${API_URL}/api/events/${eventId}/attendees/${userId}/limit`, {
+      method: "PUT",
+      headers: jsonAuthHeaders(),
+      body: JSON.stringify({ limit }),
+    })
+
+    if (!response.ok) {
+      const error = await response.json()
+      throw new Error(error.message || "Failed to update attendee limit")
+    }
   },
 
   async deleteEvent(eventId: string): Promise<void> {

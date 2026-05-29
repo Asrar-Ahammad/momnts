@@ -1,4 +1,4 @@
-import { useState } from "react"
+import { useState, useRef } from "react"
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "../../../components/ui/dialog"
 import { Button } from "../../../components/ui/button"
 import { Input } from "../../../components/ui/input"
@@ -20,6 +20,7 @@ export function ForgotPasswordModal({ open, onOpenChange }: ForgotPasswordModalP
   const [newPassword, setNewPassword] = useState("")
   const [showPassword, setShowPassword] = useState(false)
   const [isLoading, setIsLoading] = useState(false)
+  const isLoadingRef = useRef(false)
 
   const handleClose = (newOpen: boolean) => {
     if (!newOpen) {
@@ -35,32 +36,36 @@ export function ForgotPasswordModal({ open, onOpenChange }: ForgotPasswordModalP
 
   const handleSendOtp = async (e: React.FormEvent) => {
     e.preventDefault()
-    if (!email) return
+    if (!email || isLoadingRef.current) return
 
-    setIsLoading(true)
     try {
+      isLoadingRef.current = true
+      setIsLoading(true)
       await authApi.forgotPassword(email)
       toast.success("Verification code sent to your email")
       setStep(2)
     } catch (error: any) {
       toast.error(error.message || "Failed to send verification code")
     } finally {
+      isLoadingRef.current = false
       setIsLoading(false)
     }
   }
 
   const handleResetPassword = async (e: React.FormEvent) => {
     e.preventDefault()
-    if (otp.length !== 6 || !newPassword) return
+    if (otp.length !== 6 || !newPassword || isLoadingRef.current) return
 
-    setIsLoading(true)
     try {
+      isLoadingRef.current = true
+      setIsLoading(true)
       await authApi.resetPassword(email, otp, newPassword)
       toast.success("Password reset successfully. You can now log in.")
       handleClose(false)
     } catch (error: any) {
       toast.error(error.message || "Failed to reset password")
     } finally {
+      isLoadingRef.current = false
       setIsLoading(false)
     }
   }

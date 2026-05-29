@@ -1,4 +1,4 @@
-import { useState } from "react"
+import { useState, useRef } from "react"
 import {
   Dialog,
   DialogContent,
@@ -16,10 +16,11 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "../../../components/ui/alert-dialog"
-import { Users, CloudArrowUp, User, Crown, UserMinus, Warning } from "@phosphor-icons/react"
+import { Users, CloudArrowUp, User, Crown, UserMinus, Warning, PencilSimple, Check, X } from "@phosphor-icons/react"
 import { Skeleton } from "../../../components/ui/skeleton"
 import { Badge } from "../../../components/ui/badge"
 import { Button } from "../../../components/ui/button"
+import { Input } from "../../../components/ui/input"
 import { toast } from "sonner"
 import { eventsApi } from "../../../features/events/services/events.api"
 
@@ -29,6 +30,7 @@ interface AttendeeData {
   role: 'ORGANIZER' | 'ATTENDEE'
   joined_at: string
   upload_count: number
+  upload_limit?: number | null
   user: {
     id: string
     name: string
@@ -51,11 +53,19 @@ interface AttendeesModalProps {
 const AttendeesModal = ({ open, onOpenChange, attendees, loading, onSelectAttendee, isOrganizer, eventId, onRefreshAttendees }: AttendeesModalProps) => {
   const [attendeeToRemove, setAttendeeToRemove] = useState<{ id: string, name: string } | null>(null)
   const [removingAttendee, setRemovingAttendee] = useState(false)
+  const [searchQuery, setSearchQuery] = useState('')
+  const [editingLimitId, setEditingLimitId] = useState<string | null>(null)
+  const [limitInputValue, setLimitInputValue] = useState('')
+  const [savingLimit, setSavingLimit] = useState(false)
+
+  const removingAttendeeRef = useRef(false)
+  const savingLimitRef = useRef(false)
 
   const handleRemove = async () => {
-    if (!eventId || !attendeeToRemove) return
-    setRemovingAttendee(true)
+    if (!eventId || !attendeeToRemove || removingAttendeeRef.current) return
     try {
+      removingAttendeeRef.current = true
+      setRemovingAttendee(true)
       await eventsApi.removeAttendee(eventId, attendeeToRemove.id)
       toast.success(`${attendeeToRemove.name} has been removed`)
       setAttendeeToRemove(null)
@@ -65,9 +75,41 @@ const AttendeesModal = ({ open, onOpenChange, attendees, loading, onSelectAttend
     } catch (error) {
       toast.error(error instanceof Error ? error.message : 'Failed to remove attendee')
     } finally {
+      removingAttendeeRef.current = false
       setRemovingAttendee(false)
     }
   }
+
+  const handleSaveLimit = async (attendee: AttendeeData) => {
+    if (!eventId || savingLimitRef.current) return
+    try {
+      savingLimitRef.current = true
+      setSavingLimit(true)
+      const parsed = limitInputValue.trim() === '' ? null : parseInt(limitInputValue, 10)
+      if (parsed !== null && (isNaN(parsed) || parsed < 0)) {
+        toast.error('Please enter a valid non-negative number')
+        savingLimitRef.current = false
+        setSavingLimit(false)
+        return
+      }
+      await eventsApi.updateAttendeeLimit(eventId, attendee.user_id, parsed)
+      toast.success(`Upload limit updated for ${attendee.user.name}`)
+      setEditingLimitId(null)
+      if (onRefreshAttendees) {
+        onRefreshAttendees()
+      }
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : 'Failed to update limit')
+    } finally {
+      savingLimitRef.current = false
+      setSavingLimit(false)
+    }
+  }
+
+  const filteredAttendees = attendees.filter(attendee => 
+    attendee.user.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+    attendee.user.email.toLowerCase().includes(searchQuery.toLowerCase())
+  )
 
   return (
     <>
@@ -78,6 +120,17 @@ const AttendeesModal = ({ open, onOpenChange, attendees, loading, onSelectAttend
             <DialogDescription>
               People joined this event and their activity.
             </DialogDescription>
+            {attendees.length > 0 && (
+              <div className="mt-2">
+                <Input
+                  type="text"
+                  placeholder="Search by name or email..."
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  className="w-full rounded-xl"
+                />
+              </div>
+            )}
           </DialogHeader>
 
           <div className="mt-4 max-h-[60vh] overflow-y-auto pr-2 space-y-3 custom-scrollbar">
@@ -96,8 +149,13 @@ const AttendeesModal = ({ open, onOpenChange, attendees, loading, onSelectAttend
                 <Users size={48} className="mx-auto text-neutral-200 mb-2" />
                 <p className="text-neutral-500">No attendees yet</p>
               </div>
+            ) : filteredAttendees.length === 0 ? (
+              <div className="text-center py-8">
+                <Users size={48} className="mx-auto text-neutral-200 mb-2 opacity-50" />
+                <p className="text-neutral-500">No matching attendees found</p>
+              </div>
             ) : (
-              attendees.map((attendee) => (
+              filteredAttendees.map((attendee) => (
                 <div 
                   key={attendee.id} 
                   className="flex items-center justify-between p-3 rounded-2xl border border-neutral-100 dark:border-neutral-800 hover:bg-neutral-50 dark:hover:bg-neutral-900 transition-colors"
@@ -145,8 +203,61 @@ const AttendeesModal = ({ open, onOpenChange, attendees, loading, onSelectAttend
                         <span className="text-sm font-medium">{attendee.upload_count}</span>
                       </div>
                       <p className="text-[10px] text-neutral-400 uppercase tracking-tighter font-bold">Photos</p>
+                      
+                      {attendee.role === 'ATTENDEE' && (
+                        editingLimitId === attendee.id ? (
+                          <div className="flex items-center gap-1 mt-1" onClick={(e) => e.stopPropagation()}>
+                            <Input
+                              type="number"
+                              min="0"
+                              className="w-16 h-7 text-xs px-2 text-right font-mono"
+                              value={limitInputValue}
+                              onChange={(e) => setLimitInputValue(e.target.value)}
+                              disabled={savingLimit}
+                              autoFocus
+                            />
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              disabled={savingLimit}
+                              onClick={() => handleSaveLimit(attendee)}
+                              className="h-7 w-7 text-green-500 hover:text-green-600 hover:bg-green-50 dark:hover:bg-green-950/20 cursor-pointer"
+                            >
+                              <Check size={12} weight="bold" />
+                            </Button>
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              disabled={savingLimit}
+                              onClick={() => setEditingLimitId(null)}
+                              className="h-7 w-7 text-red-500 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-950/20 cursor-pointer"
+                            >
+                              <X size={12} weight="bold" />
+                            </Button>
+                          </div>
+                        ) : (
+                          <div className="flex items-center gap-1 mt-1 text-[10px] text-neutral-500">
+                            <span>Limit: {attendee.upload_limit !== null && attendee.upload_limit !== undefined ? attendee.upload_limit : 'Default'}</span>
+                            {isOrganizer && (
+                              <Button
+                                variant="ghost"
+                                size="icon"
+                                onClick={(e) => {
+                                  e.stopPropagation()
+                                  setEditingLimitId(attendee.id)
+                                  setLimitInputValue(attendee.upload_limit !== null && attendee.upload_limit !== undefined ? String(attendee.upload_limit) : '')
+                                }}
+                                className="h-4 w-4 p-0 text-neutral-400 hover:text-neutral-600 dark:hover:text-neutral-200 cursor-pointer"
+                                title="Edit Limit"
+                              >
+                                <PencilSimple size={10} />
+                              </Button>
+                            )}
+                          </div>
+                        )
+                      )}
                     </div>
-                    <div className="flex items-center gap-2">
+                    <div className="flex items-center gap-2 mt-1">
                       {isOrganizer && attendee.role !== 'ORGANIZER' && eventId && (
                         <Button variant="ghost" size="sm" className="h-6 text-xs px-2 text-red-500 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-950/30" onClick={() => setAttendeeToRemove({ id: attendee.user_id, name: attendee.user.name })}>
                           <UserMinus size={14} className="mr-1" />

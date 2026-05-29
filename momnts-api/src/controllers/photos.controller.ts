@@ -52,7 +52,7 @@ export async function uploadPhotoController(req: AuthRequest, res: Response) {
                         user_id: userId,
                     }
                 },
-                select: { role: true }
+                select: { role: true, upload_limit: true }
             })
             if (!current) throw new Error('Event access not found')
 
@@ -61,7 +61,7 @@ export async function uploadPhotoController(req: AuthRequest, res: Response) {
             })
 
             if (current.role === 'ATTENDEE') {
-                const limit = eventAccess.event.attendee_upload_limit
+                const limit = current.upload_limit ?? eventAccess.event.attendee_upload_limit
                 if (actualCount + files.length > limit) {
                     return { success: false, current: actualCount, limit, role: current.role }
                 }
@@ -163,10 +163,11 @@ export async function uploadPhotoController(req: AuthRequest, res: Response) {
         }
 
         if (userRole === 'ATTENDEE') {
+            const limit = eventAccess.upload_limit ?? eventAccess.event.attendee_upload_limit
             response.quota = {
                 used: newCount,
-                limit: eventAccess.event.attendee_upload_limit,
-                remaining: eventAccess.event.attendee_upload_limit - newCount,
+                limit: limit,
+                remaining: limit - newCount,
             }
         } else {
             response.quota = {

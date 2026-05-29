@@ -109,15 +109,18 @@ const EventHeader = ({
 }: EventHeaderProps) => {
   const [showLeaveConfirm, setShowLeaveConfirm] = useState(false)
   const [leaving, setLeaving] = useState(false)
+  const leavingRef = useRef(false)
   // TODO: Add error handling for this hook
   const { data: summaryData } = useConnectionsSummary(event?.id ?? '')
 
   const handleLeave = async () => {
-    if (!onLeaveEvent) return
+    if (!onLeaveEvent || leavingRef.current) return
     try {
+      leavingRef.current = true
       setLeaving(true)
       await onLeaveEvent()
     } finally {
+      leavingRef.current = false
       setLeaving(false)
       setShowLeaveConfirm(false)
     }

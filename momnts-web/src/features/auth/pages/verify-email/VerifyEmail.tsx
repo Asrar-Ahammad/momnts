@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from "react"
+import { useState, useEffect, useCallback, useRef } from "react"
 import { useNavigate } from "react-router"
 import { useAuth } from "../../hooks/useAuth"
 import { authApi } from "../../services/auth.api"
@@ -17,6 +17,8 @@ const VerifyEmail = () => {
   const [isVerifying, setIsVerifying] = useState(false)
   const [isResending, setIsResending] = useState(false)
   const [cooldown, setCooldown] = useState(0)
+  const isVerifyingRef = useRef(false)
+  const isResendingRef = useRef(false)
 
   // Redirect if already verified
   useEffect(() => {
@@ -48,10 +50,11 @@ const VerifyEmail = () => {
   }, [cooldown])
 
   const handleVerify = useCallback(async (code: string) => {
-    if (code.length !== 6 || isVerifying) return
+    if (code.length !== 6 || isVerifyingRef.current) return
 
-    setIsVerifying(true)
     try {
+      isVerifyingRef.current = true
+      setIsVerifying(true)
       const data = await authApi.verifyOtp(code)
       setUser(data.user)
       toast.success("Email verified successfully!")
@@ -63,15 +66,17 @@ const VerifyEmail = () => {
         setCooldown(error.retryAfter)
       }
     } finally {
+      isVerifyingRef.current = false
       setIsVerifying(false)
     }
-  }, [isVerifying, setUser, navigate])
+  }, [setUser, navigate])
 
   const handleResend = async () => {
-    if (cooldown > 0 || isResending) return
+    if (cooldown > 0 || isResendingRef.current) return
 
-    setIsResending(true)
     try {
+      isResendingRef.current = true
+      setIsResending(true)
       await authApi.sendOtp()
       toast.success("New verification code sent!")
       setCooldown(RESEND_COOLDOWN)
@@ -82,6 +87,7 @@ const VerifyEmail = () => {
         setCooldown(error.retryAfter)
       }
     } finally {
+      isResendingRef.current = false
       setIsResending(false)
     }
   }

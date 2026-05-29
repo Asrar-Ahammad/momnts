@@ -30,6 +30,7 @@ const Register = () => {
     const [confirmPassword, setConfirmPassword] = useState("")
     const [isLoading, setIsLoading] = useState(false)
     const toastId = useRef<string | number | null>(null)
+    const isLoadingRef = useRef(false)
 
 
     useEffect(() => {
@@ -69,6 +70,7 @@ const Register = () => {
 
     const handleRegister = async (e: React.FormEvent<HTMLFormElement>) => {
         e.preventDefault()
+        if (isLoadingRef.current) return
         const formData = new FormData(e.currentTarget)
         const name = formData.get("username") as string
         const email = formData.get("email") as string
@@ -86,8 +88,9 @@ const Register = () => {
             return
         }
 
-        setIsLoading(true)
         try {
+            isLoadingRef.current = true
+            setIsLoading(true)
             const data = await authApi.register(name, email, password)
             setUser(data.user)
             // Always redirect to verify-email for new users
@@ -96,6 +99,7 @@ const Register = () => {
             console.error("Registration error:", error)
             toast.error(error instanceof Error ? error.message : "Registration failed")
         } finally {
+            isLoadingRef.current = false
             setIsLoading(false)
         }
     }

@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect, useCallback, useRef } from 'react'
 import { useParams, useNavigate, useSearchParams } from 'react-router'
 import { useAuth } from '../../features/auth/hooks/useAuth'
 import { Button } from '../../components/ui/button'
@@ -44,6 +44,8 @@ const EventDetails = () => {
     isActive: true
   })
   const [savingSettings, setSavingSettings] = useState(false)
+  const uploadingRef = useRef(false)
+  const savingSettingsRef = useRef(false)
   const [carouselOpen, setCarouselOpen] = useState(false)
   const [currentPhotoIndex, setCurrentPhotoIndex] = useState(0)
   const [isSelectMode, setIsSelectMode] = useState(false)
@@ -340,7 +342,7 @@ const EventDetails = () => {
   }
 
   const handleUpload = async () => {
-    if (!eventId || selectedFiles.length === 0) return
+    if (!eventId || selectedFiles.length === 0 || uploadingRef.current) return
 
     if (event?.user_role === 'ATTENDEE') {
       const limit = event.attendee_upload_limit
@@ -357,6 +359,7 @@ const EventDetails = () => {
     }
 
     try {
+      uploadingRef.current = true
       setUploading(true)
       // Initialize all files as 'uploading'
       setFileStatuses(selectedFiles.map(() => 'uploading'))
@@ -395,6 +398,7 @@ const EventDetails = () => {
       console.error('Failed to upload photos:', error)
       toast.error(error instanceof Error ? error.message : 'Failed to upload photos')
     } finally {
+      uploadingRef.current = false
       setUploading(false)
     }
   }
@@ -421,9 +425,10 @@ const EventDetails = () => {
   }
 
   const handleSaveSettings = async () => {
-    if (!eventId) return
+    if (!eventId || savingSettingsRef.current) return
 
     try {
+      savingSettingsRef.current = true
       setSavingSettings(true)
       await eventsApi.updateEvent(
         eventId,
@@ -439,6 +444,7 @@ const EventDetails = () => {
       console.error('Failed to update event:', error)
       toast.error(error instanceof Error ? error.message : 'Failed to update event')
     } finally {
+      savingSettingsRef.current = false
       setSavingSettings(false)
     }
   }

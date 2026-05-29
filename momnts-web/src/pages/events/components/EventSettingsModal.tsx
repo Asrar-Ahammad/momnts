@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useRef } from 'react'
 import { Button } from '../../../components/ui/button'
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '../../../components/ui/dialog'
 import { Input } from '../../../components/ui/input'
@@ -36,12 +36,16 @@ const EventSettingsModal = ({
 }: EventSettingsModalProps) => {
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false)
   const [deleting, setDeleting] = useState(false)
+  const deletingRef = useRef(false)
 
   const handleDelete = async () => {
+    if (deletingRef.current) return
     try {
+      deletingRef.current = true
       setDeleting(true)
       await onDelete()
     } finally {
+      deletingRef.current = false
       setDeleting(false)
       setShowDeleteConfirm(false)
     }

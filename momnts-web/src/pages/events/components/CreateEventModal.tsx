@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useRef } from 'react'
 import { useNavigate } from 'react-router'
 import { format } from 'date-fns'
 import { Button } from '../../../components/ui/button'
@@ -22,21 +22,25 @@ export const CreateEventModal = ({ open, onOpenChange, onEventCreated }: CreateE
   const [newEventName, setNewEventName] = useState('')
   const [newEventLocation, setNewEventLocation] = useState('')
   const [newEventDate, setNewEventDate] = useState<Date | undefined>()
+  const [newEventUploadLimit, setNewEventUploadLimit] = useState(10)
   const [creatingEvent, setCreatingEvent] = useState(false)
+  const creatingEventRef = useRef(false)
 
   const handleCreateEvent = async () => {
+    if (creatingEventRef.current) return
     if (!newEventName || !newEventLocation || !newEventDate) {
       toast.error('Please fill in all fields')
       return
     }
 
     try {
+      creatingEventRef.current = true
       setCreatingEvent(true)
       const createdEvent = await eventsApi.createEvent(
         newEventName,
         newEventLocation,
         newEventDate.toISOString(),
-        10
+        newEventUploadLimit
       )
       toast.success('Event created successfully!')
       onOpenChange(false)
@@ -58,6 +62,7 @@ export const CreateEventModal = ({ open, onOpenChange, onEventCreated }: CreateE
       console.error('Failed to create event:', error)
       toast.error(error instanceof Error ? error.message : 'Failed to create event')
     } finally {
+      creatingEventRef.current = false
       setCreatingEvent(false)
     }
   }
@@ -67,6 +72,7 @@ export const CreateEventModal = ({ open, onOpenChange, onEventCreated }: CreateE
     setNewEventName('')
     setNewEventLocation('')
     setNewEventDate(undefined)
+    setNewEventUploadLimit(10)
   }
 
   return (
@@ -115,6 +121,20 @@ export const CreateEventModal = ({ open, onOpenChange, onEventCreated }: CreateE
                 />
               </PopoverContent>
             </Popover>
+          </div>
+          <div className="grid gap-2">
+            <Label htmlFor="uploadLimit">Attendee Upload Limit</Label>
+            <Input
+              id="uploadLimit"
+              type="number"
+              min="0"
+              placeholder="10"
+              value={newEventUploadLimit}
+              onChange={(e) => {
+                const val = parseInt(e.target.value, 10);
+                setNewEventUploadLimit(isNaN(val) ? 0 : val);
+              }}
+            />
           </div>
         </div>
         <DialogFooter>

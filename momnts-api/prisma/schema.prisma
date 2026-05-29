@@ -62,6 +62,7 @@ model EventAccess {
   user_id      String
   role         Role
   upload_count Int      @default(0)
+  upload_limit Int?
   joined_at    DateTime @default(now())
 
   event Event @relation(fields: [event_id], references: [id], onDelete: Cascade)

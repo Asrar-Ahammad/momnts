@@ -9,7 +9,8 @@ import {
     getJoinedEventsController, 
     joinEventController, 
     leaveEventController,
-    updateEventDetailsController 
+    updateEventDetailsController,
+    updateAttendeeLimitController
 } from "../controllers/events.controller";
 import { authenticate } from "../middleware/auth.middleware";
 
@@ -38,6 +39,9 @@ eventsRouter.delete("/:eventId", authenticate, deleteEventController)
 
 // Get event attendees
 eventsRouter.get("/:eventId/attendees", authenticate, getEventAttendeesController)
+
+// Update attendee limit
+eventsRouter.put("/:eventId/attendees/:userId/limit", authenticate, updateAttendeeLimitController)
 
 // Regenerate invite code (organizer only — if code is compromised)
 eventsRouter.patch("/:eventId/regenerate-code", authenticate, generateUniqueInviteCode)

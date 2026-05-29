@@ -1,4 +1,4 @@
-import { useState } from "react"
+import { useState, useRef } from "react"
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "../../../components/ui/dialog"
 import { Button } from "../../../components/ui/button"
 import { Input } from "../../../components/ui/input"
@@ -21,6 +21,7 @@ export function ChangePasswordModal({ open, onOpenChange }: ChangePasswordModalP
   const [newPassword, setNewPassword] = useState("")
   const [showPassword, setShowPassword] = useState(false)
   const [isLoading, setIsLoading] = useState(false)
+  const isLoadingRef = useRef(false)
 
   const handleClose = (newOpen: boolean) => {
     if (!newOpen) {
@@ -34,30 +35,35 @@ export function ChangePasswordModal({ open, onOpenChange }: ChangePasswordModalP
   }
 
   const handleSendOtp = async () => {
-    setIsLoading(true)
+    if (isLoadingRef.current) return
     try {
+      isLoadingRef.current = true
+      setIsLoading(true)
       await authApi.sendChangePasswordOtp()
       toast.success("Verification code sent to your email")
       setStep(2)
     } catch (error: any) {
       toast.error(error.message || "Failed to send verification code")
     } finally {
+      isLoadingRef.current = false
       setIsLoading(false)
     }
   }
 
   const handleChangePassword = async (e: React.FormEvent) => {
     e.preventDefault()
-    if (otp.length !== 6 || !newPassword) return
+    if (otp.length !== 6 || !newPassword || isLoadingRef.current) return
 
-    setIsLoading(true)
     try {
+      isLoadingRef.current = true
+      setIsLoading(true)
       await authApi.changePassword(otp, newPassword)
       toast.success("Password changed successfully")
       handleClose(false)
     } catch (error: any) {
       toast.error(error.message || "Failed to change password")
     } finally {
+      isLoadingRef.current = false
       setIsLoading(false)
     }
   }

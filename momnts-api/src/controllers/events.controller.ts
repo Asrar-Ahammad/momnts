@@ -31,7 +31,7 @@ async function generateUniqueInviteCode(): Promise<string> {
 
 async function createEventController(req: AuthRequest, res: Response) {
     try {
-        const { name, date, location } = req.body;
+        const { name, date, location, attendeeUploadLimit, attendee_upload_limit } = req.body;
 
         if (!name || !date || !location) {
             return res.status(400).json({
@@ -50,6 +50,10 @@ async function createEventController(req: AuthRequest, res: Response) {
             return res.status(401).json({ message: "User not authenticated" });
         }
 
+        const rawLimit = attendeeUploadLimit !== undefined ? attendeeUploadLimit : attendee_upload_limit;
+        const parsedLimit = rawLimit !== undefined && rawLimit !== null ? parseInt(String(rawLimit), 10) : 10;
+        const attendee_upload_limit_parsed = (!isNaN(parsedLimit) && parsedLimit >= 0) ? parsedLimit : 10;
+
         const event = await prisma.event.create({
             data: {
                 name: name,
@@ -57,6 +61,7 @@ async function createEventController(req: AuthRequest, res: Response) {
                 location: location,
                 invite_code: invite_code,
                 user_id: req.user.id,
+                attendee_upload_limit: attendee_upload_limit_parsed,
             },
         });
         const eventAccess = await prisma.eventAccess.create({
@@ -145,7 +150,10 @@ async function getEventDetailsController(req: AuthRequest, res: Response) {
         return res.status(200).json({
             event: {
                 ...event,
-                user_role: eventAccess.role
+                user_role: eventAccess.role,
+                attendee_upload_limit: eventAccess.upload_limit !== null && eventAccess.upload_limit !== undefined
+                    ? eventAccess.upload_limit
+                    : event.attendee_upload_limit
             }
         })
 
@@ -322,7 +330,19 @@ async function getJoinedEventsController(req: AuthRequest, res: Response) {
                 }
             }
         })
-        return res.status(200).json({ message: "Events fetched successfully", data: events })
+        const eventsWithOverride = events.map(acc => {
+            const ev = acc.event as any;
+            return {
+                ...acc,
+                event: {
+                    ...ev,
+                    attendee_upload_limit: acc.upload_limit !== null && acc.upload_limit !== undefined
+                        ? acc.upload_limit
+                        : ev.attendee_upload_limit
+                }
+            }
+        })
+        return res.status(200).json({ message: "Events fetched successfully", data: eventsWithOverride })
     } catch (error) {
         const message = error instanceof Error ? error.message : "Internal server error";
         return res.status(500).json({ message });
@@ -509,8 +529,21 @@ async function getEventAttendeesController(req: AuthRequest, res: Response) {
             return res.status(403).json({ message: 'Only the organizer can view attendees' })
         }
 
+        const { search } = req.query
+        const searchString = typeof search === 'string' ? search : undefined
+
         const attendees = await prisma.eventAccess.findMany({
-            where: { event_id: eventId },
+            where: {
+                event_id: eventId,
+                ...(searchString && {
+                    user: {
+                        OR: [
+                            { name: { contains: searchString, mode: 'insensitive' } },
+                            { email: { contains: searchString, mode: 'insensitive' } }
+                        ]
+                    }
+                })
+            },
             include: {
                 user: {
                     select: { 
@@ -621,6 +654,53 @@ async function leaveEventController(req: AuthRequest, res: Response) {
     }
 }
 
+async function updateAttendeeLimitController(req: AuthRequest, res: Response) {
+    try {
+        if (!req.user?.id) {
+            return res.status(401).json({ message: "User not authenticated" });
+        }
+
+        const eventId = req.params.eventId as string;
+        const attendeeId = req.params.userId as string;
+        const { limit } = req.body;
+
+        // Verify the requester is the ORGANIZER of this event
+        const organizerAccess = await prisma.eventAccess.findUnique({
+            where: {
+                event_id_user_id: { event_id: eventId, user_id: req.user.id }
+            }
+        });
+
+        if (!organizerAccess || organizerAccess.role !== 'ORGANIZER') {
+            return res.status(403).json({ message: "Only the organizer can adjust upload limits" });
+        }
+
+        // Parse limit (can be null to remove individual override and fallback to event limit)
+        const parsedLimit = limit !== undefined && limit !== null ? parseInt(String(limit), 10) : null;
+        if (parsedLimit !== null && (isNaN(parsedLimit) || parsedLimit < 0)) {
+            return res.status(400).json({ message: "Invalid upload limit" });
+        }
+
+        // Update the attendee's limit
+        const updatedAccess = await prisma.eventAccess.update({
+            where: {
+                event_id_user_id: { event_id: eventId, user_id: attendeeId }
+            },
+            data: {
+                upload_limit: parsedLimit
+            }
+        });
+
+        return res.status(200).json({
+            message: "Attendee upload limit updated successfully",
+            data: updatedAccess
+        });
+    } catch (error) {
+        const message = error instanceof Error ? error.message : "Internal server error";
+        return res.status(500).json({ message });
+    }
+}
+
 export {
     createEventController,
     getEventDetailsController,
@@ -631,5 +711,6 @@ export {
     getJoinedEventsController,
     getEventAttendeesController,
     generateUniqueInviteCode,
-    leaveEventController
+    leaveEventController,
+    updateAttendeeLimitController
 };

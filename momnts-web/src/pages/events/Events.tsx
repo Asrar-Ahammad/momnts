@@ -18,6 +18,23 @@ import {
   Rows
 } from '@phosphor-icons/react'
 import { Tabs, TabsList, TabsTrigger } from '../../components/ui/tabs'
+import { 
+  DropdownMenu, 
+  DropdownMenuContent, 
+  DropdownMenuItem, 
+  DropdownMenuLabel, 
+  DropdownMenuSeparator, 
+  DropdownMenuTrigger, 
+  DropdownMenuGroup 
+} from '../../components/ui/dropdown-menu'
+import { 
+  Dialog, 
+  DialogContent, 
+  DialogHeader, 
+  DialogTitle, 
+  DialogDescription, 
+  DialogFooter 
+} from '../../components/ui/dialog'
 import { eventsApi, EventData } from '../../features/events/services/events.api'
 import { toast } from 'sonner'
 import { EventCard, CreateEventModal, JoinEventModal, EventListItem } from './components'
@@ -26,6 +43,7 @@ const Events = () => {
   const [searchQuery, setSearchQuery] = useState('')
   const [dateRange, setDateRange] = useState<{ from?: Date; to?: Date }>({})
   const [isCalendarOpen, setIsCalendarOpen] = useState(false)
+  const [isMobileCalendarOpen, setIsMobileCalendarOpen] = useState(false)
   const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('desc')
   const [events, setEvents] = useState<EventData[]>([])
   const [loading, setLoading] = useState(true)
@@ -170,7 +188,7 @@ const Events = () => {
               placeholder="Search events by name..."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              className="px-10 pr-12 w-[90vw] md:w-full rounded-full"
+              className="pl-9 pr-4 sm:pl-10 sm:pr-12 w-full rounded-full"
             />
             <kbd className="absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none hidden sm:inline-flex h-5 items-center rounded border border-neutral-200 bg-neutral-100 px-1.5 font-mono text-[11px] font-medium text-neutral-500 dark:border-neutral-700 dark:bg-neutral-800 dark:text-neutral-400">
               /
@@ -178,111 +196,208 @@ const Events = () => {
           </div>
         </div>
 
-        <Button
-          variant="outline"
-          size="sm"
-          onClick={() => setSortOrder(sortOrder === 'asc' ? 'desc' : 'asc')}
-          className="flex items-center gap-2 cursor-pointer"
-        >
-          <ArrowsDownUp size={16} weight="bold" />
-          Sort by Date
-        </Button>
-
-        <Popover open={isCalendarOpen} onOpenChange={setIsCalendarOpen}>
-          <PopoverTrigger>
-            <Button variant="outline" size="sm" className="flex items-center gap-2 cursor-pointer">
-              <CalendarIcon size={16} weight="bold" />
-              {dateRange.from && dateRange.to
-                ? `${format(dateRange.from, 'MMM dd')} - ${format(dateRange.to, 'MMM dd')}`
-                : 'Filter by Date'
-              }
-            </Button>
-          </PopoverTrigger>
-          <PopoverContent className="w-auto p-0" align="end">
-            <Calendar
-              mode="range"
-              selected={{
-                from: dateRange.from,
-                to: dateRange.to
-              }}
-              onSelect={(range) => {
-                setDateRange({ from: range?.from, to: range?.to })
-              }}
-              numberOfMonths={2}
-            />
-          </PopoverContent>
-        </Popover>
-
-        <Popover open={isRoleFilterOpen} onOpenChange={setIsRoleFilterOpen}>
-          <PopoverTrigger>
-            <Button variant="outline" size="sm" className="flex items-center gap-2 cursor-pointer">
-              {getRoleFilterIcon()}
-              {getRoleFilterLabel()}
-              <CaretDown size={12} weight="bold" />
-            </Button>
-          </PopoverTrigger>
-          <PopoverContent className="w-full p-1 rounded-2xl" align="end">
-            <div className="flex flex-col gap-1">
-              <Button
-                variant={roleFilter === 'ALL' ? 'default' : 'ghost'}
-                size="sm"
-                onClick={() => {
-                  setRoleFilter('ALL')
-                  setIsRoleFilterOpen(false)
-                }}
-                className="justify-start cursor-pointer"
-              >
-                <Faders size={16} weight="bold" className="mr-2" />
-                All Events
+        {/* Mobile Filters */}
+        <div className="md:hidden">
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button variant="outline" size="sm" className="flex items-center gap-1.5 cursor-pointer">
+                <Faders size={16} weight="bold" />
+                <span>Filters</span>
+                {(searchQuery || dateRange.from || dateRange.to || sortOrder !== 'desc' || roleFilter !== 'ALL') && (
+                  <span className="w-2 h-2 rounded-full bg-neutral-900 dark:bg-white" />
+                )}
               </Button>
-              <Button
-                variant={roleFilter === 'ORGANIZER' ? 'default' : 'ghost'}
-                size="sm"
-                onClick={() => {
-                  setRoleFilter('ORGANIZER')
-                  setIsRoleFilterOpen(false)
-                }}
-                className="justify-start cursor-pointer"
-              >
-                <Crown size={16} weight="fill" className="mr-2" />
-                Organizing
-              </Button>
-              <Button
-                variant={roleFilter === 'ATTENDEE' ? 'default' : 'ghost'}
-                size="sm"
-                onClick={() => {
-                  setRoleFilter('ATTENDEE')
-                  setIsRoleFilterOpen(false)
-                }}
-                className="justify-start cursor-pointer"
-              >
-                <User size={16} weight="fill" className="mr-2" />
-                Attending
-              </Button>
-            </div>
-          </PopoverContent>
-        </Popover>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end" className="w-60 rounded-2xl p-1.5">
+              <DropdownMenuGroup>
+                <DropdownMenuLabel className="text-[10px] uppercase tracking-wider text-neutral-400 dark:text-neutral-500 font-semibold px-2.5 pt-1.5 pb-1">
+                  Sort
+                </DropdownMenuLabel>
+                <DropdownMenuItem
+                  onClick={() => setSortOrder(sortOrder === 'asc' ? 'desc' : 'asc')}
+                  className="cursor-pointer py-2 px-2.5 rounded-lg flex items-center justify-between"
+                >
+                  <span className="flex items-center gap-2">
+                    <ArrowsDownUp size={16} />
+                    Sort by Date
+                  </span>
+                  <span className="text-xs text-neutral-500 font-medium font-mono uppercase">
+                    {sortOrder === 'desc' ? 'Newest' : 'Oldest'}
+                  </span>
+                </DropdownMenuItem>
+              </DropdownMenuGroup>
 
-        {(searchQuery || dateRange.from || dateRange.to || sortOrder !== 'desc' || roleFilter !== 'ALL') && (
+              <DropdownMenuSeparator />
+              <DropdownMenuGroup>
+                <DropdownMenuLabel className="text-[10px] uppercase tracking-wider text-neutral-400 dark:text-neutral-500 font-semibold px-2.5 pt-1.5 pb-1">
+                  Filter by Date
+                </DropdownMenuLabel>
+                <DropdownMenuItem
+                  onClick={() => setIsMobileCalendarOpen(true)}
+                  className="cursor-pointer py-2 px-2.5 rounded-lg flex items-center gap-2"
+                >
+                  <CalendarIcon size={16} />
+                  <span>
+                    {dateRange.from && dateRange.to
+                      ? `${format(dateRange.from, 'MMM dd')} - ${format(dateRange.to, 'MMM dd')}`
+                      : 'Filter by Date'
+                    }
+                  </span>
+                </DropdownMenuItem>
+              </DropdownMenuGroup>
+
+              <DropdownMenuSeparator />
+              <DropdownMenuGroup>
+                <DropdownMenuLabel className="text-[10px] uppercase tracking-wider text-neutral-400 dark:text-neutral-500 font-semibold px-2.5 pt-1.5 pb-1">
+                  Type
+                </DropdownMenuLabel>
+                <DropdownMenuItem
+                  onClick={() => setRoleFilter('ALL')}
+                  className={`cursor-pointer py-2 px-2.5 rounded-lg flex items-center gap-2 ${roleFilter === 'ALL' ? 'bg-neutral-100 dark:bg-neutral-800' : ''}`}
+                >
+                  <Faders size={16} weight="bold" />
+                  All Events
+                </DropdownMenuItem>
+                <DropdownMenuItem
+                  onClick={() => setRoleFilter('ORGANIZER')}
+                  className={`cursor-pointer py-2 px-2.5 rounded-lg flex items-center gap-2 ${roleFilter === 'ORGANIZER' ? 'bg-neutral-100 dark:bg-neutral-800' : ''}`}
+                >
+                  <Crown size={16} weight="fill" className="text-amber-500" />
+                  Organizing
+                </DropdownMenuItem>
+                <DropdownMenuItem
+                  onClick={() => setRoleFilter('ATTENDEE')}
+                  className={`cursor-pointer py-2 px-2.5 rounded-lg flex items-center gap-2 ${roleFilter === 'ATTENDEE' ? 'bg-neutral-100 dark:bg-neutral-800' : ''}`}
+                >
+                  <User size={16} weight="fill" className="text-blue-500" />
+                  Attending
+                </DropdownMenuItem>
+              </DropdownMenuGroup>
+
+              {(searchQuery || dateRange.from || dateRange.to || sortOrder !== 'desc' || roleFilter !== 'ALL') && (
+                <>
+                  <DropdownMenuSeparator />
+                  <DropdownMenuItem
+                    onClick={handleResetFilters}
+                    className="cursor-pointer py-2 px-2.5 rounded-lg flex items-center gap-2 text-red-500 hover:text-red-600 focus:text-red-600"
+                  >
+                    <Faders size={16} weight="bold" />
+                    Reset Filters
+                  </DropdownMenuItem>
+                </>
+              )}
+            </DropdownMenuContent>
+          </DropdownMenu>
+        </div>
+
+        {/* Desktop Filters */}
+        <div className="hidden md:flex items-center gap-2">
           <Button
-            variant="ghost"
+            variant="outline"
             size="sm"
-            onClick={handleResetFilters}
-            className="flex items-center gap-2 text-neutral-500 hover:text-neutral-700 cursor-pointer"
+            onClick={() => setSortOrder(sortOrder === 'asc' ? 'desc' : 'asc')}
+            className="flex items-center gap-2 cursor-pointer"
           >
-            <Faders size={16} weight="bold" />
-            Reset Filters
+            <ArrowsDownUp size={16} weight="bold" />
+            Sort by Date
           </Button>
-        )}
+
+          <Popover open={isCalendarOpen} onOpenChange={setIsCalendarOpen}>
+            <PopoverTrigger>
+              <Button variant="outline" size="sm" className="flex items-center gap-2 cursor-pointer">
+                <CalendarIcon size={16} weight="bold" />
+                {dateRange.from && dateRange.to
+                  ? `${format(dateRange.from, 'MMM dd')} - ${format(dateRange.to, 'MMM dd')}`
+                  : 'Filter by Date'
+                }
+              </Button>
+            </PopoverTrigger>
+            <PopoverContent className="w-auto p-0" align="end">
+              <Calendar
+                mode="range"
+                selected={{
+                  from: dateRange.from,
+                  to: dateRange.to
+                }}
+                onSelect={(range) => {
+                  setDateRange({ from: range?.from, to: range?.to })
+                }}
+                numberOfMonths={2}
+              />
+            </PopoverContent>
+          </Popover>
+
+          <Popover open={isRoleFilterOpen} onOpenChange={setIsRoleFilterOpen}>
+            <PopoverTrigger>
+              <Button variant="outline" size="sm" className="flex items-center gap-2 cursor-pointer">
+                {getRoleFilterIcon()}
+                {getRoleFilterLabel()}
+                <CaretDown size={12} weight="bold" />
+              </Button>
+            </PopoverTrigger>
+            <PopoverContent className="w-full p-1 rounded-2xl" align="end">
+              <div className="flex flex-col gap-1">
+                <Button
+                  variant={roleFilter === 'ALL' ? 'default' : 'ghost'}
+                  size="sm"
+                  onClick={() => {
+                    setRoleFilter('ALL')
+                    setIsRoleFilterOpen(false)
+                  }}
+                  className="justify-start cursor-pointer"
+                >
+                  <Faders size={16} weight="bold" className="mr-2" />
+                  All Events
+                </Button>
+                <Button
+                  variant={roleFilter === 'ORGANIZER' ? 'default' : 'ghost'}
+                  size="sm"
+                  onClick={() => {
+                    setRoleFilter('ORGANIZER')
+                    setIsRoleFilterOpen(false)
+                  }}
+                  className="justify-start cursor-pointer"
+                >
+                  <Crown size={16} weight="fill" className="mr-2" />
+                  Organizing
+                </Button>
+                <Button
+                  variant={roleFilter === 'ATTENDEE' ? 'default' : 'ghost'}
+                  size="sm"
+                  onClick={() => {
+                    setRoleFilter('ATTENDEE')
+                    setIsRoleFilterOpen(false)
+                  }}
+                  className="justify-start cursor-pointer"
+                >
+                  <User size={16} weight="fill" className="mr-2" />
+                  Attending
+                </Button>
+              </div>
+            </PopoverContent>
+          </Popover>
+
+          {(searchQuery || dateRange.from || dateRange.to || sortOrder !== 'desc' || roleFilter !== 'ALL') && (
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={handleResetFilters}
+              className="flex items-center gap-2 text-neutral-500 hover:text-neutral-700 cursor-pointer"
+            >
+              <Faders size={16} weight="bold" />
+              Reset Filters
+            </Button>
+          )}
+        </div>
 
         <Tabs value={viewMode} onValueChange={(v) => setViewMode(v as 'grid' | 'list')} className="ml-auto">
           <TabsList className="rounded-full h-10 bg-white dark:bg-black border">
             <TabsTrigger value="grid" className="rounded-full px-4 h-8 data-active:bg-white/20 dark:data-active:bg-neutral-900 data-active:shadow-md flex items-center justify-center">
-              <SquaresFour size={18} weight={viewMode === 'grid' ? "fill" : "regular"} className="mr-2" />
+              <SquaresFour size={18} weight={viewMode === 'grid' ? "fill" : "regular"} className="lg:mr-2" />
               <span className='hidden lg:flex'>Grid</span>
             </TabsTrigger>
             <TabsTrigger value="list" className="rounded-full px-4 h-8 data-active:bg-white/20 dark:data-active:bg-neutral-900 data-active:shadow-md flex items-center justify-center">
-              <Rows size={18} weight={viewMode === 'list' ? "fill" : "regular"} className="mr-2" />
+              <Rows size={18} weight={viewMode === 'list' ? "fill" : "regular"} className="lg:mr-2" />
               <span className='hidden lg:flex'>List</span>
             </TabsTrigger>
           </TabsList>
@@ -328,6 +443,54 @@ const Events = () => {
         onEventJoined={handleEventsUpdate}
         initialInviteCode={initialJoinCode}
       />
+
+      {/* Mobile Date Picker Dialog */}
+      <Dialog open={isMobileCalendarOpen} onOpenChange={setIsMobileCalendarOpen}>
+        <DialogContent className="sm:max-w-sm rounded-3xl p-6">
+          <DialogHeader>
+            <DialogTitle className="text-xl font-bold">Select Date Range</DialogTitle>
+            <DialogDescription>
+              Filter events within a range of dates.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="flex justify-center py-4">
+            <Calendar
+              mode="range"
+              selected={{
+                from: dateRange.from,
+                to: dateRange.to
+              }}
+              onSelect={(range) => {
+                setDateRange({ from: range?.from, to: range?.to })
+              }}
+              numberOfMonths={1}
+            />
+          </div>
+          <DialogFooter className="flex flex-row justify-end gap-2">
+            {dateRange.from && (
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => {
+                  setDateRange({ from: undefined, to: undefined })
+                  setIsMobileCalendarOpen(false)
+                }}
+                className="text-red-500 hover:text-red-600 cursor-pointer"
+              >
+                Clear
+              </Button>
+            )}
+            <Button
+              variant="default"
+              size="sm"
+              onClick={() => setIsMobileCalendarOpen(false)}
+              className="cursor-pointer"
+            >
+              Apply
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   )
 }

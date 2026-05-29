@@ -2,7 +2,7 @@ import { Form, Link, useNavigate, useSearchParams } from "react-router"
 import { Field, FieldGroup, FieldLabel, FieldSet } from "../../../../components/ui/field"
 import { Input } from "../../../../components/ui/input"
 import { Button } from "../../../../components/ui/button"
-import { useEffect, useState } from "react"
+import { useEffect, useState, useRef } from "react"
 import { useAuth } from "../../hooks/useAuth"
 import { authApi } from "../../services/auth.api"
 import { EyeIcon, EyeSlashIcon } from "@phosphor-icons/react"
@@ -17,6 +17,7 @@ const Login = () => {
     const { user, setUser } = useAuth()
     const [showPassword, setShowPassword] = useState(false)
     const [isLoading, setIsLoading] = useState(false)
+    const isLoadingRef = useRef(false)
     const [isForgotModalOpen, setIsForgotModalOpen] = useState(false)
 
 
@@ -30,12 +31,14 @@ const Login = () => {
 
     const handleLogin = async (e: React.FormEvent<HTMLFormElement>) => {
         e.preventDefault()
+        if (isLoadingRef.current) return
         const formData = new FormData(e.currentTarget)
         const email = formData.get("email") as string
         const password = formData.get("password") as string
 
-        setIsLoading(true)
         try {
+            isLoadingRef.current = true
+            setIsLoading(true)
             const data = await authApi.login(email, password)
             setUser(data.user)
             const redirect = searchParams.get('redirect')
@@ -45,6 +48,7 @@ const Login = () => {
             console.error("Login error:", error)
             toast.error(error instanceof Error ? error.message : "Login failed")
         } finally {
+            isLoadingRef.current = false
             setIsLoading(false)
         }
     }

@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { useNavigate } from 'react-router'
 import { Button } from '../../../components/ui/button'
 import { InputOTP, InputOTPGroup, InputOTPSlot } from '../../../components/ui/input-otp'
@@ -19,6 +19,7 @@ export const JoinEventModal = ({ open, onOpenChange, onEventJoined, initialInvit
   const navigate = useNavigate()
   const [inviteCode, setInviteCode] = useState(initialInviteCode.toUpperCase())
   const [joiningEvent, setJoiningEvent] = useState(false)
+  const joiningEventRef = useRef(false)
 
   useEffect(() => {
     if (open && initialInviteCode) {
@@ -27,12 +28,14 @@ export const JoinEventModal = ({ open, onOpenChange, onEventJoined, initialInvit
   }, [open, initialInviteCode])
 
   const handleJoinEvent = async () => {
+    if (joiningEventRef.current) return
     if (!inviteCode || inviteCode.length !== 6) {
       toast.error('Please enter a valid 6-digit invite code')
       return
     }
 
     try {
+      joiningEventRef.current = true
       setJoiningEvent(true)
       const event = await eventsApi.joinEvent(inviteCode)
       toast.success(`Successfully joined ${event.name}!`)
@@ -53,6 +56,7 @@ export const JoinEventModal = ({ open, onOpenChange, onEventJoined, initialInvit
       console.error('Failed to join event:', error)
       toast.error(error instanceof Error ? error.message : 'Failed to join event')
     } finally {
+      joiningEventRef.current = false
       setJoiningEvent(false)
     }
   }

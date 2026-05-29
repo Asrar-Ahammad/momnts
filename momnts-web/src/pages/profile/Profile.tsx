@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useRef } from 'react'
 import { useAuth } from '../../features/auth/hooks/useAuth'
 import { usersApi } from '../../features/users/services/users.api'
 import { Button } from '../../components/ui/button'
@@ -67,30 +67,40 @@ const Profile = () => {
   const [activeTab, setActiveTab] = useState('account')
 
   const [isLoggingOut, setIsLoggingOut] = useState(false)
+  const isLoggingOutRef = useRef(false)
+  const isSendingOtpRef = useRef(false)
+  const isUpdatingNameRef = useRef(false)
+  const isUpdatingSelfieRef = useRef(false)
 
   const handleLogout = async (e?: React.MouseEvent) => {
     e?.preventDefault();
-    setIsLoggingOut(true);
+    if (isLoggingOutRef.current) return
     try {
+      isLoggingOutRef.current = true
+      setIsLoggingOut(true);
       await logout()
       navigate("/login", { replace: true })
       toast.success("Logged out successfully")
     } catch (error) {
       console.error("Logout failed:", error)
       toast.error("Logout failed. Please try again.")
+      isLoggingOutRef.current = false
       setIsLoggingOut(false)
     }
   }
 
   const handleVerifyEmail = async () => {
-    setIsSendingOtp(true)
+    if (isSendingOtpRef.current) return
     try {
+      isSendingOtpRef.current = true
+      setIsSendingOtp(true)
       await authApi.sendOtp()
       toast.success('Verification code sent to your email!')
       navigate('/verify-email')
     } catch (error: any) {
       toast.error(error.message || 'Failed to send verification code')
     } finally {
+      isSendingOtpRef.current = false
       setIsSendingOtp(false)
     }
   }
@@ -114,9 +124,11 @@ const Profile = () => {
       setIsEditingName(false)
       return
     }
+    if (isUpdatingNameRef.current) return
 
-    setIsUpdatingName(true)
     try {
+      isUpdatingNameRef.current = true
+      setIsUpdatingName(true)
       const result = await usersApi.updateProfile(editName.trim())
       if (user) {
         setUser({ ...user, username: result.name })
@@ -127,6 +139,7 @@ const Profile = () => {
       console.error("Failed to update name:", error)
       toast.error(error.message || "Failed to update name")
     } finally {
+      isUpdatingNameRef.current = false
       setIsUpdatingName(false)
     }
   }
@@ -137,10 +150,12 @@ const Profile = () => {
   }
 
   const handleCropComplete = async (croppedBlob: Blob) => {
-    setIsUpdatingSelfie(true)
+    if (isUpdatingSelfieRef.current) return
     const loadingToast = toast.loading("Updating your selfie...")
 
     try {
+      isUpdatingSelfieRef.current = true
+      setIsUpdatingSelfie(true)
       const file = new File([croppedBlob], 'selfie.jpg', { type: 'image/jpeg' })
       const result = await usersApi.updateSelfie(file)
       if (user) {
@@ -153,6 +168,7 @@ const Profile = () => {
       console.error("Failed to update selfie:", error)
       toast.error(error.message || "Failed to update selfie")
     } finally {
+      isUpdatingSelfieRef.current = false
       setIsUpdatingSelfie(false)
       toast.dismiss(loadingToast)
       if (fileInputRef.current) fileInputRef.current.value = ''
