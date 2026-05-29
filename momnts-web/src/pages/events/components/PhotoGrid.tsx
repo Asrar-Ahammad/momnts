@@ -4,6 +4,8 @@ import { Skeleton } from '../../../components/ui/skeleton'
 import PhotoCard from './PhotoCard'
 import { motion, AnimatePresence } from 'framer-motion'
 
+type GalleryColumns = 1 | 2 | 3
+
 interface PhotoGridProps {
   photos: PhotoData[]
   loading: boolean
@@ -18,9 +20,16 @@ interface PhotoGridProps {
   userRole?: string
   favouritePhotoIds: Set<string>
   onToggleFavourite: (photoId: string) => void
+  galleryColumns?: GalleryColumns
 }
 
 const SKELETON_HEIGHTS = [240, 320, 200, 280, 360, 220, 300, 260, 340, 180, 290, 250]
+
+const MOBILE_COLUMN_CLASSES: Record<GalleryColumns, string> = {
+  1: 'columns-1',
+  2: 'columns-2',
+  3: 'columns-3',
+}
 
 const PhotoGrid = ({
   photos,
@@ -35,20 +44,22 @@ const PhotoGrid = ({
   currentUserId,
   userRole,
   favouritePhotoIds,
-  onToggleFavourite
+  onToggleFavourite,
+  galleryColumns = 1
 }: PhotoGridProps) => {
+  const mobileColClass = MOBILE_COLUMN_CLASSES[galleryColumns]
   const getPhotoIndex = (photoId: string) => {
     return photos.findIndex((photo) => photo.id === photoId)
   }
 
   if (loading) {
     return (
-      <div className="columns-1 sm:columns-2 lg:columns-3 xl:columns-4 gap-4">
+      <div className={`${mobileColClass} sm:columns-2 lg:columns-3 xl:columns-4 gap-3 sm:gap-4 transition-all duration-300`}>
         {SKELETON_HEIGHTS.map((height, i) => (
-          <div key={i} className="mb-4 break-inside-avoid">
+          <div key={i} className="mb-3 sm:mb-4 break-inside-avoid">
             <Skeleton
               className="w-full rounded-xl bg-gray-300"
-              style={{ height: `${height}px` }}
+              style={{ height: galleryColumns > 1 ? `${Math.round(height * 0.65)}px` : `${height}px` }}
             />
           </div>
         ))}
@@ -76,20 +87,20 @@ const PhotoGrid = ({
   return (
     <AnimatePresence mode="wait">
       <motion.div 
-        key={activeTab}
+        key={`${activeTab}-${galleryColumns}`}
         initial={{ opacity: 0, y: 10 }}
         animate={{ opacity: 1, y: 0 }}
         exit={{ opacity: 0, y: -10 }}
         transition={{ duration: 0.3 }}
-        className="columns-1 sm:columns-2 lg:columns-3 xl:columns-4 gap-4"
+        className={`${mobileColClass} sm:columns-2 lg:columns-3 xl:columns-4 gap-3 sm:gap-4 transition-all duration-300`}
       >
         {photos.map((photo, index) => (
           <motion.div 
             key={photo.id} 
             initial={{ opacity: 0, scale: 0.95 }}
             animate={{ opacity: 1, scale: 1 }}
-            transition={{ duration: 0.3, delay: index * 0.05 }}
-            className="mb-4 break-inside-avoid"
+            transition={{ duration: 0.3, delay: Math.min(index * 0.03, 0.6) }}
+            className="mb-3 sm:mb-4 break-inside-avoid"
           >
             <PhotoCard
               photo={photo}

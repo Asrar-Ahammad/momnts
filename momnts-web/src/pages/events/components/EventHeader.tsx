@@ -13,6 +13,9 @@ import {
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuTrigger,
+  DropdownMenuSeparator,
+  DropdownMenuLabel,
+  DropdownMenuGroup,
 } from "../../../components/ui/dropdown-menu"
 import {
   AlertDialog,
@@ -44,13 +47,17 @@ import {
   SortAscending,
   SortDescending,
   LinkSimple,
-  Heart
+  Heart,
+  Columns,
+  SquaresFour,
+  DotsThree,
 } from '@phosphor-icons/react'
 import { EventData } from '../../../features/events/services/events.api'
 import { toast } from 'sonner'
 import { motion, AnimatePresence } from 'framer-motion'
 
 type TabType = 'all' | 'your-photos' | 'favourites' | 'your-uploads' | 'connections'
+type GalleryColumns = 1 | 2 | 3
 
 interface EventHeaderProps {
   event: EventData | null
@@ -73,6 +80,8 @@ interface EventHeaderProps {
   onLeaveEvent?: () => Promise<void>
   onDownloadFavourites?: () => void
   favouritesCount?: number
+  galleryColumns?: GalleryColumns
+  onGalleryColumnsChange?: (cols: GalleryColumns) => void
 }
 
 const EventHeader = ({
@@ -94,7 +103,9 @@ const EventHeader = ({
   onToggleSort,
   onLeaveEvent,
   onDownloadFavourites,
-  favouritesCount = 0
+  favouritesCount = 0,
+  galleryColumns = 1,
+  onGalleryColumnsChange
 }: EventHeaderProps) => {
   const [showLeaveConfirm, setShowLeaveConfirm] = useState(false)
   const [leaving, setLeaving] = useState(false)
@@ -155,6 +166,89 @@ const EventHeader = ({
     }
   }, [])
 
+  const isOrganizer = event?.user_role === 'ORGANIZER'
+  const isAttendee = event?.user_role === 'ATTENDEE'
+  const showGalleryActions = activeTab !== 'connections'
+
+  // Shared CTA button (Upload / Download Favourites)
+  const renderCTA = (fullWidth = false) => {
+    // Favourites tab: Download Favourites
+    if (activeTab === 'favourites') {
+      return (
+        <Button
+          className={`${fullWidth ? 'flex-1 w-full' : ''} h-10 px-6 sm:px-8 flex items-center justify-center gap-2 rounded-xl bg-rose-600 hover:bg-rose-700 text-white transition-colors`}
+          onClick={onDownloadFavourites}
+          disabled={favouritesCount === 0}
+        >
+          <DownloadSimple size={18} weight="bold" />
+          <span className="hidden sm:inline">Download Favourites</span>
+          <span className="inline sm:hidden">Download</span>
+          {favouritesCount > 0 && (
+            <span className="bg-white/20 px-2 py-0.5 rounded-full text-[11px] font-semibold">{favouritesCount}</span>
+          )}
+        </Button>
+      )
+    }
+
+    const isInactiveAttendee = !event?.is_active && event?.user_role !== 'ORGANIZER'
+    const isLimitReached = event?.user_role === 'ATTENDEE' && userUploadCount >= (event?.attendee_upload_limit || 0)
+
+    if (isInactiveAttendee) {
+      return (
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <div className={fullWidth ? 'w-full' : ''}>
+              <Button
+                className={`${fullWidth ? 'w-full' : ''} h-10 px-6 sm:px-8 flex items-center justify-center gap-2 rounded-xl bg-neutral-200 dark:bg-neutral-800 text-neutral-400 cursor-not-allowed`}
+                disabled
+              >
+                <Upload size={18} weight="bold" />
+                <span className="hidden sm:inline">Upload Photos</span>
+                <span className="inline sm:hidden">Upload</span>
+              </Button>
+            </div>
+          </TooltipTrigger>
+          <TooltipContent>
+            <p>Event is inactive. Uploads are disabled.</p>
+          </TooltipContent>
+        </Tooltip>
+      )
+    }
+
+    if (isLimitReached) {
+      return (
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <div className={fullWidth ? 'w-full' : ''}>
+              <Button
+                className={`${fullWidth ? 'w-full' : ''} h-10 px-6 sm:px-8 flex items-center justify-center gap-2 rounded-xl bg-neutral-100 dark:bg-neutral-800 text-neutral-400 border border-neutral-200 dark:border-neutral-700 cursor-not-allowed`}
+                disabled
+              >
+                <Upload size={18} weight="bold" />
+                <span className="hidden sm:inline">Upload Limit Reached</span>
+                <span className="inline sm:hidden">Limit Reached</span>
+              </Button>
+            </div>
+          </TooltipTrigger>
+          <TooltipContent>
+            <p>You have reached your limit of {event?.attendee_upload_limit} photos.</p>
+          </TooltipContent>
+        </Tooltip>
+      )
+    }
+
+    return (
+      <Button
+        className={`${fullWidth ? 'w-full' : ''} h-10 px-6 sm:px-8 flex items-center justify-center gap-2 rounded-xl bg-neutral-900 dark:bg-white text-white dark:text-neutral-900 hover:opacity-90 transition-opacity`}
+        onClick={onUploadClick}
+      >
+        <Upload size={18} weight="bold" />
+        <span className="hidden sm:inline">Upload Photos</span>
+        <span className="inline sm:hidden">Upload</span>
+      </Button>
+    )
+  }
+
   return (
     <>
       <div className={`sticky top-0 z-30 bg-white/80 dark:bg-neutral-900/80 backdrop-blur-md border-b border-neutral-200 dark:border-neutral-800 transition-all duration-300 ease-in-out ${
@@ -177,11 +271,11 @@ const EventHeader = ({
               </Tooltip>
 
               <div className="flex-1 min-w-0">
-                <h1 className="text-3xl sm:text-4xl lg:text-4xl font-bold font-sirage capitalize mb-2 truncate">
+                <h1 className="text-2xl sm:text-3xl lg:text-4xl font-bold font-sirage capitalize mb-1 sm:mb-2 truncate">
                   {event?.name || 'Loading...'}
                 </h1>
 
-                <div className="flex flex-wrap items-center gap-x-4 gap-y-2 text-[13px] sm:text-sm text-neutral-500">
+                <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-[12px] sm:text-sm text-neutral-500">
                   <div className="flex items-center gap-1.5 min-w-0">
                     <MapPin size={14} className="shrink-0" />
                     <span className="capitalize truncate">{event?.location}</span>
@@ -191,36 +285,39 @@ const EventHeader = ({
                     <span>{event?.date ? formatDate(event.date) : ''}</span>
                   </div>
 
-                  {event?.user_role === 'ORGANIZER' && (
-                    <DropdownMenu>
-                      <DropdownMenuTrigger asChild>
-                        <Badge
-                          variant="outline"
-                          className="cursor-pointer hover:bg-neutral-100 dark:hover:bg-neutral-800 h-7 px-2 text-xs flex items-center gap-1.5 border-neutral-200 dark:border-neutral-700"
-                        >
-                          {inviteCodeCopied ? <Check size={12} className="text-green-500" /> : <CopySimpleIcon size={12} />}
-                          <span className="font-mono">{event?.invite_code}</span>
-                        </Badge>
-                      </DropdownMenuTrigger>
-                      <DropdownMenuContent align="start" className="w-40 rounded-2xl">
-                        <DropdownMenuItem onClick={onCopyInviteCode} className="cursor-pointer py-2">
-                          <CopySimpleIcon size={16} className="mr-2" />
-                          Copy Code
-                        </DropdownMenuItem>
-                        <DropdownMenuItem onClick={async () => {
-                          const url = `${window.location.origin}/events?joinCode=${event?.invite_code}`
-                          try {
-                            await navigator.clipboard.writeText(url)
-                            toast.success('Invite link copied!')
-                          } catch (err) {
-                            toast.error('Failed to copy invite link')
-                          }
-                        }} className="cursor-pointer py-2">
-                          <LinkSimple size={16} className="mr-2" />
-                          Copy Link
-                        </DropdownMenuItem>
-                      </DropdownMenuContent>
-                    </DropdownMenu>
+                  {/* Desktop: Invite code badge */}
+                  {isOrganizer && (
+                    <div className="hidden sm:block">
+                      <DropdownMenu>
+                        <DropdownMenuTrigger asChild>
+                          <Badge
+                            variant="outline"
+                            className="cursor-pointer hover:bg-neutral-100 dark:hover:bg-neutral-800 h-7 px-2 text-xs flex items-center gap-1.5 border-neutral-200 dark:border-neutral-700"
+                          >
+                            {inviteCodeCopied ? <Check size={12} className="text-green-500" /> : <CopySimpleIcon size={12} />}
+                            <span className="font-mono">{event?.invite_code}</span>
+                          </Badge>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent align="start" className="w-40 rounded-2xl">
+                          <DropdownMenuItem onClick={onCopyInviteCode} className="cursor-pointer py-2">
+                            <CopySimpleIcon size={16} className="mr-2" />
+                            Copy Code
+                          </DropdownMenuItem>
+                          <DropdownMenuItem onClick={async () => {
+                            const url = `${window.location.origin}/events?joinCode=${event?.invite_code}`
+                            try {
+                              await navigator.clipboard.writeText(url)
+                              toast.success('Invite link copied!')
+                            } catch (err) {
+                              toast.error('Failed to copy invite link')
+                            }
+                          }} className="cursor-pointer py-2">
+                            <LinkSimple size={16} className="mr-2" />
+                            Copy Link
+                          </DropdownMenuItem>
+                        </DropdownMenuContent>
+                      </DropdownMenu>
+                    </div>
                   )}
                 </div>
               </div>
@@ -229,56 +326,207 @@ const EventHeader = ({
             {/* Right Action Section */}
             <motion.div
               layout
-              className="flex items-center justify-start lg:justify-end gap-2 sm:gap-3 overflow-x-auto no-scrollbar pb-1 w-full lg:w-auto shrink-0"
+              className="flex items-center justify-between sm:justify-end gap-2 sm:gap-3 overflow-x-auto no-scrollbar pb-1 w-full lg:w-auto shrink-0"
             >
-              {/* Default view buttons */}
               {!isSelectMode ? (
-                <motion.div layout className="flex items-center gap-2 w-full lg:w-auto">
+                <motion.div layout className="flex items-center justify-between sm:justify-end gap-2 w-full lg:w-auto">
                   <AnimatePresence mode="popLayout">
-                    {/* Sort and Select buttons (not shown on connections tab) */}
-                    {activeTab !== 'connections' && (
-                      <motion.div
-                        key="sort-select-controls"
-                        initial={{ opacity: 0, scale: 0.8, x: -15 }}
-                        animate={{ opacity: 1, scale: 1, x: 0 }}
-                        exit={{ opacity: 0, scale: 0.8, x: -15 }}
-                        transition={{ type: "spring", stiffness: 380, damping: 30 }}
-                        className="flex items-center gap-2 shrink-0"
-                      >
-                        <Tooltip>
-                          <TooltipTrigger asChild>
+                    <motion.div
+                      key="gallery-controls"
+                      initial={{ opacity: 0, scale: 0.8, x: -15 }}
+                      animate={{ opacity: 1, scale: 1, x: 0 }}
+                      exit={{ opacity: 0, scale: 0.8, x: -15 }}
+                      transition={{ type: "spring", stiffness: 380, damping: 30 }}
+                      className="flex items-center gap-2 shrink-0 order-2 sm:order-none"
+                    >
+                      {/* ═══ MOBILE: Consolidated menu ═══ */}
+                      <div className="sm:hidden">
+                        <DropdownMenu>
+                          <DropdownMenuTrigger asChild>
                             <Button
                               variant="outline"
-                              className="h-10 w-10 sm:w-auto sm:px-4 flex items-center justify-center gap-2 rounded-xl"
-                              onClick={onToggleSort}
+                              className="h-10 w-10 flex items-center justify-center rounded-xl cursor-pointer"
                             >
-                              {sortOrder === 'desc' ? <SortDescending size={18} weight="bold" /> : <SortAscending size={18} weight="bold" />}
-                              <span className="hidden sm:inline">Sort</span>
+                              <DotsThree size={20} weight="bold" />
                             </Button>
-                          </TooltipTrigger>
-                          <TooltipContent className="sm:hidden">Sort Photos</TooltipContent>
-                        </Tooltip>
+                          </DropdownMenuTrigger>
+                          <DropdownMenuContent align="end" className="w-64 rounded-2xl p-1.5">
 
-                        <Tooltip>
-                          <TooltipTrigger asChild>
-                            <Button
-                              variant="outline"
-                              className="h-10 w-10 sm:w-auto sm:px-4 flex items-center justify-center gap-2 rounded-xl"
-                              onClick={onToggleSelectMode}
-                            >
-                              <Selection size={18} weight="bold" />
-                              <span className="hidden sm:inline">Select</span>
-                            </Button>
-                          </TooltipTrigger>
-                          <TooltipContent className="sm:hidden">Select Photos</TooltipContent>
-                        </Tooltip>
-                      </motion.div>
-                    )}
+                            {/* Gallery section */}
+                            {showGalleryActions && (
+                              <DropdownMenuGroup>
+                                <DropdownMenuLabel className="text-[10px] uppercase tracking-wider text-neutral-400 dark:text-neutral-500 font-semibold px-2 pt-1.5 pb-1">
+                                  Gallery
+                                </DropdownMenuLabel>
+                                <DropdownMenuItem
+                                  onClick={onToggleSort}
+                                  className="cursor-pointer py-2.5 px-2.5 rounded-lg"
+                                >
+                                  {sortOrder === 'desc'
+                                    ? <SortDescending size={16} className="mr-2.5 text-neutral-500" />
+                                    : <SortAscending size={16} className="mr-2.5 text-neutral-500" />
+                                  }
+                                  <span>{sortOrder === 'desc' ? 'Newest First' : 'Oldest First'}</span>
+                                  <span className="ml-auto text-[10px] text-neutral-400 dark:text-neutral-500 font-medium">
+                                    Sort
+                                  </span>
+                                </DropdownMenuItem>
+
+                                <DropdownMenuItem
+                                  onClick={onToggleSelectMode}
+                                  className="cursor-pointer py-2.5 px-2.5 rounded-lg"
+                                >
+                                  <Selection size={16} className="mr-2.5 text-neutral-500" />
+                                  Select Photos
+                                </DropdownMenuItem>
+
+                                {/* Grid Layout toggle */}
+                                <div className="px-2.5 py-2">
+                                  <div className="flex items-center justify-between">
+                                    <span className="text-sm text-neutral-600 dark:text-neutral-400">Grid</span>
+                                    <div className="flex items-center h-8 bg-neutral-100 dark:bg-neutral-800 rounded-lg p-0.5 gap-0.5">
+                                      {([1, 2, 3] as GalleryColumns[]).map((col) => (
+                                        <button
+                                          key={col}
+                                          type="button"
+                                          onClick={(e) => {
+                                            e.preventDefault()
+                                            e.stopPropagation()
+                                            onGalleryColumnsChange?.(col)
+                                          }}
+                                          className={`relative flex items-center justify-center w-8 h-7 rounded-md transition-all duration-200 cursor-pointer ${
+                                            galleryColumns === col
+                                              ? 'bg-white dark:bg-neutral-700 shadow-sm text-neutral-900 dark:text-neutral-100'
+                                              : 'text-neutral-400 dark:text-neutral-500 hover:text-neutral-600 dark:hover:text-neutral-300'
+                                          }`}
+                                        >
+                                          {col === 1 ? (
+                                            <Columns size={13} weight="bold" />
+                                          ) : col === 2 ? (
+                                            <div className="flex gap-[2px]">
+                                              <div className="w-[4px] h-[10px] rounded-[1px] bg-current" />
+                                              <div className="w-[4px] h-[10px] rounded-[1px] bg-current" />
+                                            </div>
+                                          ) : (
+                                            <SquaresFour size={13} weight="bold" />
+                                          )}
+                                        </button>
+                                      ))}
+                                    </div>
+                                  </div>
+                                </div>
+                              </DropdownMenuGroup>
+                            )}
+
+                            {/* Share section (Organizer) */}
+                            {isOrganizer && (
+                              <>
+                                {showGalleryActions && <DropdownMenuSeparator />}
+                                <DropdownMenuGroup>
+                                  <DropdownMenuLabel className="text-[10px] uppercase tracking-wider text-neutral-400 dark:text-neutral-500 font-semibold px-2 pt-1.5 pb-1">
+                                    Share
+                                  </DropdownMenuLabel>
+                                  <DropdownMenuItem onClick={onCopyInviteCode} className="cursor-pointer py-2.5 px-2.5 rounded-lg">
+                                    <CopySimpleIcon size={16} className="mr-2.5 text-neutral-500" />
+                                    Copy Invite Code
+                                    <span className="ml-auto font-mono text-[11px] text-neutral-400 dark:text-neutral-500">
+                                      {event?.invite_code}
+                                    </span>
+                                  </DropdownMenuItem>
+                                  <DropdownMenuItem onClick={async () => {
+                                    const url = `${window.location.origin}/events?joinCode=${event?.invite_code}`
+                                    try {
+                                      await navigator.clipboard.writeText(url)
+                                      toast.success('Invite link copied!')
+                                    } catch (err) {
+                                      toast.error('Failed to copy invite link')
+                                    }
+                                  }} className="cursor-pointer py-2.5 px-2.5 rounded-lg">
+                                    <LinkSimple size={16} className="mr-2.5 text-neutral-500" />
+                                    Copy Invite Link
+                                  </DropdownMenuItem>
+                                </DropdownMenuGroup>
+                              </>
+                            )}
+
+                            {/* Event section (Organizer) */}
+                            {isOrganizer && (
+                              <>
+                                <DropdownMenuSeparator />
+                                <DropdownMenuGroup>
+                                  <DropdownMenuLabel className="text-[10px] uppercase tracking-wider text-neutral-400 dark:text-neutral-500 font-semibold px-2 pt-1.5 pb-1">
+                                    Event
+                                  </DropdownMenuLabel>
+                                  <DropdownMenuItem onClick={onAttendeesClick} className="cursor-pointer py-2.5 px-2.5 rounded-lg">
+                                    <Users size={16} className="mr-2.5 text-neutral-500" />
+                                    Attendees
+                                  </DropdownMenuItem>
+                                  <DropdownMenuItem onClick={onSettingsClick} className="cursor-pointer py-2.5 px-2.5 rounded-lg">
+                                    <Gear size={16} className="mr-2.5 text-neutral-500" />
+                                    Settings
+                                  </DropdownMenuItem>
+                                </DropdownMenuGroup>
+                              </>
+                            )}
+
+                            {/* Leave (Attendee) */}
+                            {isAttendee && (
+                              <>
+                                {showGalleryActions && <DropdownMenuSeparator />}
+                                <DropdownMenuGroup>
+                                  <DropdownMenuItem
+                                    onClick={() => setShowLeaveConfirm(true)}
+                                    variant="destructive"
+                                    className="cursor-pointer py-2.5 px-2.5 rounded-lg"
+                                  >
+                                    <SignOut size={16} className="mr-2.5" />
+                                    Leave Event
+                                  </DropdownMenuItem>
+                                </DropdownMenuGroup>
+                              </>
+                            )}
+                          </DropdownMenuContent>
+                        </DropdownMenu>
+                      </div>
+
+                      {/* ═══ DESKTOP: Individual buttons ═══ */}
+                      {showGalleryActions && (
+                        <div className="hidden sm:flex items-center gap-2">
+                          <Tooltip>
+                            <TooltipTrigger asChild>
+                              <Button
+                                variant="outline"
+                                className="h-10 w-10 sm:w-auto sm:px-4 flex items-center justify-center gap-2 rounded-xl"
+                                onClick={onToggleSort}
+                              >
+                                {sortOrder === 'desc' ? <SortDescending size={18} weight="bold" /> : <SortAscending size={18} weight="bold" />}
+                                <span className="hidden sm:inline">Sort</span>
+                              </Button>
+                            </TooltipTrigger>
+                            <TooltipContent>Sort Photos</TooltipContent>
+                          </Tooltip>
+
+                          <Tooltip>
+                            <TooltipTrigger asChild>
+                              <Button
+                                variant="outline"
+                                className="h-10 w-10 sm:w-auto sm:px-4 flex items-center justify-center gap-2 rounded-xl"
+                                onClick={onToggleSelectMode}
+                              >
+                                <Selection size={18} weight="bold" />
+                                <span className="hidden sm:inline">Select</span>
+                              </Button>
+                            </TooltipTrigger>
+                            <TooltipContent>Select Photos</TooltipContent>
+                          </Tooltip>
+                        </div>
+                      )}
+                    </motion.div>
                   </AnimatePresence>
 
-                  {/* Organizer-only buttons */}
-                  {event?.user_role === 'ORGANIZER' && (
-                    <motion.div layout className="flex items-center gap-2 shrink-0">
+                  {/* Desktop: Organizer-only buttons */}
+                  {isOrganizer && (
+                    <motion.div layout className="hidden sm:flex items-center gap-2 shrink-0">
                       <Tooltip>
                         <TooltipTrigger asChild>
                           <Button
@@ -290,7 +538,7 @@ const EventHeader = ({
                             <span className="hidden sm:inline">Attendees</span>
                           </Button>
                         </TooltipTrigger>
-                        <TooltipContent className="sm:hidden">View Attendees</TooltipContent>
+                        <TooltipContent>View Attendees</TooltipContent>
                       </Tooltip>
 
                       <Tooltip>
@@ -304,14 +552,14 @@ const EventHeader = ({
                             <span className="hidden sm:inline">Settings</span>
                           </Button>
                         </TooltipTrigger>
-                        <TooltipContent className="sm:hidden">Event Settings</TooltipContent>
+                        <TooltipContent>Event Settings</TooltipContent>
                       </Tooltip>
                     </motion.div>
                   )}
 
-                  {/* Attendee-only buttons */}
-                  {event?.user_role === 'ATTENDEE' && (
-                    <motion.div layout>
+                  {/* Desktop: Attendee Leave button */}
+                  {isAttendee && (
+                    <motion.div layout className="hidden sm:block">
                       <Tooltip>
                         <TooltipTrigger asChild>
                           <Button
@@ -323,93 +571,14 @@ const EventHeader = ({
                             <span className="hidden sm:inline">Leave</span>
                           </Button>
                         </TooltipTrigger>
-                        <TooltipContent className="sm:hidden">Leave Event</TooltipContent>
+                        <TooltipContent>Leave Event</TooltipContent>
                       </Tooltip>
                     </motion.div>
                   )}
 
-                  {/* Main action button (Upload/Download) */}
-                  <motion.div layout className="flex-1 sm:flex-none">
-                    {(() => {
-                      // Favourites tab: Download Favourites
-                      if (activeTab === 'favourites') {
-                        return (
-                          <Button
-                            className="flex-1 sm:flex-none w-full h-10 px-6 sm:px-8 flex items-center justify-center gap-2 rounded-xl bg-rose-600 hover:bg-rose-700 text-white transition-colors"
-                            onClick={onDownloadFavourites}
-                            disabled={favouritesCount === 0}
-                          >
-                            <DownloadSimple size={18} weight="bold" />
-                            <span className="hidden sm:inline">Download Favourites</span>
-                            <span className="inline sm:hidden">Download</span>
-                            {favouritesCount > 0 && (
-                              <span className="bg-white/20 px-2 py-0.5 rounded-full text-[11px] font-semibold">{favouritesCount}</span>
-                            )}
-                          </Button>
-                        )
-                      }
-
-                      const isInactiveAttendee = !event?.is_active && event?.user_role !== 'ORGANIZER'
-                      const isLimitReached = event?.user_role === 'ATTENDEE' && userUploadCount >= (event?.attendee_upload_limit || 0)
-
-                      // Event inactive: Upload disabled
-                      if (isInactiveAttendee) {
-                        return (
-                          <Tooltip>
-                            <TooltipTrigger asChild>
-                              <div className="w-full">
-                                <Button
-                                  className="w-full h-10 px-6 sm:px-8 flex items-center justify-center gap-2 rounded-xl bg-neutral-200 dark:bg-neutral-800 text-neutral-400 cursor-not-allowed"
-                                  disabled
-                                >
-                                  <Upload size={18} weight="bold" />
-                                  <span className="hidden sm:inline">Upload Photos</span>
-                                  <span className="inline sm:hidden">Upload</span>
-                                </Button>
-                              </div>
-                            </TooltipTrigger>
-                            <TooltipContent>
-                              <p>Event is inactive. Uploads are disabled.</p>
-                            </TooltipContent>
-                          </Tooltip>
-                        )
-                      }
-
-                      // Upload limit reached: Upload disabled
-                      if (isLimitReached) {
-                        return (
-                          <Tooltip>
-                            <TooltipTrigger asChild>
-                              <div className="w-full">
-                                <Button
-                                  className="w-full h-10 px-6 sm:px-8 flex items-center justify-center gap-2 rounded-xl bg-neutral-100 dark:bg-neutral-800 text-neutral-400 border border-neutral-200 dark:border-neutral-700 cursor-not-allowed"
-                                  disabled
-                                >
-                                  <Upload size={18} weight="bold" />
-                                  <span className="hidden sm:inline">Upload Limit Reached</span>
-                                  <span className="inline sm:hidden">Limit Reached</span>
-                                </Button>
-                              </div>
-                            </TooltipTrigger>
-                            <TooltipContent>
-                              <p>You have reached your limit of {event?.attendee_upload_limit} photos.</p>
-                            </TooltipContent>
-                          </Tooltip>
-                        )
-                      }
-
-                      // Default: Upload Photos
-                      return (
-                        <Button
-                          className="w-full h-10 px-6 sm:px-8 flex items-center justify-center gap-2 rounded-xl bg-neutral-900 dark:bg-white text-white dark:text-neutral-900 hover:opacity-90 transition-opacity"
-                          onClick={onUploadClick}
-                        >
-                          <Upload size={18} weight="bold" />
-                          <span className="hidden sm:inline">Upload Photos</span>
-                          <span className="inline sm:hidden">Upload</span>
-                        </Button>
-                      )
-                    })()}
+                  {/* CTA button */}
+                  <motion.div layout className="flex-none order-1 sm:order-none ml-12 sm:ml-0">
+                    {renderCTA(false)}
                   </motion.div>
                 </motion.div>
               ) : (

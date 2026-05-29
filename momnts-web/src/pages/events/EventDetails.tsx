@@ -18,6 +18,7 @@ import PhotoCarousel from './components/PhotoCarousel'
 import WhoWasIWith from '../../features/connections/components/WhoWasIWith'
 
 type TabType = 'all' | 'your-photos' | 'favourites' | 'your-uploads' | 'connections'
+type GalleryColumns = 1 | 2 | 3
 
 const EventDetails = () => {
   const { eventId } = useParams<{ eventId: string }>()
@@ -54,6 +55,15 @@ const EventDetails = () => {
   const [sortOrder, setSortOrder] = useState<'desc' | 'asc'>('desc')
   const [selectedAttendeeId, setSelectedAttendeeId] = useState<string | null>(null)
   const [favouritePhotoIds, setFavouritePhotoIds] = useState<Set<string>>(new Set())
+  const [galleryColumns, setGalleryColumns] = useState<GalleryColumns>(() => {
+    const saved = localStorage.getItem('momnts_gallery_cols')
+    return (saved && [1, 2, 3].includes(Number(saved))) ? Number(saved) as GalleryColumns : 2
+  })
+
+  const handleGalleryColumnsChange = (cols: GalleryColumns) => {
+    setGalleryColumns(cols)
+    localStorage.setItem('momnts_gallery_cols', String(cols))
+  }
 
   // ── Real-time WebSocket updates ──
   useEventSocket({
@@ -579,6 +589,8 @@ const EventDetails = () => {
         }}
         onDownloadFavourites={handleDownloadFavourites}
         favouritesCount={favouritePhotoIds.size}
+        galleryColumns={galleryColumns}
+        onGalleryColumnsChange={handleGalleryColumnsChange}
       />
 
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
@@ -622,6 +634,7 @@ const EventDetails = () => {
               userRole={event?.user_role}
               favouritePhotoIds={favouritePhotoIds}
               onToggleFavourite={handleToggleFavourite}
+              galleryColumns={galleryColumns}
             />
           </>
         )}
