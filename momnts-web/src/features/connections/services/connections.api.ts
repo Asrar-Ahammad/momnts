@@ -48,13 +48,14 @@ export interface SummaryResponse {
 }
 
 import { authHeaders } from "../../../lib/authHeaders"
+import { apiFetch } from "../../../lib/apiFetch"
 
 const API_URL = import.meta.env.VITE_SERVER_URL || "http://localhost:3000"
 
 export async function fetchConnections(
   eventId: string
 ): Promise<ConnectionsResponse> {
-  const res = await fetch(
+  const res = await apiFetch(
     `${API_URL}/api/events/${eventId}/connections`,
     { headers: authHeaders() }
   )
@@ -66,7 +67,7 @@ export async function fetchSharedPhotos(
   eventId: string,
   faceProfileId: string
 ): Promise<SharedPhotosResponse> {
-  const res = await fetch(
+  const res = await apiFetch(
     `${API_URL}/api/events/${eventId}/connections/${faceProfileId}/photos`,
     { headers: authHeaders() }
   )
@@ -77,7 +78,7 @@ export async function fetchSharedPhotos(
 export async function fetchConnectionsSummary(
   eventId: string
 ): Promise<SummaryResponse> {
-  const res = await fetch(
+  const res = await apiFetch(
     `${API_URL}/api/events/${eventId}/connections/summary`,
     { headers: authHeaders() }
   )

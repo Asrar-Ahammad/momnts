@@ -36,8 +36,14 @@ const PhotoCard = ({
   onToggleFavourite
 }: PhotoCardProps) => {
   const [imageLoaded, setImageLoaded] = useState(false)
+  const [imageError, setImageError] = useState(false)
   const [isInView, setIsInView] = useState(false)
   const cardRef = useRef<HTMLDivElement>(null)
+
+  useEffect(() => {
+    setImageLoaded(false)
+    setImageError(false)
+  }, [photo.id, photo.thumb_url])
 
   useEffect(() => {
     const observer = new IntersectionObserver(
@@ -66,6 +72,9 @@ const PhotoCard = ({
         isSelected ? "ring-neutral-900 dark:ring-white scale-[0.98]" : "ring-transparent",
         !isSelectMode && "cursor-pointer"
       )}
+      style={{
+        aspectRatio: photo.width && photo.height ? `${photo.width}/${photo.height}` : '4/3'
+      }}
       onClick={onClick}
     >
       {isSelectMode && (
@@ -134,13 +143,24 @@ const PhotoCard = ({
         src={isInView ? photo.thumb_url : 'data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="1" height="1"/>'}
         alt="Event photo"
         className="w-full h-auto transition-opacity duration-300"
-        style={{ display: imageLoaded ? 'block' : 'none' }}
+        style={{ display: (imageLoaded && !imageError) ? 'block' : 'none' }}
         onLoad={() => setImageLoaded(true)}
+        onError={() => {
+          setImageError(true)
+          setImageLoaded(true)
+        }}
       />
 
-      {!imageLoaded && (
-        <div className="absolute inset-0 flex items-center justify-center min-h-[200px]">
-          <div className="w-8 h-8 border-2 border-neutral-300 border-t-neutral-600 rounded-full animate-spin" />
+      {imageError && (
+        <div className="absolute inset-0 flex flex-col items-center justify-center bg-neutral-100 dark:bg-neutral-800 text-neutral-400 p-4 text-center">
+          <Warning size={24} className="mb-1 text-neutral-400 dark:text-neutral-500" />
+          <span className="text-[10px] font-medium">Failed to load photo</span>
+        </div>
+      )}
+
+      {!imageLoaded && !imageError && (
+        <div className="absolute inset-0 flex items-center justify-center">
+          <div className="w-6 h-6 border-2 border-neutral-300 border-t-neutral-600 rounded-full animate-spin" />
         </div>
       )}
 

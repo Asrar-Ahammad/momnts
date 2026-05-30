@@ -19,6 +19,7 @@ import { usersRouter } from "./src/routes/users.routes.js";
 import { galleryRouter } from "./src/routes/gallery.routes.js";
 import { notificationsRouter } from "./src/routes/notifications.routes.js";
 import { connectionsRouter } from "./src/routes/connections.routes.js";
+import { commentsRouter } from "./src/routes/comments.routes.js";
 import { initSocketIO } from "./src/lib/socket.js";
 
 const app = express()
@@ -41,6 +42,7 @@ app.get("/",(req:Request, res:Response)=>{
 app.use("/api/auth", authRouter)
 app.use("/api/events", eventsRouter)
 app.use("/api/events", galleryRouter)
+app.use('/api/photos/:photoId/comments', commentsRouter)
 app.use('/api/photos', photosRouter)
 app.use('/api/onboarding', onboardingRouter)
 app.use('/api/users', usersRouter)

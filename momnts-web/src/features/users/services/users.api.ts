@@ -1,4 +1,5 @@
 import { authHeaders, jsonAuthHeaders } from "../../../lib/authHeaders"
+import { apiFetch } from "../../../lib/apiFetch"
 
 const API_URL = import.meta.env.VITE_SERVER_URL || "http://localhost:3000"
 
@@ -7,7 +8,7 @@ export const usersApi = {
     const formData = new FormData()
     formData.append('selfie', file)
 
-    const response = await fetch(`${API_URL}/api/users/selfie`, {
+    const response = await apiFetch(`${API_URL}/api/users/selfie`, {
       method: "PUT",
       body: formData,
       headers: authHeaders(),
@@ -22,7 +23,7 @@ export const usersApi = {
   },
 
   async updateProfile(name: string): Promise<{ message: string; name: string }> {
-    const response = await fetch(`${API_URL}/api/users/profile`, {
+    const response = await apiFetch(`${API_URL}/api/users/profile`, {
       method: "PUT",
       headers: jsonAuthHeaders(),
       body: JSON.stringify({ name }),

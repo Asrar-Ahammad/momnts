@@ -72,8 +72,8 @@ async function handleProcessPhoto(data: { photoId: string; eventId: string; temp
       uploadToR2(`${basePath}/original.webp`, original, 'image/webp', { cacheControl: 'public, max-age=31536000, immutable', contentDisposition: `attachment; filename="${photoId}-original.webp"` }),
     ])
 
-    // Update DB with final URLs
-    await prisma.photo.update({
+    // Update DB with final URLs and mark as processed
+    const updatedPhoto = await prisma.photo.update({
       where: { id: photoId },
       data: {
         thumb_url: thumbUrl,
@@ -81,6 +81,24 @@ async function handleProcessPhoto(data: { photoId: string; eventId: string; temp
         original_url: originalUrl,
         width: width || undefined,
         height: height || undefined,
+        processed: true,
+      }
+    })
+
+    // Publish event immediately with updated URLs so client stops using tempUrl
+    await publishPhotoProcessed({
+      eventId,
+      photoId,
+      totalFaces: 0,
+      photo: {
+        id: updatedPhoto.id,
+        display_url: updatedPhoto.display_url,
+        thumb_url: updatedPhoto.thumb_url,
+        original_url: updatedPhoto.original_url,
+        width: updatedPhoto.width,
+        height: updatedPhoto.height,
+        uploaded_at: updatedPhoto.uploaded_at.toISOString(),
+        processed: true,
       }
     })
 
