@@ -1,4 +1,5 @@
 import { authHeaders } from "../../../lib/authHeaders"
+import { apiFetch } from "../../../lib/apiFetch"
 import { compressImages } from "../../../lib/compressImage"
 
 const API_URL = import.meta.env.VITE_SERVER_URL || "http://localhost:3000"
@@ -37,7 +38,7 @@ export interface UploadResponse {
 
 export const photosApi = {
   async getEventPhotos(eventId: string): Promise<PhotoData[]> {
-    const response = await fetch(`${API_URL}/api/photos/${eventId}`, {
+    const response = await apiFetch(`${API_URL}/api/photos/${eventId}`, {
       headers: authHeaders(),
     })
 
@@ -51,7 +52,7 @@ export const photosApi = {
   },
 
   async getPhotoDetail(eventId: string, photoId: string): Promise<PhotoData> {
-    const response = await fetch(`${API_URL}/api/photos/${eventId}/${photoId}`, {
+    const response = await apiFetch(`${API_URL}/api/photos/${eventId}/${photoId}`, {
       headers: authHeaders(),
     })
 
@@ -65,7 +66,7 @@ export const photosApi = {
   },
 
   async getMyPhotos(eventId: string): Promise<{ data: PhotoData[]; prompt?: string; face_profile_id?: string }> {
-    const response = await fetch(`${API_URL}/api/events/${eventId}/photos/mine`, {
+    const response = await apiFetch(`${API_URL}/api/events/${eventId}/photos/mine`, {
       headers: authHeaders(),
     })
 
@@ -103,7 +104,7 @@ export const photosApi = {
         const controller = new AbortController()
         const timeoutId = setTimeout(() => controller.abort(), TIMEOUT_MS)
 
-        const response = await fetch(`${API_URL}/api/photos/${eventId}/upload`, {
+        const response = await apiFetch(`${API_URL}/api/photos/${eventId}/upload`, {
           method: 'POST',
           body: formData,
           headers: authHeaders(),
@@ -171,7 +172,7 @@ export const photosApi = {
   },
 
   async deletePhoto(eventId: string, photoId: string): Promise<void> {
-    const response = await fetch(`${API_URL}/api/photos/${eventId}/${photoId}`, {
+    const response = await apiFetch(`${API_URL}/api/photos/${eventId}/${photoId}`, {
       method: "DELETE",
       headers: authHeaders(),
     })
@@ -183,7 +184,7 @@ export const photosApi = {
   },
 
   async toggleFavourite(eventId: string, photoId: string): Promise<{ isFavourite: boolean }> {
-    const response = await fetch(`${API_URL}/api/photos/${eventId}/${photoId}/favourite`, {
+    const response = await apiFetch(`${API_URL}/api/photos/${eventId}/${photoId}/favourite`, {
       method: "POST",
       headers: authHeaders(),
     })

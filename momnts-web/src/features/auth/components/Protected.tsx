@@ -11,11 +11,11 @@ const Protected = ({ children }: ProtectedProps) => {
     const location = useLocation()
 
     if (loading) {
-        return (<main>
-            <div className="loading-screen">
-                <div className="loader"></div>
-            </div>
-        </main>)
+        return (
+            <main className="fixed inset-0 flex items-center justify-center bg-white dark:bg-neutral-950 z-50">
+                <div className="w-8 h-8 border-2 border-neutral-300 dark:border-neutral-700 border-t-neutral-900 dark:border-t-white rounded-full animate-spin" />
+            </main>
+        )
     }
     if (!user) {
         const redirectUrl = location.pathname + location.search

@@ -31,6 +31,7 @@ model User {
   refreshTokens    RefreshToken[]
   notifications    Notification[]
   favourites       Favourite[]
+  comments         Comment[]
 }
 
 model Event {
@@ -89,6 +90,7 @@ model Photo {
 
   photo_faces PhotoFace[]
   favourites  Favourite[]
+  comments    Comment[]
 }
 
 model FaceProfile {
@@ -168,3 +170,18 @@ model Favourite {
 
   @@unique([user_id, photo_id])
 }
+
+model Comment {
+  id         String   @id @default(uuid())
+  photo_id   String
+  user_id    String
+  parent_id  String?
+  text       String   @db.VarChar(500)
+  created_at DateTime @default(now())
+
+  photo    Photo     @relation(fields: [photo_id], references: [id], onDelete: Cascade)
+  user     User      @relation(fields: [user_id], references: [id], onDelete: Cascade)
+  parent   Comment?  @relation("CommentReplies", fields: [parent_id], references: [id], onDelete: Cascade)
+  replies  Comment[] @relation("CommentReplies")
+}
+

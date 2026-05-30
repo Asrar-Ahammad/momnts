@@ -1,4 +1,5 @@
 import { authHeaders } from "../../../lib/authHeaders"
+import { apiFetch } from "../../../lib/apiFetch"
 
 const API_URL = import.meta.env.VITE_SERVER_URL || "http://localhost:3000"
 
@@ -58,7 +59,7 @@ export const authApi = {
   async logout(): Promise<void> {
     const refreshToken = localStorage.getItem('refreshToken')
     try {
-      await fetch(`${API_URL}/api/auth/logout`, {
+      await apiFetch(`${API_URL}/api/auth/logout`, {
         method: "POST",
         headers: {
           ...authHeaders('application/json'),
@@ -84,7 +85,7 @@ export const authApi = {
   },
 
   async getMe(): Promise<User> {
-    const response = await fetch(`${API_URL}/api/auth/me?_t=${Date.now()}`, {
+    const response = await apiFetch(`${API_URL}/api/auth/me?_t=${Date.now()}`, {
       headers: authHeaders(),
       cache: 'no-store',
     })
@@ -98,7 +99,7 @@ export const authApi = {
   },
 
   async sendOtp(): Promise<{ message: string; retryAfter?: number }> {
-    const response = await fetch(`${API_URL}/api/auth/send-otp`, {
+    const response = await apiFetch(`${API_URL}/api/auth/send-otp`, {
       method: "POST",
       headers: authHeaders('application/json'),
     })
@@ -115,7 +116,7 @@ export const authApi = {
   },
 
   async verifyOtp(otp: string): Promise<{ message: string; user: User }> {
-    const response = await fetch(`${API_URL}/api/auth/verify-otp`, {
+    const response = await apiFetch(`${API_URL}/api/auth/verify-otp`, {
       method: "POST",
       headers: authHeaders('application/json'),
       body: JSON.stringify({ otp }),
@@ -167,7 +168,7 @@ export const authApi = {
   },
 
   async sendChangePasswordOtp(): Promise<{ message: string }> {
-    const response = await fetch(`${API_URL}/api/auth/send-change-password-otp`, {
+    const response = await apiFetch(`${API_URL}/api/auth/send-change-password-otp`, {
       method: "POST",
       headers: authHeaders('application/json'),
     })
@@ -184,7 +185,7 @@ export const authApi = {
   },
 
   async changePassword(otp: string, newPassword: string): Promise<{ message: string }> {
-    const response = await fetch(`${API_URL}/api/auth/change-password`, {
+    const response = await apiFetch(`${API_URL}/api/auth/change-password`, {
       method: "POST",
       headers: authHeaders('application/json'),
       body: JSON.stringify({ otp, newPassword }),
@@ -204,7 +205,7 @@ export const authApi = {
     const headers = { ...authHeaders('application/json') };
     if (refreshToken) headers['x-refresh-token'] = refreshToken;
 
-    const response = await fetch(`${API_URL}/api/auth/sessions?_t=${Date.now()}`, {
+    const response = await apiFetch(`${API_URL}/api/auth/sessions?_t=${Date.now()}`, {
       headers,
       cache: 'no-store'
     });
@@ -222,7 +223,7 @@ export const authApi = {
     const headers = { ...authHeaders('application/json') };
     if (refreshToken) headers['x-refresh-token'] = refreshToken;
 
-    const response = await fetch(`${API_URL}/api/auth/sessions/${sessionId}`, {
+    const response = await apiFetch(`${API_URL}/api/auth/sessions/${sessionId}`, {
       method: "DELETE",
       headers
     });

@@ -1,5 +1,6 @@
 import { createContext, useState, useEffect, type ReactNode } from "react";
 import { authApi, type User } from "./services/auth.api";
+import { onSessionExpired } from "../../lib/apiFetch";
 
 interface AuthContextType {
   user: User | null;
@@ -18,6 +19,15 @@ interface AuthProviderProps {
 export const AuthProvider = ({ children }: AuthProviderProps) => {
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
+
+  // Listen for 401s from any API call — immediately clear auth state
+  useEffect(() => {
+    const unsubscribe = onSessionExpired(() => {
+      setUser(null);
+      setLoading(false);
+    });
+    return unsubscribe;
+  }, []);
 
   useEffect(() => {
     const checkAuth = async () => {

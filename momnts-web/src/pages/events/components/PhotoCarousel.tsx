@@ -1,8 +1,10 @@
 import { useState, useEffect, useCallback, useRef, useMemo } from 'react'
 import { Dialog, DialogContent, DialogClose } from '../../../components/ui/dialog'
 import { Button } from '../../../components/ui/button'
-import { X, CaretLeft, CaretRight, XIcon, Trash, Heart } from '@phosphor-icons/react'
+import { X, CaretLeft, CaretRight, XIcon, Trash, Heart, ChatCircle } from '@phosphor-icons/react'
 import { PhotoData } from '../../../features/events/services/photos.api'
+import { CommentsSection } from '../../../features/comments/components/CommentsSection'
+import { useComments } from '../../../features/comments/hooks/useComments'
 import {
   AlertDialog,
   AlertDialogAction,
@@ -53,7 +55,15 @@ const PhotoCarousel = ({
   const [currentIndex, setCurrentIndex] = useState(initialIndex)
   const [isLoading, setIsLoading] = useState(false)
   const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false)
+  const [showComments, setShowComments] = useState(false)
   const preloadedRef = useRef<Set<string>>(new Set())
+
+  // Reset showComments when modal closes/opens
+  useEffect(() => {
+    if (!open) {
+      setShowComments(false)
+    }
+  }, [open])
 
   useEffect(() => {
     if (open) {
@@ -169,17 +179,29 @@ const PhotoCarousel = ({
 
   // Compute dialog size from photo aspect ratio to fill viewport
   const dialogStyle = useMemo(() => {
-    if (photos.length === 0 || !currentPhoto) return { width: 0, height: 0 }
+    if (photos.length === 0 || !currentPhoto) return { width: 0, height: 0, photoHeight: 0, commentsHeight: 0 }
 
     const viewportW = windowSize.width * 0.95
-    const viewportH = windowSize.height * 0.95
+    // Adjust maximum photo height if comments are open
+    const commentsHeight = showComments ? Math.min(windowSize.height * 0.4, 320) : 0
+    const viewportH = windowSize.height * 0.95 - commentsHeight
 
     const naturalW = currentPhoto.width || naturalSize?.width
     const naturalH = currentPhoto.height || naturalSize?.height
 
     if (!naturalW || !naturalH) {
       // Unknown dimensions — use a safe medium size while loading
-      return { width: Math.min(viewportW, 600), height: Math.min(viewportH, 450) }
+      const defaultPhotoH = Math.min(viewportH, 450)
+      let targetW = Math.min(viewportW, 600)
+      if (showComments && windowSize.width >= 768) {
+        targetW = Math.min(viewportW, Math.max(targetW, 480))
+      }
+      return { 
+        width: targetW, 
+        height: defaultPhotoH + commentsHeight, 
+        photoHeight: defaultPhotoH,
+        commentsHeight
+      }
     }
 
     const photoRatio = naturalW / naturalH
@@ -203,8 +225,18 @@ const PhotoCarousel = ({
       targetH = naturalH
     }
 
-    return { width: targetW, height: targetH }
-  }, [photos.length, currentPhoto, naturalSize, windowSize])
+    // Enforce a minimum width in desktop view when comments are open so it's not too narrow
+    if (showComments && windowSize.width >= 768) {
+      targetW = Math.min(viewportW, Math.max(targetW, 480))
+    }
+
+    return { 
+      width: targetW, 
+      height: targetH + commentsHeight, 
+      photoHeight: targetH,
+      commentsHeight
+    }
+  }, [photos.length, currentPhoto, naturalSize, windowSize, showComments])
 
   const canDelete = userRole === 'ORGANIZER' || (isEventActive && currentUserId === currentPhoto?.user_id)
 
@@ -214,110 +246,181 @@ const PhotoCarousel = ({
     onOpenChange(false)
   }
 
+  const { data: commentsData } = useComments(currentPhoto?.id || '')
+
   return (
     <>
       <Dialog open={open} onOpenChange={onOpenChange}>
         <DialogContent
-          className="max-w-none p-0 bg-black border-0 overflow-hidden transition-[width,height] duration-300 ease-out shadow-2xl gap-0 data-open:animate-in data-closed:animate-out data-closed:fade-out-0 data-open:fade-in-0 data-closed:zoom-out-95 data-open:zoom-in-95 duration-300"
+          className="w-auto max-w-none sm:max-w-none p-0 bg-black border-0 overflow-hidden transition-[width,height] duration-300 ease-out shadow-2xl gap-0 data-open:animate-in data-closed:animate-out data-closed:fade-out-0 data-open:fade-in-0 data-closed:zoom-out-95 data-open:zoom-in-95 rounded-3xl"
           style={{ width: dialogStyle.width, height: dialogStyle.height }}
           showCloseButton={false}
         >
           {currentPhoto && (
-            <div className="relative flex items-center justify-center w-full h-full">
-              {/* Header / Action Buttons */}
-              <div className="absolute top-4 right-4 z-50 flex items-center gap-2">
-                {currentPhoto && onToggleFavourite && (
-                  <Button
-                    variant="ghost"
-                    size="icon"
-                    className={cn(
-                      "bg-black/40 backdrop-blur-md px-3 py-1.5 rounded-full border border-white/10 flex items-center justify-center cursor-pointer transition-all duration-200",
-                      isFavourite?.(currentPhoto.id)
-                        ? "text-rose-500 hover:text-rose-600 hover:bg-rose-50/10 scale-105"
-                        : "text-white/80 hover:text-rose-500 hover:bg-black/80 hover:scale-105"
-                    )}
-                    onClick={() => onToggleFavourite(currentPhoto.id)}
-                  >
-                    <Heart size={20} weight={isFavourite?.(currentPhoto.id) ? "fill" : "bold"} className={isFavourite?.(currentPhoto.id) ? "text-rose-500" : ""} />
-                  </Button>
-                )}
-                {canDelete && (
-                  <Button
-                    variant="ghost"
-                    size="icon"
-                    className="bg-black/40 hover:bg-red-500 hover:text-white backdrop-blur-md text-white px-3 py-1.5 rounded-full border border-white/10 flex items-center justify-center cursor-pointer"
-                    onClick={() => setDeleteConfirmOpen(true)}
-                  >
-                    <Trash size={20} weight="bold" />
-                  </Button>
-                )}
-                <DialogClose asChild>
-                  <Button
-                    variant="ghost"
-                    size="icon"
-                    className="bg-black/40 hover:bg-black/80 hover:text-white backdrop-blur-md text-white px-3 py-1.5 rounded-full border border-white/10 flex items-center justify-center gap-1"
-                    onClick={() => onOpenChange(false)}
-                  >
-                    <XIcon size={20} weight="bold" />
-                  </Button>
-                </DialogClose>
-              </div>
-
-              {/* Navigation Controls */}
-              <div className="absolute inset-x-0 top-1/2 -translate-y-1/2 flex justify-between px-4 z-40 pointer-events-none">
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  className="pointer-events-auto hover:text-white cursor-pointer h-8 w-8 md:h-12 md:w-12 bg-black/60 hover:bg-black/80 text-white border border-white/10 rounded-full transition-colors"
-                  onClick={goToPrevious}
-                >
-                  <CaretLeft size={28} weight="bold" />
-                </Button>
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  className="pointer-events-auto hover:text-white cursor-pointer h-8 w-8 md:h-12 md:w-12  bg-black/60 hover:bg-black/80 text-white border border-white/10 rounded-full transition-colors"
-                  onClick={goToNext}
-                >
-                  <CaretRight size={28} weight="bold" />
-                </Button>
-              </div>
-
-              {/* Image Container */}
-              <div className="relative w-full h-full flex items-center justify-center">
-                <img
-                  key={currentPhoto?.display_url}
-                  src={currentPhoto?.display_url}
-                  alt={`Photo ${currentIndex + 1}`}
-                  className="max-w-full max-h-full object-contain select-none"
-                  onLoadStart={() => setIsLoading(true)}
-                  onLoad={handleImageLoad}
-                />
-                {isLoading && (
-                  <div className="absolute inset-0 flex items-center justify-center bg-black/20">
-                    <div className="w-10 h-10 border-3 border-white/20 border-t-white rounded-full animate-spin" />
-                  </div>
-                )}
-              </div>
-
-              {/* Footer Info Overlay */}
-              <div className="absolute bottom-0 left-0 right-0 p-6 bg-linear-to-t from-black/80 to-transparent pointer-events-none">
-                <div className="flex items-end justify-between">
-                  {currentPhoto.user && (
-                    <div className="bg-black/40 backdrop-blur-md text-white px-3 py-1.5 rounded-full border border-white/10 flex items-center justify-center gap-1">
-                      <p className="text-[11px] md:text-xs text-white/60 mb-0.5">Uploaded by</p>
-                      <p className="text-[11px] md:text-xs font-semibold tracking-tight capitalize">{currentPhoto.user.name}</p>
+            <div className="relative flex flex-col w-full h-full">
+              {/* Photo Container */}
+              <div 
+                style={{ width: dialogStyle.width, height: dialogStyle.photoHeight }}
+                className="relative flex items-center justify-center bg-black transition-[width,height] duration-300 ease-out"
+              >
+                {/* Header / Action Buttons */}
+                <div className="absolute top-4 right-4 z-50 flex items-center gap-2">
+                  {currentPhoto && onToggleFavourite && (
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      className={cn(
+                        "bg-black/40 backdrop-blur-md px-3 py-1.5 rounded-full border border-white/10 flex items-center justify-center cursor-pointer transition-all duration-200",
+                        isFavourite?.(currentPhoto.id)
+                          ? "text-rose-500 hover:text-rose-600 hover:bg-rose-50/10 scale-105"
+                          : "text-white/80 hover:text-rose-500 hover:bg-black/80 hover:scale-105"
+                      )}
+                      onClick={() => onToggleFavourite(currentPhoto.id)}
+                    >
+                      <Heart size={20} weight={isFavourite?.(currentPhoto.id) ? "fill" : "bold"} className={isFavourite?.(currentPhoto.id) ? "text-rose-500" : ""} />
+                    </Button>
+                  )}
+                  {currentPhoto && (
+                    <div className="relative">
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className={cn(
+                          "bg-black/40 backdrop-blur-md px-3 py-1.5 rounded-full border border-white/10 flex items-center justify-center cursor-pointer transition-all duration-200",
+                          showComments
+                            ? "text-sky-400 hover:text-sky-500 hover:bg-sky-50/10 scale-105"
+                            : "text-white/80 hover:text-sky-400 hover:bg-black/80 hover:scale-105"
+                      )}
+                        onClick={() => setShowComments(!showComments)}
+                      >
+                        <ChatCircle size={20} weight={showComments ? "fill" : "bold"} />
+                      </Button>
+                      {commentsData && commentsData.total > 0 && (
+                        <span className="absolute -top-1 -right-1 bg-sky-500 text-white text-[10px] font-bold px-1.5 py-0.5 rounded-full min-w-[18px] h-[18px] flex items-center justify-center border border-neutral-950 scale-90 pointer-events-none">
+                          {commentsData.total}
+                        </span>
+                      )}
                     </div>
                   )}
-                  <div className="bg-black/40 backdrop-blur-md text-white px-4 py-2 rounded-full border border-white/10 text-xs font-medium tabular-nums">
-                    {currentIndex + 1} <span className="text-white/40 mx-1">/</span> {photos.length}
+                  {canDelete && (
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      className="bg-black/40 hover:bg-red-500 hover:text-white backdrop-blur-md text-white px-3 py-1.5 rounded-full border border-white/10 flex items-center justify-center cursor-pointer"
+                      onClick={() => setDeleteConfirmOpen(true)}
+                    >
+                      <Trash size={20} weight="bold" />
+                    </Button>
+                  )}
+                  <DialogClose asChild>
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      className="bg-black/40 hover:bg-black/80 hover:text-white backdrop-blur-md text-white px-3 py-1.5 rounded-full border border-white/10 flex items-center justify-center gap-1"
+                      onClick={() => onOpenChange(false)}
+                    >
+                      <XIcon size={20} weight="bold" />
+                    </Button>
+                  </DialogClose>
+                </div>
+
+                {/* Navigation Controls */}
+                <div className="absolute inset-x-0 top-1/2 -translate-y-1/2 flex justify-between px-4 z-40 pointer-events-none">
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    className="pointer-events-auto hover:text-white cursor-pointer h-8 w-8 md:h-12 md:w-12 bg-black/60 hover:bg-black/80 text-white border border-white/10 rounded-full transition-colors flex items-center justify-center"
+                    onClick={goToPrevious}
+                  >
+                    <CaretLeft size={28} weight="bold" />
+                  </Button>
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    className="pointer-events-auto hover:text-white cursor-pointer h-8 w-8 md:h-12 md:w-12 bg-black/60 hover:bg-black/80 text-white border border-white/10 rounded-full transition-colors flex items-center justify-center"
+                    onClick={goToNext}
+                  >
+                    <CaretRight size={28} weight="bold" />
+                  </Button>
+                </div>
+
+                {/* Image Container */}
+                <div className="relative w-full h-full flex items-center justify-center">
+                  <img
+                    key={currentPhoto?.display_url}
+                    src={currentPhoto?.display_url}
+                    alt={`Photo ${currentIndex + 1}`}
+                    className="max-w-full max-h-full object-contain select-none"
+                    onLoadStart={() => setIsLoading(true)}
+                    onLoad={handleImageLoad}
+                  />
+                  {isLoading && (
+                    <div className="absolute inset-0 flex items-center justify-center bg-black/20">
+                      <div className="w-10 h-10 border-3 border-white/20 border-t-white rounded-full animate-spin" />
+                    </div>
+                  )}
+                </div>
+
+                {/* Footer Info Overlay */}
+                <div className="absolute bottom-0 left-0 right-0 p-6 bg-linear-to-t from-black/80 to-transparent pointer-events-none">
+                  <div className="flex items-end justify-between">
+                    {currentPhoto.user && (
+                      <div className="bg-black/40 backdrop-blur-md text-white px-3 py-1.5 rounded-full border border-white/10 flex items-center justify-center gap-1">
+                        <p className="text-[11px] md:text-xs text-white/60 mb-0.5">Uploaded by</p>
+                        <p className="text-[11px] md:text-xs font-semibold tracking-tight capitalize">{currentPhoto.user.name}</p>
+                      </div>
+                    )}
+                    <div className="bg-black/40 backdrop-blur-md text-white px-4 py-2 rounded-full border border-white/10 text-xs font-medium tabular-nums">
+                      {currentIndex + 1} <span className="text-white/40 mx-1">/</span> {photos.length}
+                    </div>
                   </div>
+                </div>
+              </div>
+
+              {/* Comments Panel */}
+              <div 
+                style={{ height: dialogStyle.commentsHeight }}
+                className={cn(
+                  "w-full bg-neutral-950 border-t border-neutral-900 flex flex-col text-white transition-[height,opacity] duration-300 ease-out overflow-hidden rounded-b-3xl",
+                  showComments ? "opacity-100 animate-in slide-in-from-top duration-300" : "opacity-0 border-t-0"
+                )}
+              >
+                {/* Comments Header */}
+                <div className="flex justify-between items-center px-6 py-3 border-b border-neutral-900">
+                  <div className="flex items-center gap-2">
+                    <h3 className="font-semibold text-sm">Comments</h3>
+                    {commentsData && commentsData.total > 0 && (
+                      <span className="bg-neutral-800 text-neutral-200 text-[10px] font-bold px-1.5 py-0.5 rounded-full">
+                        {commentsData.total}
+                      </span>
+                    )}
+                  </div>
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    className="h-8 w-8 text-neutral-400 hover:text-white rounded-full cursor-pointer hover:bg-neutral-800/50"
+                    onClick={() => setShowComments(false)}
+                  >
+                    <X size={18} />
+                  </Button>
+                </div>
+                {/* Comments Scrollable Area */}
+                <div className="flex-1 overflow-y-auto p-6 custom-scrollbar text-neutral-200 dark pt-4">
+                  {showComments && (
+                    <CommentsSection
+                      photoId={currentPhoto.id}
+                      currentUserId={currentUserId || ""}
+                      isOrganizer={userRole === "ORGANIZER"}
+                      hideHeader={true}
+                    />
+                  )}
                 </div>
               </div>
             </div>
           )}
         </DialogContent>
       </Dialog>
+
 
       <AlertDialog open={deleteConfirmOpen} onOpenChange={setDeleteConfirmOpen}>
         <AlertDialogContent>

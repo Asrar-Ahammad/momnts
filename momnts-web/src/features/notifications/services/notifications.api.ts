@@ -1,4 +1,5 @@
 import { authHeaders } from "../../../lib/authHeaders"
+import { apiFetch } from "../../../lib/apiFetch"
 
 const API_URL = import.meta.env.VITE_SERVER_URL || "http://localhost:3000"
 
@@ -31,7 +32,7 @@ async function handleError(response: Response, fallback: string) {
 
 export const notificationsApi = {
   async getNotifications(): Promise<NotificationData[]> {
-    const response = await fetch(`${API_URL}/api/notifications`, {
+    const response = await apiFetch(`${API_URL}/api/notifications`, {
       headers: authHeaders(),
     })
 
@@ -44,7 +45,7 @@ export const notificationsApi = {
   },
 
   async markAsRead(notificationId: string): Promise<void> {
-    const response = await fetch(`${API_URL}/api/notifications/${notificationId}/read`, {
+    const response = await apiFetch(`${API_URL}/api/notifications/${notificationId}/read`, {
       method: "PUT",
       headers: authHeaders(),
     })
@@ -55,7 +56,7 @@ export const notificationsApi = {
   },
 
   async clearNotifications(): Promise<void> {
-    const response = await fetch(`${API_URL}/api/notifications/all`, {
+    const response = await apiFetch(`${API_URL}/api/notifications/all`, {
       method: "DELETE",
       headers: authHeaders(),
     })

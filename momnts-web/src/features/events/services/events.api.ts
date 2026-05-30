@@ -1,4 +1,5 @@
 import { authHeaders, jsonAuthHeaders } from "../../../lib/authHeaders"
+import { apiFetch } from "../../../lib/apiFetch"
 
 const API_URL = import.meta.env.VITE_SERVER_URL || "http://localhost:3000"
 
@@ -33,7 +34,7 @@ export interface EventsResponse {
 
 export const eventsApi = {
   async getMyEvents(): Promise<EventData[]> {
-    const response = await fetch(`${API_URL}/api/events/my-events`, {
+    const response = await apiFetch(`${API_URL}/api/events/my-events`, {
       headers: authHeaders(),
     })
 
@@ -47,7 +48,7 @@ export const eventsApi = {
   },
 
   async getJoinedEvents(): Promise<EventData[]> {
-    const response = await fetch(`${API_URL}/api/events/joined`, {
+    const response = await apiFetch(`${API_URL}/api/events/joined`, {
       headers: authHeaders(),
     })
 
@@ -66,7 +67,7 @@ export const eventsApi = {
   },
 
   async createEvent(name: string, location: string, date: string, attendeeUploadLimit: number): Promise<EventData> {
-    const response = await fetch(`${API_URL}/api/events/create`, {
+    const response = await apiFetch(`${API_URL}/api/events/create`, {
       method: "POST",
       headers: jsonAuthHeaders(),
       body: JSON.stringify({ name, location, date, attendeeUploadLimit }),
@@ -82,7 +83,7 @@ export const eventsApi = {
   },
 
   async joinEvent(inviteCode: string): Promise<EventData> {
-    const response = await fetch(`${API_URL}/api/events/join`, {
+    const response = await apiFetch(`${API_URL}/api/events/join`, {
       method: "POST",
       headers: jsonAuthHeaders(),
       body: JSON.stringify({ inviteCode }),
@@ -98,7 +99,7 @@ export const eventsApi = {
   },
 
   async getEventDetails(eventId: string): Promise<EventData> {
-    const response = await fetch(`${API_URL}/api/events/${eventId}`, {
+    const response = await apiFetch(`${API_URL}/api/events/${eventId}`, {
       headers: authHeaders(),
     })
 
@@ -112,7 +113,7 @@ export const eventsApi = {
   },
 
   async updateEvent(eventId: string, name: string, date: string, location: string, isActive: boolean): Promise<EventData> {
-    const response = await fetch(`${API_URL}/api/events/${eventId}`, {
+    const response = await apiFetch(`${API_URL}/api/events/${eventId}`, {
       method: "PUT",
       headers: jsonAuthHeaders(),
       body: JSON.stringify({ name, date, location, isActive }),
@@ -132,7 +133,7 @@ export const eventsApi = {
     if (search) {
       url.searchParams.append('search', search)
     }
-    const response = await fetch(url.toString(), {
+    const response = await apiFetch(url.toString(), {
       headers: authHeaders(),
     })
 
@@ -146,7 +147,7 @@ export const eventsApi = {
   },
 
   async updateAttendeeLimit(eventId: string, userId: string, limit: number | null): Promise<void> {
-    const response = await fetch(`${API_URL}/api/events/${eventId}/attendees/${userId}/limit`, {
+    const response = await apiFetch(`${API_URL}/api/events/${eventId}/attendees/${userId}/limit`, {
       method: "PUT",
       headers: jsonAuthHeaders(),
       body: JSON.stringify({ limit }),
@@ -159,7 +160,7 @@ export const eventsApi = {
   },
 
   async deleteEvent(eventId: string): Promise<void> {
-    const response = await fetch(`${API_URL}/api/events/${eventId}`, {
+    const response = await apiFetch(`${API_URL}/api/events/${eventId}`, {
       method: "DELETE",
       headers: authHeaders(),
     })
@@ -171,7 +172,7 @@ export const eventsApi = {
   },
 
   async leaveEvent(eventId: string): Promise<void> {
-    const response = await fetch(`${API_URL}/api/events/${eventId}/leave`, {
+    const response = await apiFetch(`${API_URL}/api/events/${eventId}/leave`, {
       method: "POST",
       headers: authHeaders(),
     })
@@ -183,7 +184,7 @@ export const eventsApi = {
   },
 
   async removeAttendee(eventId: string, attendeeId: string): Promise<void> {
-    const response = await fetch(`${API_URL}/api/events/${eventId}/attendees/${attendeeId}`, {
+    const response = await apiFetch(`${API_URL}/api/events/${eventId}/attendees/${attendeeId}`, {
       method: "DELETE",
       headers: authHeaders(),
     })
