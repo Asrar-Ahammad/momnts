@@ -3,7 +3,8 @@ import { useParams, useNavigate, useSearchParams } from 'react-router'
 import { useAuth } from '../../features/auth/hooks/useAuth'
 import { Button } from '../../components/ui/button'
 import { Badge } from '../../components/ui/badge'
-import { ArrowLeft, X } from '@phosphor-icons/react'
+import { ArrowLeft, X, CaretUp } from '@phosphor-icons/react'
+import { cn } from '../../lib/utils'
 import { eventsApi, EventData } from '../../features/events/services/events.api'
 import { photosApi, PhotoData } from '../../features/events/services/photos.api'
 import { toast } from 'sonner'
@@ -64,6 +65,37 @@ const EventDetails = () => {
     const saved = localStorage.getItem('momnts_gallery_cols')
     return (saved && [1, 2, 3].includes(Number(saved))) ? Number(saved) as GalleryColumns : 2
   })
+  const [showScrollTop, setShowScrollTop] = useState(false)
+  const mainRef = useRef<HTMLElement | null>(null)
+
+  useEffect(() => {
+    const mainEl = document.querySelector('main')
+    mainRef.current = mainEl
+
+    const handleScroll = () => {
+      const scrollY = mainEl ? mainEl.scrollTop : window.scrollY
+      setShowScrollTop(scrollY > 300)
+    }
+
+    if (mainEl) {
+      mainEl.addEventListener('scroll', handleScroll)
+    }
+    window.addEventListener('scroll', handleScroll)
+
+    return () => {
+      if (mainEl) {
+        mainEl.removeEventListener('scroll', handleScroll)
+      }
+      window.removeEventListener('scroll', handleScroll)
+    }
+  }, [])
+
+  const scrollToTop = () => {
+    if (mainRef.current) {
+      mainRef.current.scrollTo({ top: 0, behavior: 'smooth' })
+    }
+    window.scrollTo({ top: 0, behavior: 'smooth' })
+  }
 
   const handleGalleryColumnsChange = (cols: GalleryColumns) => {
     setGalleryColumns(cols)
@@ -666,6 +698,20 @@ const EventDetails = () => {
         isFavourite={(photoId) => favouritePhotoIds.has(photoId)}
         onToggleFavourite={handleToggleFavourite}
       />
+
+      <Button
+        variant="outline"
+        size="icon"
+        onClick={scrollToTop}
+        className={cn(
+          "fixed left-1/2 -translate-x-1/2 z-40 rounded-full w-10 h-10 shadow-lg border border-neutral-200 dark:border-neutral-800 bg-white/80 dark:bg-neutral-900/80 backdrop-blur-md text-neutral-800 dark:text-neutral-200 hover:bg-neutral-100 dark:hover:bg-neutral-800 transition-all duration-300",
+          "bottom-[calc(6.5rem+env(safe-area-inset-bottom,0px))] md:bottom-8",
+          showScrollTop ? "opacity-100 scale-100 translate-y-0" : "opacity-0 scale-90 translate-y-4 pointer-events-none"
+        )}
+        aria-label="Scroll to top"
+      >
+        <CaretUp size={20} weight="bold" />
+      </Button>
     </div>
   )
 }

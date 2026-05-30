@@ -40,8 +40,7 @@ export function CommentInput({
     }
   }, [text]);
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
+  const submitComment = async () => {
     const trimmedText = text.trim();
     if (!trimmedText || text.length > 500 || addCommentMutation.isPending) return;
 
@@ -57,12 +56,15 @@ export function CommentInput({
     }
   };
 
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    await submitComment();
+  };
+
   const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
-    if ((e.metaKey || e.ctrlKey) && e.key === "Enter") {
+    if (e.key === "Enter" && !e.shiftKey) {
       e.preventDefault();
-      if (text.trim() && text.length <= 500 && !addCommentMutation.isPending) {
-        handleSubmit(e);
-      }
+      submitComment();
     }
   };
 

@@ -268,7 +268,7 @@ const PhotoCarousel = ({
     onOpenChange(false)
   }
 
-  const { data: commentsData } = useComments(open && showComments ? (currentPhoto?.id || '') : '')
+  const { data: commentsData } = useComments(open ? (currentPhoto?.id || '') : '')
 
   return (
     <TooltipProvider>
@@ -334,9 +334,9 @@ const PhotoCarousel = ({
                       >
                         <ChatCircle size={20} weight={showComments ? "fill" : "bold"} />
                       </Button>
-                      {commentsData && commentsData.total > 0 && (
+                       {commentsData && commentsData.total > 0 && (
                         <span className="absolute -top-1 -right-1 bg-sky-500 text-white text-[10px] font-bold px-1.5 py-0.5 rounded-full min-w-[18px] h-[18px] flex items-center justify-center border border-neutral-950 scale-90 pointer-events-none">
-                          {commentsData.total}
+                          {commentsData.total > 9 ? "9+" : commentsData.total}
                         </span>
                       )}
                     </div>
