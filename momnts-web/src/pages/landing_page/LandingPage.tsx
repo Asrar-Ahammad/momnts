@@ -1,6 +1,8 @@
 import { useEffect } from 'react'
 import gsap from 'gsap'
 import { ScrollTrigger } from 'gsap/ScrollTrigger'
+import { useNavigate } from 'react-router'
+import { useAuth } from '../../features/auth/hooks/useAuth'
 
 import './landing.css'
 import Navbar from './Navbar'
@@ -16,6 +18,20 @@ import Footer from './Footer'
 gsap.registerPlugin(ScrollTrigger)
 
 const LandingPage = () => {
+  const { user, loading } = useAuth()
+  const navigate = useNavigate()
+  const isPWA = window.matchMedia('(display-mode: standalone)').matches || (window.navigator as any).standalone
+
+  useEffect(() => {
+    if (isPWA && !loading) {
+      if (user) {
+        navigate('/dashboard', { replace: true })
+      } else {
+        navigate('/login', { replace: true })
+      }
+    }
+  }, [isPWA, loading, user, navigate])
+
   useEffect(() => {
     // Enable smooth scroll for anchor links
     const handleAnchorClick = (e: MouseEvent) => {
@@ -40,6 +56,14 @@ const LandingPage = () => {
       ScrollTrigger.getAll().forEach(t => t.kill())
     }
   }, [])
+
+  if (isPWA) {
+    return (
+      <div className="flex items-center justify-center min-h-screen bg-neutral-950">
+        <div className="w-8 h-8 border-2 border-neutral-300 border-t-neutral-600 rounded-full animate-spin" />
+      </div>
+    )
+  }
 
   return (
     <div className="landing-root">
