@@ -189,9 +189,6 @@ export const EventCard = ({ event }: EventCardProps) => {
                   </div>
                 )}
               </div>
-              <p className="text-[10px] font-extrabold text-neutral-300 uppercase tracking-widest ml-1">
-                Attendees
-              </p>
             </div>
 
             <Button 

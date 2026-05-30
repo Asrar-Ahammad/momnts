@@ -25,6 +25,14 @@ interface PhotoCardProps {
   onToggleFavourite?: () => void
 }
 
+// Global cache for loaded image URLs to prevent reload flashes when components remount (e.g. during sorting)
+const loadedImagesCache = new Set<string>()
+
+const getCacheKey = (url: string) => {
+  if (!url) return ''
+  return url.split('?')[0]
+}
+
 const PhotoCard = ({
   photo,
   onClick,
@@ -35,17 +43,34 @@ const PhotoCard = ({
   isFavourite,
   onToggleFavourite
 }: PhotoCardProps) => {
-  const [imageLoaded, setImageLoaded] = useState(false)
+  const cacheKey = getCacheKey(photo.thumb_url)
+  const isAlreadyLoaded = loadedImagesCache.has(cacheKey)
+  const [imageLoaded, setImageLoaded] = useState(isAlreadyLoaded)
   const [imageError, setImageError] = useState(false)
-  const [isInView, setIsInView] = useState(false)
+  const [isInView, setIsInView] = useState(isAlreadyLoaded)
   const cardRef = useRef<HTMLDivElement>(null)
+  const imgRef = useRef<HTMLImageElement>(null)
 
   useEffect(() => {
-    setImageLoaded(false)
+    const loaded = loadedImagesCache.has(getCacheKey(photo.thumb_url))
+    setImageLoaded(loaded)
     setImageError(false)
+    if (loaded) {
+      setIsInView(true)
+    }
   }, [photo.id, photo.thumb_url])
 
+  // Sync state if image was already cached by browser and loads instantly (React onLoad may not fire in time)
   useEffect(() => {
+    if (isInView && imgRef.current && imgRef.current.complete) {
+      loadedImagesCache.add(getCacheKey(photo.thumb_url))
+      setImageLoaded(true)
+    }
+  }, [isInView, photo.thumb_url])
+
+  useEffect(() => {
+    if (isInView) return
+
     const observer = new IntersectionObserver(
       (entries) => {
         if (entries[0].isIntersecting) {
@@ -61,7 +86,7 @@ const PhotoCard = ({
     }
 
     return () => observer.disconnect()
-  }, [])
+  }, [isInView])
 
   return (
     <div
@@ -140,11 +165,15 @@ const PhotoCard = ({
       )}
 
       <img
+        ref={imgRef}
         src={isInView ? photo.thumb_url : 'data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="1" height="1"/>'}
         alt="Event photo"
         className="w-full h-auto transition-opacity duration-300"
         style={{ display: (imageLoaded && !imageError) ? 'block' : 'none' }}
-        onLoad={() => setImageLoaded(true)}
+        onLoad={() => {
+          loadedImagesCache.add(getCacheKey(photo.thumb_url))
+          setImageLoaded(true)
+        }}
         onError={() => {
           setImageError(true)
           setImageLoaded(true)

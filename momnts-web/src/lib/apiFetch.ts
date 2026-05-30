@@ -1,14 +1,15 @@
 /**
  * Centralized fetch wrapper that intercepts 401 responses.
- * When a 401 is received on an authenticated request, it clears tokens
- * and dispatches a custom event so AuthProvider can immediately set user=null,
- * causing Protected to redirect to /login with zero delay.
+ * When a 401 is received on an authenticated request, it attempts to silently refresh
+ * the token. If the refresh fails, it clears tokens and dispatches a custom event
+ * so AuthProvider can immediately set user=null, causing Protected to redirect to /login.
  */
 
 const AUTH_EXPIRED_EVENT = 'auth:session-expired'
 
 /** Dispatch once — debounced so parallel 401s don't fire multiple times */
 let expiredFired = false
+let refreshPromise: Promise<boolean> | null = null
 
 export async function clearLocalSessionData(): Promise<void> {
   localStorage.removeItem('token')
@@ -43,11 +44,37 @@ export function onSessionExpired(cb: () => void): () => void {
   return () => window.removeEventListener(AUTH_EXPIRED_EVENT, handler)
 }
 
+async function performRefresh(): Promise<boolean> {
+  const refreshToken = localStorage.getItem('refreshToken')
+  if (!refreshToken) return false
+
+  try {
+    const API_URL = import.meta.env.VITE_SERVER_URL || "http://localhost:3000"
+    const response = await fetch(`${API_URL}/api/auth/refresh`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ refreshToken })
+    })
+
+    if (!response.ok) {
+      return false
+    }
+
+    const data = await response.json()
+    localStorage.setItem('token', data.accessToken)
+    localStorage.setItem('refreshToken', data.refreshToken)
+    return true
+  } catch (error) {
+    console.error('Failed to refresh token:', error)
+    return false
+  }
+}
+
 /**
  * Drop-in replacement for `fetch` that auto-detects 401 on authenticated
  * requests and triggers session expiry.
  *
- * Skips interception for auth endpoints (login, register, forgot-password, reset-password)
+ * Skips interception for auth endpoints (login, register, forgot-password, reset-password, refresh)
  * where a 401 is an expected "wrong credentials" response, not a session expiry.
  */
 export async function apiFetch(
@@ -58,12 +85,45 @@ export async function apiFetch(
 
   if (response.status === 401) {
     const url = typeof input === 'string' ? input : input instanceof URL ? input.href : input.url
-    // Don't intercept login/register/forgot/reset — those return 401 for bad creds
-    const skipPaths = ['/auth/login', '/auth/register', '/auth/forgot-password', '/auth/reset-password']
+    // Don't intercept login/register/forgot/reset/refresh — those return 401 for bad creds
+    const skipPaths = ['/auth/login', '/auth/register', '/auth/forgot-password', '/auth/reset-password', '/auth/refresh']
     const isAuthEndpoint = skipPaths.some(p => url.includes(p))
 
     if (!isAuthEndpoint) {
-      fireSessionExpired()
+      // Try to refresh token
+      if (!refreshPromise) {
+        refreshPromise = performRefresh().finally(() => {
+          refreshPromise = null
+        })
+      }
+
+      const refreshed = await refreshPromise
+      if (refreshed) {
+        const newToken = localStorage.getItem('token') || ''
+        
+        let retryHeaders: Record<string, string> = {}
+        if (init?.headers) {
+          if (init.headers instanceof Headers) {
+            init.headers.forEach((value, key) => {
+              retryHeaders[key] = value
+            })
+          } else if (Array.isArray(init.headers)) {
+            init.headers.forEach(([key, value]) => {
+              retryHeaders[key] = value
+            })
+          } else {
+            retryHeaders = { ...init.headers } as Record<string, string>
+          }
+        }
+        retryHeaders['Authorization'] = `Bearer ${newToken}`
+
+        return fetch(input, {
+          ...init,
+          headers: retryHeaders
+        })
+      } else {
+        fireSessionExpired()
+      }
     }
   }
 

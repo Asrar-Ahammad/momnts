@@ -518,15 +518,15 @@ async function getEventAttendeesController(req: AuthRequest, res: Response) {
 
         const eventId = req.params.eventId as string
 
-        // Only organizer can see attendee list
+        // Only participants of the event can see attendee list
         const access = await prisma.eventAccess.findUnique({
             where: {
                 event_id_user_id: { event_id: eventId, user_id: req.user.id }
             }
         })
 
-        if (!access || access.role !== 'ORGANIZER') {
-            return res.status(403).json({ message: 'Only the organizer can view attendees' })
+        if (!access) {
+            return res.status(403).json({ message: 'Only participants of this event can view attendees' })
         }
 
         const { search } = req.query

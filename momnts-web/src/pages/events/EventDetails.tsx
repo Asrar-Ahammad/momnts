@@ -3,7 +3,8 @@ import { useParams, useNavigate, useSearchParams } from 'react-router'
 import { useAuth } from '../../features/auth/hooks/useAuth'
 import { Button } from '../../components/ui/button'
 import { Badge } from '../../components/ui/badge'
-import { ArrowLeft, X } from '@phosphor-icons/react'
+import { ArrowLeft, X, CaretUp } from '@phosphor-icons/react'
+import { motion, AnimatePresence } from 'framer-motion'
 import { eventsApi, EventData } from '../../features/events/services/events.api'
 import { photosApi, PhotoData } from '../../features/events/services/photos.api'
 import { toast } from 'sonner'
@@ -51,7 +52,9 @@ const EventDetails = () => {
   const [savingSettings, setSavingSettings] = useState(false)
   const uploadingRef = useRef(false)
   const savingSettingsRef = useRef(false)
+  const lastInvalidatedPhotoIdRef = useRef<string | null>(null)
   const [carouselOpen, setCarouselOpen] = useState(false)
+  const [highlightCommentId, setHighlightCommentId] = useState<string | undefined>(undefined)
   const [currentPhotoIndex, setCurrentPhotoIndex] = useState(0)
   const [isSelectMode, setIsSelectMode] = useState(false)
   const [selectedPhotoIds, setSelectedPhotoIds] = useState<Set<string>>(new Set())
@@ -257,7 +260,6 @@ const EventDetails = () => {
       setSearchParams(newParams, { replace: true })
     }
   }, [searchParams, setSearchParams])
-
   const sourcePhotos =
     activeTab === 'your-photos'
       ? myPhotos
@@ -283,6 +285,46 @@ const EventDetails = () => {
     const timeB = new Date(b.uploaded_at).getTime()
     return sortOrder === 'desc' ? timeB - timeA : timeA - timeB
   })
+
+  // Handle direct photo and comment navigation (e.g. from mentions notification)
+  useEffect(() => {
+    const pId = searchParams.get('photoId')
+    const cId = searchParams.get('commentId')
+
+    if (pId) {
+      // Invalidate query caches to ensure we load the latest uploaded photo and comments
+      if (lastInvalidatedPhotoIdRef.current !== pId) {
+        lastInvalidatedPhotoIdRef.current = pId
+        queryClient.invalidateQueries({ queryKey: ["photos", eventId] })
+        queryClient.invalidateQueries({ queryKey: ["comments", pId] })
+      }
+
+      if (photos.length > 0) {
+        // Clear filters if active so that the target photo is guaranteed to be in filteredPhotos
+        if (selectedAttendeeId !== null) {
+          setSelectedAttendeeId(null)
+        }
+        if (activeTab !== 'all') {
+          setActiveTab('all')
+        }
+
+        const idx = filteredPhotos.findIndex((p) => p.id === pId)
+        if (idx !== -1) {
+          setCurrentPhotoIndex(idx)
+          setCarouselOpen(true)
+          if (cId) {
+            setHighlightCommentId(cId)
+          }
+
+          // Clean up URL search parameters to avoid running repeatedly on page refresh
+          const newParams = new URLSearchParams(searchParams)
+          newParams.delete('photoId')
+          newParams.delete('commentId')
+          setSearchParams(newParams, { replace: true })
+        }
+      }
+    }
+  }, [searchParams, setSearchParams, photos, filteredPhotos, activeTab, selectedAttendeeId, eventId, queryClient])
 
   const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = Array.from(e.target.files || [])
@@ -501,6 +543,39 @@ const EventDetails = () => {
     setSelectedPhotoIds(new Set())
   }
 
+  const [showScrollTop, setShowScrollTop] = useState(false)
+
+  useEffect(() => {
+    const handleScroll = (e: Event) => {
+      const target = e.target
+
+      // Only react to the main scroll container (<main> element) or document scroll
+      const isMainScroll = target === document || 
+                           (target instanceof HTMLElement && target.tagName.toLowerCase() === 'main')
+
+      if (!isMainScroll) return
+
+      let scrollTop = 0
+      if (target instanceof HTMLDocument) {
+        scrollTop = window.scrollY || document.documentElement.scrollTop
+      } else if (target instanceof HTMLElement) {
+        scrollTop = target.scrollTop
+      }
+      setShowScrollTop(scrollTop > 300)
+    }
+
+    window.addEventListener('scroll', handleScroll, true)
+    return () => window.removeEventListener('scroll', handleScroll, true)
+  }, [])
+
+  const handleScrollToTop = () => {
+    window.scrollTo({ top: 0, behavior: 'smooth' })
+    const mainEl = document.querySelector('main')
+    if (mainEl) {
+      mainEl.scrollTo({ top: 0, behavior: 'smooth' })
+    }
+  }
+
   if (!event && !loading) {
     return (
       <div className="flex flex-col items-center justify-center h-screen gap-4">
@@ -656,7 +731,12 @@ const EventDetails = () => {
 
       <PhotoCarousel
         open={carouselOpen}
-        onOpenChange={setCarouselOpen}
+        onOpenChange={(isOpen) => {
+          setCarouselOpen(isOpen)
+          if (!isOpen) {
+            setHighlightCommentId(undefined)
+          }
+        }}
         photos={filteredPhotos}
         initialIndex={currentPhotoIndex}
         onDelete={handleDeletePhoto}
@@ -665,7 +745,29 @@ const EventDetails = () => {
         isEventActive={event?.is_active}
         isFavourite={(photoId) => favouritePhotoIds.has(photoId)}
         onToggleFavourite={handleToggleFavourite}
+        highlightCommentId={highlightCommentId}
       />
+
+      <AnimatePresence>
+        {showScrollTop && (
+          <motion.div
+            initial={{ opacity: 0, y: 20, scale: 0.9 }}
+            animate={{ opacity: 1, y: 0, scale: 1 }}
+            exit={{ opacity: 0, y: 20, scale: 0.9 }}
+            transition={{ type: 'spring', stiffness: 260, damping: 20 }}
+            className="fixed z-40 left-1/2 -translate-x-1/2 bottom-[calc(5.5rem+env(safe-area-inset-bottom,0px))] md:bottom-8"
+          >
+            <Button
+              variant="outline"
+              size="icon"
+              onClick={handleScrollToTop}
+              className="rounded-full shadow-lg border border-neutral-200/50 dark:border-neutral-800/50 bg-white/90 dark:bg-neutral-900/90 backdrop-blur-md hover:bg-neutral-50 dark:hover:bg-neutral-800 text-neutral-800 dark:text-neutral-200 cursor-pointer h-10 w-10 md:h-12 md:w-12 transition-all duration-200 hover:scale-105"
+            >
+              <CaretUp size={22} weight="bold" />
+            </Button>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </div>
   )
 }

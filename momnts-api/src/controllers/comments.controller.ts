@@ -1,6 +1,7 @@
 import type { Response } from "express";
 import { prisma } from "../lib/prisma.js";
 import type { AuthRequest } from "../middleware/auth.middleware.js";
+import { getIO } from "../lib/socket.js";
 
 /**
  * @name getCommentsController
@@ -143,6 +144,87 @@ export async function addCommentController(req: AuthRequest, res: Response) {
         },
       },
     });
+
+    // Non-blocking notification & webhook dispatch
+    try {
+      const attendees = await prisma.eventAccess.findMany({
+        where: { event_id: photo.event_id },
+        include: {
+          user: {
+            select: { id: true, name: true }
+          }
+        }
+      });
+
+      const sortedAttendees = [...attendees].sort((a, b) => b.user.name.length - a.user.name.length);
+      const escapeRegExp = (str: string) => str.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+      
+      const mentionedUserIds: string[] = [];
+      let textToSearch = comment.text;
+
+      for (const attendee of sortedAttendees) {
+        if (attendee.user_id === req.user.id) continue;
+
+        const namePattern = escapeRegExp(attendee.user.name);
+        const regex = new RegExp(`(?:^|\\s)@(${namePattern})(?:$|\\s|[.,!?;:])`, 'i');
+
+        if (regex.test(textToSearch)) {
+          mentionedUserIds.push(attendee.user_id);
+          textToSearch = textToSearch.replace(new RegExp(`@${namePattern}`, 'gi'), '');
+        }
+      }
+
+      const authorName = comment.user.name;
+      const authorSelfie = comment.user.selfie_url;
+
+      for (const userId of mentionedUserIds) {
+        // Create DB notification
+        const notification = await prisma.notification.create({
+          data: {
+            user_id: userId,
+            title: "New Mention",
+            message: `${authorName} mentioned you in a comment`,
+            type: "MENTION",
+            link: `/events/${photo.event_id}?photoId=${photoId}&commentId=${comment.id}`,
+            image_url: authorSelfie || null
+          }
+        });
+
+        // Real-time socket emit
+        try {
+          const io = getIO();
+          io.to(`user:${userId}`).emit('notification:new', notification);
+        } catch (socketErr) {
+          console.error("[comments.controller] Socket emit failed:", socketErr);
+        }
+
+        // Webhook dispatch
+        const webhookUrl = process.env.NOTIFICATION_WEBHOOK_URL;
+        if (webhookUrl) {
+          fetch(webhookUrl, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              event: 'notification.created',
+              data: {
+                notificationId: notification.id,
+                userId: notification.user_id,
+                title: notification.title,
+                message: notification.message,
+                type: notification.type,
+                link: notification.link,
+                image_url: notification.image_url,
+                created_at: notification.created_at
+              }
+            })
+          }).catch(webhookErr => {
+            console.error("[comments.controller] Webhook call failed:", webhookErr);
+          });
+        }
+      }
+    } catch (notifErr) {
+      console.error("[comments.controller] Failed to process mentions/notifications:", notifErr);
+    }
 
     return res.status(201).json({
       message: "Comment added",

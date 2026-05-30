@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback, useRef, useMemo } from 'react'
 import { Dialog, DialogContent, DialogClose } from '../../../components/ui/dialog'
 import { Button } from '../../../components/ui/button'
-import { X, CaretLeft, CaretRight, XIcon, Trash, Heart, ChatCircle } from '@phosphor-icons/react'
+import { X, CaretLeft, CaretRight, XIcon, Trash, Heart, ChatCircle, Keyboard } from '@phosphor-icons/react'
 import { PhotoData } from '../../../features/events/services/photos.api'
 import { CommentsSection } from '../../../features/comments/components/CommentsSection'
 import { useComments } from '../../../features/comments/hooks/useComments'
@@ -16,6 +16,9 @@ import {
   AlertDialogTitle,
 } from "../../../components/ui/alert-dialog"
 import { cn } from '../../../lib/utils'
+import { Tooltip, TooltipContent, TooltipTrigger, TooltipProvider } from '../../../components/ui/tooltip'
+import { Kbd } from '../../../components/ui/kbd'
+import { motion, AnimatePresence } from 'framer-motion'
 
 interface PhotoCarouselProps {
   open: boolean
@@ -28,6 +31,7 @@ interface PhotoCarouselProps {
   isEventActive?: boolean
   isFavourite?: (photoId: string) => boolean
   onToggleFavourite?: (photoId: string) => void
+  highlightCommentId?: string
 }
 
 // Preload an image and return a promise
@@ -50,18 +54,89 @@ const PhotoCarousel = ({
   userRole,
   isEventActive,
   isFavourite,
-  onToggleFavourite
+  onToggleFavourite,
+  highlightCommentId
 }: PhotoCarouselProps) => {
   const [currentIndex, setCurrentIndex] = useState(initialIndex)
   const [isLoading, setIsLoading] = useState(false)
   const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false)
   const [showComments, setShowComments] = useState(false)
+  const [showKeyHint, setShowKeyHint] = useState(false)
+  const [isCommentsExpanded, setIsCommentsExpanded] = useState(false)
   const preloadedRef = useRef<Set<string>>(new Set())
+  const lastScrollTopRef = useRef(0)
+  const isTransitioningRef = useRef(false)
 
-  // Reset showComments when modal closes/opens
+  // Automatically open comments when highlighted comment is passed
+  useEffect(() => {
+    if (open && highlightCommentId) {
+      setShowComments(true)
+      setIsCommentsExpanded(true)
+    }
+  }, [open, highlightCommentId])
+
+  // Reset showComments and expansion when modal closes/opens
   useEffect(() => {
     if (!open) {
       setShowComments(false)
+      setIsCommentsExpanded(false)
+    }
+  }, [open])
+
+  // Reset comments expansion state and scroll tracking when comments panel closes
+  useEffect(() => {
+    if (!showComments) {
+      setIsCommentsExpanded(false)
+    }
+    lastScrollTopRef.current = 0
+  }, [showComments])
+
+  // Reset comments expansion state and scroll tracking when photo index changes
+  useEffect(() => {
+    setIsCommentsExpanded(false)
+    lastScrollTopRef.current = 0
+  }, [currentIndex])
+
+  const handleCommentsScroll = useCallback((e: React.UIEvent<HTMLDivElement>) => {
+    const { scrollTop, scrollHeight, clientHeight } = e.currentTarget
+    
+    // Return early if content fits within container to prevent elastic scroll glitch
+    if (scrollHeight <= clientHeight) return
+
+    const prevScrollTop = lastScrollTopRef.current
+    lastScrollTopRef.current = scrollTop
+
+    if (isTransitioningRef.current) return
+
+    if (scrollTop > prevScrollTop && scrollTop > 30) {
+      if (!isCommentsExpanded) {
+        isTransitioningRef.current = true
+        setIsCommentsExpanded(true)
+        setTimeout(() => {
+          isTransitioningRef.current = false
+        }, 400)
+      }
+    } else if (scrollTop <= 5) {
+      if (isCommentsExpanded) {
+        isTransitioningRef.current = true
+        setIsCommentsExpanded(false)
+        setTimeout(() => {
+          isTransitioningRef.current = false
+        }, 400)
+      }
+    }
+  }, [isCommentsExpanded])
+
+  // Show keyboard navigation hint for 3 seconds when carousel opens
+  useEffect(() => {
+    if (open) {
+      setShowKeyHint(true)
+      const timer = setTimeout(() => {
+        setShowKeyHint(false)
+      }, 3000)
+      return () => clearTimeout(timer)
+    } else {
+      setShowKeyHint(false)
     }
   }, [open])
 
@@ -131,12 +206,22 @@ const PhotoCarousel = ({
     setCurrentIndex((prev) => (prev < photos.length - 1 ? prev + 1 : 0))
   }, [photos.length])
 
-  const handleKeyDown = useCallback((e: KeyboardEvent) => {
+  const handleKeyDown = useCallback((e: KeyboardEvent | React.KeyboardEvent) => {
+    const activeEl = document.activeElement
+    if (activeEl) {
+      const tagName = activeEl.tagName.toLowerCase()
+      const isInput = tagName === 'input' || tagName === 'textarea' || activeEl.hasAttribute('contenteditable')
+      if (isInput) return
+    }
+
     if (e.key === 'ArrowLeft') {
+      e.preventDefault()
       goToPrevious()
     } else if (e.key === 'ArrowRight') {
+      e.preventDefault()
       goToNext()
     } else if (e.key === 'Escape') {
+      e.preventDefault()
       onOpenChange(false)
     }
   }, [goToPrevious, goToNext, onOpenChange])
@@ -183,7 +268,9 @@ const PhotoCarousel = ({
 
     const viewportW = windowSize.width * 0.95
     // Adjust maximum photo height if comments are open
-    const commentsHeight = showComments ? Math.min(windowSize.height * 0.4, 320) : 0
+    const commentsHeight = showComments 
+      ? (isCommentsExpanded ? Math.min(windowSize.height * 0.65, 520) : Math.min(windowSize.height * 0.4, 320))
+      : 0
     const viewportH = windowSize.height * 0.95 - commentsHeight
 
     const naturalW = currentPhoto.width || naturalSize?.width
@@ -225,6 +312,10 @@ const PhotoCarousel = ({
       targetH = naturalH
     }
 
+    // Enforce a global minimum width to prevent UI clipping/wrapping in portrait aspect ratios
+    const globalMinWidth = Math.min(viewportW, 380)
+    targetW = Math.max(targetW, globalMinWidth)
+
     // Enforce a minimum width in desktop view when comments are open so it's not too narrow
     if (showComments && windowSize.width >= 768) {
       targetW = Math.min(viewportW, Math.max(targetW, 480))
@@ -236,7 +327,7 @@ const PhotoCarousel = ({
       photoHeight: targetH,
       commentsHeight
     }
-  }, [photos.length, currentPhoto, naturalSize, windowSize, showComments])
+  }, [photos.length, currentPhoto, naturalSize, windowSize, showComments, isCommentsExpanded])
 
   const canDelete = userRole === 'ORGANIZER' || (isEventActive && currentUserId === currentPhoto?.user_id)
 
@@ -246,15 +337,16 @@ const PhotoCarousel = ({
     onOpenChange(false)
   }
 
-  const { data: commentsData } = useComments(open && showComments ? (currentPhoto?.id || '') : '')
+  const { data: commentsData } = useComments(open ? (currentPhoto?.id || '') : '')
 
   return (
-    <>
+    <TooltipProvider>
       <Dialog open={open} onOpenChange={onOpenChange}>
         <DialogContent
           className="w-auto max-w-none sm:max-w-none p-0 bg-black border-0 overflow-hidden transition-[width,height] duration-300 ease-out shadow-2xl gap-0 data-open:animate-in data-closed:animate-out data-closed:fade-out-0 data-open:fade-in-0 data-closed:zoom-out-95 data-open:zoom-in-95 rounded-3xl"
           style={{ width: dialogStyle.width, height: dialogStyle.height }}
           showCloseButton={false}
+          onKeyDown={handleKeyDown}
         >
           {currentPhoto && (
             <div className="relative flex flex-col w-full h-full">
@@ -266,82 +358,128 @@ const PhotoCarousel = ({
                 {/* Header / Action Buttons */}
                 <div className="absolute top-4 right-4 z-50 flex items-center gap-2">
                   {currentPhoto && onToggleFavourite && (
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      className={cn(
-                        "bg-black/40 backdrop-blur-md px-3 py-1.5 rounded-full border border-white/10 flex items-center justify-center cursor-pointer transition-all duration-200",
-                        isFavourite?.(currentPhoto.id)
-                          ? "text-rose-500 hover:text-rose-600 hover:bg-rose-50/10 scale-105"
-                          : "text-white/80 hover:text-rose-500 hover:bg-black/80 hover:scale-105"
-                      )}
-                      onClick={() => onToggleFavourite(currentPhoto.id)}
-                    >
-                      <Heart size={20} weight={isFavourite?.(currentPhoto.id) ? "fill" : "bold"} className={isFavourite?.(currentPhoto.id) ? "text-rose-500" : ""} />
-                    </Button>
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className={cn(
+                            "bg-black/40 backdrop-blur-md px-3 py-1.5 rounded-full border border-white/10 flex items-center justify-center cursor-pointer transition-all duration-200",
+                            isFavourite?.(currentPhoto.id)
+                              ? "text-rose-500 hover:text-rose-600 hover:bg-rose-50/10 scale-105"
+                              : "text-white/80 hover:text-rose-500 hover:bg-black/80 hover:scale-105"
+                          )}
+                          onClick={() => onToggleFavourite(currentPhoto.id)}
+                        >
+                          <Heart size={20} weight={isFavourite?.(currentPhoto.id) ? "fill" : "bold"} className={isFavourite?.(currentPhoto.id) ? "text-rose-500" : ""} />
+                        </Button>
+                      </TooltipTrigger>
+                      <TooltipContent side="bottom" className="bg-neutral-900 border border-neutral-800 text-neutral-200">
+                        {isFavourite?.(currentPhoto.id) ? "Remove from Favourites" : "Add to Favourites"}
+                      </TooltipContent>
+                    </Tooltip>
                   )}
                   {currentPhoto && (
                     <div className="relative">
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        className={cn(
-                          "bg-black/40 backdrop-blur-md px-3 py-1.5 rounded-full border border-white/10 flex items-center justify-center cursor-pointer transition-all duration-200",
-                          showComments
-                            ? "text-sky-400 hover:text-sky-500 hover:bg-sky-50/10 scale-105"
-                            : "text-white/80 hover:text-sky-400 hover:bg-black/80 hover:scale-105"
-                      )}
-                        onClick={() => setShowComments(!showComments)}
-                      >
-                        <ChatCircle size={20} weight={showComments ? "fill" : "bold"} />
-                      </Button>
+                      <Tooltip>
+                        <TooltipTrigger asChild>
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            className={cn(
+                              "bg-black/40 backdrop-blur-md px-3 py-1.5 rounded-full border border-white/10 flex items-center justify-center cursor-pointer transition-all duration-200",
+                              showComments
+                                ? "text-sky-400 hover:text-sky-500 hover:bg-sky-50/10 scale-105"
+                                : "text-white/80 hover:text-sky-400 hover:bg-black/80 hover:scale-105"
+                            )}
+                            onClick={() => setShowComments(!showComments)}
+                          >
+                            <ChatCircle size={20} weight={showComments ? "fill" : "bold"} />
+                          </Button>
+                        </TooltipTrigger>
+                        <TooltipContent side="bottom" className="bg-neutral-900 border border-neutral-800 text-neutral-200">
+                          {showComments ? "Hide Comments" : "Show Comments"}
+                        </TooltipContent>
+                      </Tooltip>
                       {commentsData && commentsData.total > 0 && (
                         <span className="absolute -top-1 -right-1 bg-sky-500 text-white text-[10px] font-bold px-1.5 py-0.5 rounded-full min-w-[18px] h-[18px] flex items-center justify-center border border-neutral-950 scale-90 pointer-events-none">
-                          {commentsData.total}
+                          {commentsData.total > 9 ? "9+" : commentsData.total}
                         </span>
                       )}
                     </div>
                   )}
                   {canDelete && (
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      className="bg-black/40 hover:bg-red-500 hover:text-white backdrop-blur-md text-white px-3 py-1.5 rounded-full border border-white/10 flex items-center justify-center cursor-pointer"
-                      onClick={() => setDeleteConfirmOpen(true)}
-                    >
-                      <Trash size={20} weight="bold" />
-                    </Button>
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="bg-black/40 hover:bg-red-500 hover:text-white backdrop-blur-md text-white px-3 py-1.5 rounded-full border border-white/10 flex items-center justify-center cursor-pointer"
+                          onClick={() => setDeleteConfirmOpen(true)}
+                        >
+                          <Trash size={20} weight="bold" />
+                        </Button>
+                      </TooltipTrigger>
+                      <TooltipContent side="bottom" className="bg-neutral-900 border border-neutral-800 text-neutral-200">
+                        Delete Photo
+                      </TooltipContent>
+                    </Tooltip>
                   )}
                   <DialogClose asChild>
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      className="bg-black/40 hover:bg-black/80 hover:text-white backdrop-blur-md text-white px-3 py-1.5 rounded-full border border-white/10 flex items-center justify-center gap-1"
-                      onClick={() => onOpenChange(false)}
-                    >
-                      <XIcon size={20} weight="bold" />
-                    </Button>
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="bg-black/40 hover:bg-black/80 hover:text-white backdrop-blur-md text-white px-3 py-1.5 rounded-full border border-white/10 flex items-center justify-center gap-1"
+                          onClick={() => onOpenChange(false)}
+                        >
+                          <XIcon size={20} weight="bold" />
+                        </Button>
+                      </TooltipTrigger>
+                      <TooltipContent side="bottom" className="bg-neutral-900 border border-neutral-800 text-neutral-200 flex items-center gap-1.5">
+                        <span>Close</span>
+                        <Kbd>Esc</Kbd>
+                      </TooltipContent>
+                    </Tooltip>
                   </DialogClose>
                 </div>
 
                 {/* Navigation Controls */}
                 <div className="absolute inset-x-0 top-1/2 -translate-y-1/2 flex justify-between px-4 z-40 pointer-events-none">
-                  <Button
-                    variant="ghost"
-                    size="icon"
-                    className="pointer-events-auto hover:text-white cursor-pointer h-8 w-8 md:h-12 md:w-12 bg-black/60 hover:bg-black/80 text-white border border-white/10 rounded-full transition-colors flex items-center justify-center"
-                    onClick={goToPrevious}
-                  >
-                    <CaretLeft size={28} weight="bold" />
-                  </Button>
-                  <Button
-                    variant="ghost"
-                    size="icon"
-                    className="pointer-events-auto hover:text-white cursor-pointer h-8 w-8 md:h-12 md:w-12 bg-black/60 hover:bg-black/80 text-white border border-white/10 rounded-full transition-colors flex items-center justify-center"
-                    onClick={goToNext}
-                  >
-                    <CaretRight size={28} weight="bold" />
-                  </Button>
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className="pointer-events-auto hover:text-white cursor-pointer h-8 w-8 md:h-12 md:w-12 bg-black/60 hover:bg-black/80 text-white border border-white/10 rounded-full transition-colors flex items-center justify-center"
+                        onClick={goToPrevious}
+                      >
+                        <CaretLeft size={28} weight="bold" />
+                      </Button>
+                    </TooltipTrigger>
+                    <TooltipContent side="right" className="bg-neutral-900 border border-neutral-800 text-neutral-200 flex items-center gap-1.5">
+                      <span>Previous</span>
+                      <Kbd>←</Kbd>
+                    </TooltipContent>
+                  </Tooltip>
+
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className="pointer-events-auto hover:text-white cursor-pointer h-8 w-8 md:h-12 md:w-12 bg-black/60 hover:bg-black/80 text-white border border-white/10 rounded-full transition-colors flex items-center justify-center"
+                        onClick={goToNext}
+                      >
+                        <CaretRight size={28} weight="bold" />
+                      </Button>
+                    </TooltipTrigger>
+                    <TooltipContent side="left" className="bg-neutral-900 border border-neutral-800 text-neutral-200 flex items-center gap-1.5">
+                      <span>Next</span>
+                      <Kbd>→</Kbd>
+                    </TooltipContent>
+                  </Tooltip>
                 </div>
 
                 {/* Image Container */}
@@ -363,14 +501,33 @@ const PhotoCarousel = ({
 
                 {/* Footer Info Overlay */}
                 <div className="absolute bottom-0 left-0 right-0 p-6 bg-linear-to-t from-black/80 to-transparent pointer-events-none">
-                  <div className="flex items-end justify-between">
-                    {currentPhoto.user && (
-                      <div className="bg-black/40 backdrop-blur-md text-white px-3 py-1.5 rounded-full border border-white/10 flex items-center justify-center gap-1">
-                        <p className="text-[11px] md:text-xs text-white/60 mb-0.5">Uploaded by</p>
-                        <p className="text-[11px] md:text-xs font-semibold tracking-tight capitalize">{currentPhoto.user.name}</p>
-                      </div>
-                    )}
-                    <div className="bg-black/40 backdrop-blur-md text-white px-4 py-2 rounded-full border border-white/10 text-xs font-medium tabular-nums">
+                  <div className="flex items-end justify-between gap-4">
+                    <div className="flex flex-wrap gap-2 items-end">
+                      {currentPhoto.user && (
+                        <div className="bg-black/40 backdrop-blur-md text-white px-3 py-1.5 rounded-full border border-white/10 flex items-center justify-center gap-1 whitespace-nowrap shrink-0">
+                          <p className="text-[11px] md:text-xs text-white/60 mb-0.5">Uploaded by</p>
+                          <p className="text-[11px] md:text-xs font-semibold tracking-tight capitalize">{currentPhoto.user.name}</p>
+                        </div>
+                      )}
+                      <AnimatePresence>
+                        {showKeyHint && (
+                          <motion.div
+                            initial={{ opacity: 0, scale: 0.9, width: 0, marginLeft: 0 }}
+                            animate={{ opacity: 1, scale: 1, width: "auto", marginLeft: 4 }}
+                            exit={{ opacity: 0, scale: 0.9, width: 0, marginLeft: 0 }}
+                            transition={{ duration: 0.4, ease: "easeInOut" }}
+                            className="hidden md:flex bg-black/40 backdrop-blur-md text-white/80 px-3 py-1.5 rounded-full border border-white/10 text-[11px] md:text-xs items-center gap-1.5 select-none pointer-events-auto origin-left whitespace-nowrap shrink-0 overflow-hidden"
+                          >
+                            <Keyboard size={14} className="text-white/60" />
+                            <span>Use keys</span>
+                            <Kbd className="bg-white/10 text-white border-white/10">←</Kbd>
+                            <Kbd className="bg-white/10 text-white border-white/10">→</Kbd>
+                            <span>to browse</span>
+                          </motion.div>
+                        )}
+                      </AnimatePresence>
+                    </div>
+                    <div className="bg-black/40 backdrop-blur-md text-white px-4 py-2 rounded-full border border-white/10 text-xs font-medium tabular-nums select-none whitespace-nowrap shrink-0">
                       {currentIndex + 1} <span className="text-white/40 mx-1">/</span> {photos.length}
                     </div>
                   </div>
@@ -381,12 +538,12 @@ const PhotoCarousel = ({
               <div 
                 style={{ height: dialogStyle.commentsHeight }}
                 className={cn(
-                  "w-full bg-neutral-950 border-t border-neutral-900 flex flex-col text-white transition-[height,opacity] duration-300 ease-out overflow-hidden rounded-b-3xl",
+                  "w-full bg-neutral-950 border-t border-neutral-900 flex flex-col text-white transition-[height,opacity] duration-300 ease-out overflow-hidden rounded-b-3xl dark",
                   showComments ? "opacity-100 animate-in slide-in-from-top duration-300" : "opacity-0 border-t-0"
                 )}
               >
                 {/* Comments Header */}
-                <div className="flex justify-between items-center px-6 py-3 border-b border-neutral-900">
+                <div className="flex justify-between items-center px-6 py-3 border-b border-neutral-900 shrink-0">
                   <div className="flex items-center gap-2">
                     <h3 className="font-semibold text-sm">Comments</h3>
                     {commentsData && commentsData.total > 0 && (
@@ -404,14 +561,18 @@ const PhotoCarousel = ({
                     <X size={18} />
                   </Button>
                 </div>
-                {/* Comments Scrollable Area */}
-                <div className="flex-1 overflow-y-auto p-6 custom-scrollbar text-neutral-200 dark pt-4">
+                {/* Comments Content Area */}
+                <div className="flex-1 flex flex-col min-h-0">
                   {showComments && (
                     <CommentsSection
                       photoId={currentPhoto.id}
+                      eventId={currentPhoto.event_id}
                       currentUserId={currentUserId || ""}
                       isOrganizer={userRole === "ORGANIZER"}
                       hideHeader={true}
+                      highlightCommentId={highlightCommentId}
+                      onScroll={handleCommentsScroll}
+                      onFocusInput={() => setIsCommentsExpanded(true)}
                     />
                   )}
                 </div>
@@ -441,7 +602,7 @@ const PhotoCarousel = ({
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
-    </>
+    </TooltipProvider>
   )
 }
 
