@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback, useRef, useMemo } from 'react'
 import { Dialog, DialogContent, DialogClose } from '../../../components/ui/dialog'
 import { Button } from '../../../components/ui/button'
-import { X, CaretLeft, CaretRight, XIcon, Trash, Heart, ChatCircle } from '@phosphor-icons/react'
+import { X, CaretLeft, CaretRight, Trash, Heart, ChatCircle, Keyboard } from '@phosphor-icons/react'
 import { PhotoData } from '../../../features/events/services/photos.api'
 import { CommentsSection } from '../../../features/comments/components/CommentsSection'
 import { useComments } from '../../../features/comments/hooks/useComments'
@@ -16,6 +16,7 @@ import {
   AlertDialogTitle,
 } from "../../../components/ui/alert-dialog"
 import { cn } from '../../../lib/utils'
+import { Tooltip, TooltipTrigger, TooltipContent, TooltipProvider } from '../../../components/ui/tooltip'
 
 interface PhotoCarouselProps {
   open: boolean
@@ -56,12 +57,20 @@ const PhotoCarousel = ({
   const [isLoading, setIsLoading] = useState(false)
   const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false)
   const [showComments, setShowComments] = useState(false)
+  const [showNavHint, setShowNavHint] = useState(false)
   const preloadedRef = useRef<Set<string>>(new Set())
 
-  // Reset showComments when modal closes/opens
+  // Reset showComments and trigger nav hint when modal closes/opens
   useEffect(() => {
     if (!open) {
       setShowComments(false)
+      setShowNavHint(false)
+    } else {
+      setShowNavHint(true)
+      const timer = setTimeout(() => {
+        setShowNavHint(false)
+      }, 4000)
+      return () => clearTimeout(timer)
     }
   }, [open])
 
@@ -132,6 +141,19 @@ const PhotoCarousel = ({
   }, [photos.length])
 
   const handleKeyDown = useCallback((e: KeyboardEvent) => {
+    const activeEl = document.activeElement
+    const isTyping = activeEl && (
+      activeEl.tagName === 'INPUT' ||
+      activeEl.tagName === 'TEXTAREA' ||
+      activeEl.getAttribute('contenteditable') === 'true'
+    )
+    if (isTyping) {
+      if (e.key === 'Escape') {
+        onOpenChange(false)
+      }
+      return
+    }
+
     if (e.key === 'ArrowLeft') {
       goToPrevious()
     } else if (e.key === 'ArrowRight') {
@@ -249,12 +271,29 @@ const PhotoCarousel = ({
   const { data: commentsData } = useComments(open && showComments ? (currentPhoto?.id || '') : '')
 
   return (
-    <>
+    <TooltipProvider>
       <Dialog open={open} onOpenChange={onOpenChange}>
         <DialogContent
           className="w-auto max-w-none sm:max-w-none p-0 bg-black border-0 overflow-hidden transition-[width,height] duration-300 ease-out shadow-2xl gap-0 data-open:animate-in data-closed:animate-out data-closed:fade-out-0 data-open:fade-in-0 data-closed:zoom-out-95 data-open:zoom-in-95 rounded-3xl"
           style={{ width: dialogStyle.width, height: dialogStyle.height }}
           showCloseButton={false}
+          onKeyDown={(e) => {
+            const activeEl = document.activeElement
+            const isTyping = activeEl && (
+              activeEl.tagName === 'INPUT' ||
+              activeEl.tagName === 'TEXTAREA' ||
+              activeEl.getAttribute('contenteditable') === 'true'
+            )
+            if (isTyping) return
+
+            if (e.key === 'ArrowLeft') {
+              goToPrevious()
+              e.preventDefault()
+            } else if (e.key === 'ArrowRight') {
+              goToNext()
+              e.preventDefault()
+            }
+          }}
         >
           {currentPhoto && (
             <div className="relative flex flex-col w-full h-full">
@@ -319,29 +358,46 @@ const PhotoCarousel = ({
                       className="bg-black/40 hover:bg-black/80 hover:text-white backdrop-blur-md text-white px-3 py-1.5 rounded-full border border-white/10 flex items-center justify-center gap-1"
                       onClick={() => onOpenChange(false)}
                     >
-                      <XIcon size={20} weight="bold" />
+                      <X size={20} weight="bold" />
                     </Button>
                   </DialogClose>
                 </div>
 
                 {/* Navigation Controls */}
                 <div className="absolute inset-x-0 top-1/2 -translate-y-1/2 flex justify-between px-4 z-40 pointer-events-none">
-                  <Button
-                    variant="ghost"
-                    size="icon"
-                    className="pointer-events-auto hover:text-white cursor-pointer h-8 w-8 md:h-12 md:w-12 bg-black/60 hover:bg-black/80 text-white border border-white/10 rounded-full transition-colors flex items-center justify-center"
-                    onClick={goToPrevious}
-                  >
-                    <CaretLeft size={28} weight="bold" />
-                  </Button>
-                  <Button
-                    variant="ghost"
-                    size="icon"
-                    className="pointer-events-auto hover:text-white cursor-pointer h-8 w-8 md:h-12 md:w-12 bg-black/60 hover:bg-black/80 text-white border border-white/10 rounded-full transition-colors flex items-center justify-center"
-                    onClick={goToNext}
-                  >
-                    <CaretRight size={28} weight="bold" />
-                  </Button>
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className="pointer-events-auto hover:text-white cursor-pointer h-8 w-8 md:h-12 md:w-12 bg-black/60 hover:bg-black/80 text-white border border-white/10 rounded-full transition-colors flex items-center justify-center"
+                        onClick={goToPrevious}
+                        aria-label="Previous photo"
+                      >
+                        <CaretLeft size={28} weight="bold" />
+                      </Button>
+                    </TooltipTrigger>
+                    <TooltipContent side="right" className="bg-neutral-900 fill-neutral-900 text-white border border-white/10 shadow-2xl">
+                      <span>Previous (←)</span>
+                    </TooltipContent>
+                  </Tooltip>
+
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className="pointer-events-auto hover:text-white cursor-pointer h-8 w-8 md:h-12 md:w-12 bg-black/60 hover:bg-black/80 text-white border border-white/10 rounded-full transition-colors flex items-center justify-center"
+                        onClick={goToNext}
+                        aria-label="Next photo"
+                      >
+                        <CaretRight size={28} weight="bold" />
+                      </Button>
+                    </TooltipTrigger>
+                    <TooltipContent side="left" className="bg-neutral-900 fill-neutral-900 text-white border border-white/10 shadow-2xl">
+                      <span>Next (→)</span>
+                    </TooltipContent>
+                  </Tooltip>
                 </div>
 
                 {/* Image Container */}
@@ -359,6 +415,17 @@ const PhotoCarousel = ({
                       <div className="w-10 h-10 border-3 border-white/20 border-t-white rounded-full animate-spin" />
                     </div>
                   )}
+                </div>
+
+                {/* Keyboard Navigation Hint */}
+                <div 
+                  className={cn(
+                    "absolute bottom-20 left-1/2 -translate-x-1/2 z-50 bg-black/70 backdrop-blur-md border border-white/10 px-4 py-2 rounded-full text-xs text-white/90 flex items-center gap-2 pointer-events-none transition-all duration-500 shadow-lg",
+                    showNavHint ? "opacity-100 translate-y-0 scale-100" : "opacity-0 translate-y-2 scale-95"
+                  )}
+                >
+                  <Keyboard size={16} className="text-sky-400" />
+                  <span>Tip: You can also use ← and → arrow keys to navigate</span>
                 </div>
 
                 {/* Footer Info Overlay */}
@@ -441,7 +508,7 @@ const PhotoCarousel = ({
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
-    </>
+    </TooltipProvider>
   )
 }
 
