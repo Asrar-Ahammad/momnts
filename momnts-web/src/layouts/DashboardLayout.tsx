@@ -5,7 +5,7 @@ import { cn } from '../lib/utils'
 import { ThemeToggle } from '../components/theme-toggle'
 import NotificationsPopover from '../components/NotificationsPopover'
 import { useAuth } from '../features/auth/hooks/useAuth'
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Badge } from '../components/ui/badge'
 
 const DashboardLayout = () => {
@@ -14,6 +14,18 @@ const DashboardLayout = () => {
   const { user } = useAuth()
   const [prevPath, setPrevPath] = useState(location.pathname)
   const [direction, setDirection] = useState(0)
+  const [isSlideshowOpen, setIsSlideshowOpen] = useState(false)
+
+  useEffect(() => {
+    const handleSlideshowChange = (e: Event) => {
+      const customEvent = e as CustomEvent<{ open: boolean }>
+      setIsSlideshowOpen(customEvent.detail.open)
+    }
+    window.addEventListener('slideshow-state-change', handleSlideshowChange)
+    return () => {
+      window.removeEventListener('slideshow-state-change', handleSlideshowChange)
+    }
+  }, [])
 
   const getPathIndex = (path: string) => {
     if (path.startsWith('/dashboard')) return 0
@@ -178,7 +190,14 @@ const DashboardLayout = () => {
       </main>
 
       {/* Mobile Floating Bottom Bar */}
-      <div 
+      <motion.div 
+        initial={{ y: 0, opacity: 1 }}
+        animate={{ 
+          y: isSlideshowOpen ? 120 : 0, 
+          opacity: isSlideshowOpen ? 0 : 1,
+          pointerEvents: isSlideshowOpen ? 'none' : 'auto'
+        }}
+        transition={{ type: 'spring', stiffness: 260, damping: 30 }}
         style={{ 
           bottom: 'calc(1rem + env(safe-area-inset-bottom, 0px))' 
         }}
@@ -210,7 +229,7 @@ const DashboardLayout = () => {
             </button>
           ))}
         </nav>
-      </div>
+      </motion.div>
     </div>
   );
 };

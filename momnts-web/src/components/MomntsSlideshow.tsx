@@ -119,15 +119,18 @@ export const MomntsSlideshow = ({
     }
   }, [currentIndex, photos])
 
-  // Toggle slideshow-active class on body for hiding mobile nav and headers
+  // Toggle slideshow-active class on body and dispatch custom event for hiding mobile nav
   useEffect(() => {
     if (open) {
       document.body.classList.add('slideshow-active')
+      window.dispatchEvent(new CustomEvent('slideshow-state-change', { detail: { open: true } }))
     } else {
       document.body.classList.remove('slideshow-active')
+      window.dispatchEvent(new CustomEvent('slideshow-state-change', { detail: { open: false } }))
     }
     return () => {
       document.body.classList.remove('slideshow-active')
+      window.dispatchEvent(new CustomEvent('slideshow-state-change', { detail: { open: false } }))
     }
   }, [open])
 

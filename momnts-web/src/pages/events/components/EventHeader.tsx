@@ -136,9 +136,19 @@ const EventHeader = ({
   useEffect(() => {
     const handleScroll = (e: Event) => {
       const target = e.target
-      if (!(target instanceof HTMLElement)) return
+      
+      // Only react to the main scroll container (<main> element) or document scroll
+      const isMainScroll = target === document || 
+                           (target instanceof HTMLElement && target.tagName.toLowerCase() === 'main')
 
-      const currentScrollY = target.scrollTop
+      if (!isMainScroll) return
+
+      let currentScrollY = 0
+      if (target instanceof HTMLDocument) {
+        currentScrollY = window.scrollY || document.documentElement.scrollTop
+      } else if (target instanceof HTMLElement) {
+        currentScrollY = target.scrollTop
+      }
 
       // Always show header at the top
       if (currentScrollY < 10) {

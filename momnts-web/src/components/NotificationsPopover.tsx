@@ -30,6 +30,7 @@ const NotificationsPopover = () => {
   const { user } = useAuth()
   const [notifications, setNotifications] = useState<NotificationData[]>([])
   const [unreadCount, setUnreadCount] = useState(0)
+  const [popoverOpen, setPopoverOpen] = useState(false)
   const shownNotificationsRef = useRef<Set<string>>(new Set())
 
   const fetchNotifications = useCallback(async () => {
@@ -74,6 +75,7 @@ const NotificationsPopover = () => {
   })
 
   const handleNotificationClick = async (n: NotificationData) => {
+    setPopoverOpen(false)
     if (!n.is_read) {
       try {
         await notificationsApi.markAsRead(n.id)
@@ -110,7 +112,12 @@ const NotificationsPopover = () => {
   }
 
   return (
-    <Popover onOpenChange={(open) => open && fetchNotifications()}>
+    <Popover open={popoverOpen} onOpenChange={(open) => {
+      setPopoverOpen(open)
+      if (open) {
+        fetchNotifications()
+      }
+    }}>
       <PopoverTrigger asChild>
         <button 
           aria-label={unreadCount > 0 ? `Notifications, ${unreadCount} unread` : "Notifications"}

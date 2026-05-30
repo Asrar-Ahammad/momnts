@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useRef, useEffect } from "react";
 import { ChatCircle, TrashSimple } from "@phosphor-icons/react";
 import { formatDistanceToNow } from "date-fns";
 import { CommentData } from "../services/comments.api";
@@ -20,6 +20,7 @@ interface CommentItemProps {
   photoId: string;
   currentUserId: string;
   isOrganizer: boolean;
+  highlightCommentId?: string;
   onDelete: (commentId: string) => void;
   onReply: (commentId: string, userName: string) => void;
 }
@@ -36,11 +37,24 @@ export function CommentItem({
   photoId,
   currentUserId,
   isOrganizer,
+  highlightCommentId,
   onDelete,
   onReply,
 }: CommentItemProps) {
   const [showReplies, setShowReplies] = useState(true);
   const [, setShowReplyInput] = useState(false); // Declared state as requested
+
+  const ref = useRef<HTMLDivElement>(null);
+  const isHighlighted = comment.id === highlightCommentId;
+
+  useEffect(() => {
+    if (isHighlighted && ref.current) {
+      const timer = setTimeout(() => {
+        ref.current?.scrollIntoView({ behavior: "smooth", block: "center" });
+      }, 300);
+      return () => clearTimeout(timer);
+    }
+  }, [isHighlighted, highlightCommentId]);
 
   const canDelete = currentUserId === comment.user_id || isOrganizer;
   const hasReplies = comment.replies && comment.replies.length > 0;
@@ -51,7 +65,7 @@ export function CommentItem({
   };
 
   return (
-    <div className="mb-4">
+    <div ref={ref} className={`mb-4 rounded-xl p-1.5 transition-all duration-1000 ${isHighlighted ? "bg-amber-500/10 ring-1 ring-amber-500/30" : ""}`}>
       {/* Top section: Main comment itself */}
       <div className="flex gap-2.5 relative group">
         {/* Avatar */}
@@ -105,46 +119,16 @@ export function CommentItem({
               </button>
             )}
 
-            {/* Delete button (if same-row delete layout is preferred/authorized) */}
-            {canDelete && (
-              <AlertDialog>
-                <AlertDialogTrigger asChild>
-                  <button
-                    type="button"
-                    className="text-xs text-neutral-400 hover:text-red-500 transition-colors cursor-pointer"
-                  >
-                    Delete
-                  </button>
-                </AlertDialogTrigger>
-                <AlertDialogContent>
-                  <AlertDialogHeader>
-                    <AlertDialogTitle>Delete Comment</AlertDialogTitle>
-                    <AlertDialogDescription>
-                      Are you sure you want to delete this comment? This action cannot be undone.
-                    </AlertDialogDescription>
-                  </AlertDialogHeader>
-                  <AlertDialogFooter>
-                    <AlertDialogCancel>Cancel</AlertDialogCancel>
-                    <AlertDialogAction 
-                      onClick={() => onDelete(comment.id)}
-                      className="bg-red-600 hover:bg-red-700 text-white"
-                    >
-                      Delete
-                    </AlertDialogAction>
-                  </AlertDialogFooter>
-                </AlertDialogContent>
-              </AlertDialog>
-            )}
           </div>
         </div>
 
-        {/* Alternative Delete Button (top right trash icon matching specs) */}
+        {/* Delete Button (top right trash icon) */}
         {canDelete && (
           <AlertDialog>
             <AlertDialogTrigger asChild>
               <button
                 type="button"
-                className="absolute top-0 right-0 text-neutral-400 hover:text-red-500 transition-colors p-1 cursor-pointer md:block hidden"
+                className="absolute top-0 right-0 text-neutral-400 hover:text-red-500 transition-colors p-1 cursor-pointer"
                 title="Delete comment"
               >
                 <TrashSimple size={14} />
@@ -181,6 +165,7 @@ export function CommentItem({
               photoId={photoId}
               currentUserId={currentUserId}
               isOrganizer={isOrganizer}
+              highlightCommentId={highlightCommentId}
               onDelete={onDelete}
             />
           ))}

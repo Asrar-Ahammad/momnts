@@ -94,12 +94,13 @@ const PhotoGrid = ({
         transition={{ duration: 0.3 }}
         className={`${mobileColClass} sm:columns-2 lg:columns-3 xl:columns-4 gap-3 sm:gap-4 transition-all duration-300`}
       >
-        {photos.map((photo, index) => (
+        {photos.map((photo) => (
           <motion.div 
             key={photo.id} 
+            layout="position"
             initial={{ opacity: 0, scale: 0.95 }}
             animate={{ opacity: 1, scale: 1 }}
-            transition={{ duration: 0.3, delay: Math.min(index * 0.03, 0.6) }}
+            transition={{ duration: 0.3 }}
             className="mb-3 sm:mb-4 break-inside-avoid"
           >
             <PhotoCard

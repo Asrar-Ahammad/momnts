@@ -1,3 +1,4 @@
+import { useRef, useEffect } from "react";
 import { TrashSimple } from "@phosphor-icons/react";
 import { formatDistanceToNow } from "date-fns";
 import { CommentData } from "../services/comments.api";
@@ -18,6 +19,7 @@ interface ReplyItemProps {
   photoId: string;
   currentUserId: string;
   isOrganizer: boolean;
+  highlightCommentId?: string;
   onDelete: (commentId: string) => void;
 }
 
@@ -32,12 +34,24 @@ export function ReplyItem({
   reply,
   currentUserId,
   isOrganizer,
+  highlightCommentId,
   onDelete,
 }: ReplyItemProps) {
   const canDelete = currentUserId === reply.user_id || isOrganizer;
+  const ref = useRef<HTMLDivElement>(null);
+  const isHighlighted = reply.id === highlightCommentId;
+
+  useEffect(() => {
+    if (isHighlighted && ref.current) {
+      const timer = setTimeout(() => {
+        ref.current?.scrollIntoView({ behavior: "smooth", block: "center" });
+      }, 300);
+      return () => clearTimeout(timer);
+    }
+  }, [isHighlighted, highlightCommentId]);
 
   return (
-    <div className="flex gap-2.5 relative group">
+    <div ref={ref} className={`flex gap-2.5 relative group rounded-xl p-1.5 transition-all duration-1000 ${isHighlighted ? "bg-amber-500/10 ring-1 ring-amber-500/30" : ""}`}>
       {/* Avatar */}
       {reply.user?.selfie_url ? (
         <img 
