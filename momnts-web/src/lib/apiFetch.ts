@@ -48,12 +48,16 @@ async function performRefresh(): Promise<boolean> {
   const refreshToken = localStorage.getItem('refreshToken')
   if (!refreshToken) return false
 
+  const controller = new AbortController()
+  const timeoutId = setTimeout(() => controller.abort(), 8000)
+
   try {
     const API_URL = import.meta.env.VITE_SERVER_URL || "http://localhost:3000"
     const response = await fetch(`${API_URL}/api/auth/refresh`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ refreshToken })
+      body: JSON.stringify({ refreshToken }),
+      signal: controller.signal
     })
 
     if (!response.ok) {
@@ -61,12 +65,24 @@ async function performRefresh(): Promise<boolean> {
     }
 
     const data = await response.json()
+    if (
+      !data ||
+      typeof data.accessToken !== 'string' ||
+      data.accessToken.trim().length === 0 ||
+      typeof data.refreshToken !== 'string' ||
+      data.refreshToken.trim().length === 0
+    ) {
+      console.error('Invalid or empty token received from refresh endpoint')
+      return false
+    }
     localStorage.setItem('token', data.accessToken)
     localStorage.setItem('refreshToken', data.refreshToken)
     return true
   } catch (error) {
     console.error('Failed to refresh token:', error)
     return false
+  } finally {
+    clearTimeout(timeoutId)
   }
 }
 
@@ -81,10 +97,12 @@ export async function apiFetch(
   input: RequestInfo | URL,
   init?: RequestInit
 ): Promise<Response> {
-  const response = await fetch(input, init)
+  const isRequest = input instanceof Request
+  const requestForFirstTry = isRequest ? input.clone() : input
+  const response = await fetch(requestForFirstTry, init)
 
   if (response.status === 401) {
-    const url = typeof input === 'string' ? input : input instanceof URL ? input.href : input.url
+    const url = isRequest ? input.url : typeof input === 'string' ? input : input.href
     // Don't intercept login/register/forgot/reset/refresh — those return 401 for bad creds
     const skipPaths = ['/auth/login', '/auth/register', '/auth/forgot-password', '/auth/reset-password', '/auth/refresh']
     const isAuthEndpoint = skipPaths.some(p => url.includes(p))
@@ -117,10 +135,19 @@ export async function apiFetch(
         }
         retryHeaders['Authorization'] = `Bearer ${newToken}`
 
-        return fetch(input, {
-          ...init,
-          headers: retryHeaders
-        })
+        if (isRequest) {
+          const newRequest = input.clone()
+          newRequest.headers.set('Authorization', `Bearer ${newToken}`)
+          return fetch(newRequest, {
+            ...init,
+            headers: retryHeaders
+          })
+        } else {
+          return fetch(input, {
+            ...init,
+            headers: retryHeaders
+          })
+        }
       } else {
         fireSessionExpired()
       }

@@ -321,6 +321,7 @@ const EventDetails = () => {
           newParams.delete('photoId')
           newParams.delete('commentId')
           setSearchParams(newParams, { replace: true })
+          lastInvalidatedPhotoIdRef.current = null
         }
       }
     }
@@ -735,6 +736,7 @@ const EventDetails = () => {
           setCarouselOpen(isOpen)
           if (!isOpen) {
             setHighlightCommentId(undefined)
+            lastInvalidatedPhotoIdRef.current = null
           }
         }}
         photos={filteredPhotos}

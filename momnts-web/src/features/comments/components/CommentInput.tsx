@@ -79,10 +79,10 @@ export function CommentInput({
     };
   };
 
-  const handleTextChangeOrCursorMove = (val: string, cursorIndex: number) => {
+  const handleTextChangeOrCursorMove = (val: string, cursorIndex: number, preserveIndex = false) => {
     const state = getMentionQuery(val, cursorIndex);
     setMentionState(state);
-    if (state) {
+    if (state && !preserveIndex) {
       setActiveSuggestionIndex(0);
     }
   };
@@ -95,7 +95,8 @@ export function CommentInput({
 
   const handleKeyUp = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
     if (["ArrowLeft", "ArrowRight", "ArrowUp", "ArrowDown", "Home", "End"].includes(e.key)) {
-      handleTextChangeOrCursorMove(text, e.currentTarget.selectionStart);
+      const preserveIndex = ["ArrowUp", "ArrowDown"].includes(e.key);
+      handleTextChangeOrCursorMove(text, e.currentTarget.selectionStart, preserveIndex);
     }
   };
 
