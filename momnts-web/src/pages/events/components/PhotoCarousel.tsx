@@ -246,7 +246,7 @@ const PhotoCarousel = ({
     onOpenChange(false)
   }
 
-  const { data: commentsData } = useComments(currentPhoto?.id || '')
+  const { data: commentsData } = useComments(open && showComments ? (currentPhoto?.id || '') : '')
 
   return (
     <>

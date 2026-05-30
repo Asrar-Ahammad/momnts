@@ -77,7 +77,8 @@ export async function addCommentController(req: AuthRequest, res: Response) {
     }
 
     const { photoId } = req.params as { photoId: string };
-    const { text, parent_id } = req.body;
+    const { text, parent_id: rawParentId } = req.body;
+    const parent_id = typeof rawParentId === "string" && rawParentId.trim() !== "" ? rawParentId : null;
 
     const photo = await prisma.photo.findUnique({
       where: { id: photoId },
@@ -131,7 +132,7 @@ export async function addCommentController(req: AuthRequest, res: Response) {
         photo_id: photoId,
         user_id: req.user.id,
         text: text.trim(),
-        parent_id: parent_id ?? null,
+        parent_id: parent_id,
       },
       include: {
         user: { select: { id: true, name: true, selfie_url: true } },

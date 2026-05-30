@@ -43,7 +43,7 @@ const PhotoCard = ({
   useEffect(() => {
     setImageLoaded(false)
     setImageError(false)
-  }, [photo.id])
+  }, [photo.id, photo.thumb_url])
 
   useEffect(() => {
     const observer = new IntersectionObserver(

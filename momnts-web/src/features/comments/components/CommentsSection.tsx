@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { ChatCircleDots, WarningCircle } from "@phosphor-icons/react";
 import { useComments, useDeleteComment } from "../hooks/useComments";
 import { CommentItem } from "./CommentItem";
@@ -20,6 +20,11 @@ export function CommentsSection({
   hideHeader = false,
 }: CommentsSectionProps) {
   const [replyTarget, setReplyTarget] = useState<{ commentId: string; userName: string } | null>(null);
+
+  // Reset reply target when changing photos
+  useEffect(() => {
+    setReplyTarget(null);
+  }, [photoId]);
 
   const { data, isLoading, error } = useComments(photoId);
   const deleteCommentMutation = useDeleteComment(photoId);

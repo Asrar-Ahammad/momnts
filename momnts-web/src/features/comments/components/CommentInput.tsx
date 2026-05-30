@@ -42,11 +42,12 @@ export function CommentInput({
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!text.trim() || text.length > 500 || addCommentMutation.isPending) return;
+    const trimmedText = text.trim();
+    if (!trimmedText || text.length > 500 || addCommentMutation.isPending) return;
 
     try {
       await addCommentMutation.mutateAsync({
-        text,
+        text: trimmedText,
         parent_id: parentId,
       });
       setText("");

@@ -10,11 +10,27 @@ const AUTH_EXPIRED_EVENT = 'auth:session-expired'
 /** Dispatch once — debounced so parallel 401s don't fire multiple times */
 let expiredFired = false
 
+export async function clearLocalSessionData(): Promise<void> {
+  localStorage.removeItem('token')
+  localStorage.removeItem('refreshToken')
+  if (typeof window !== 'undefined' && 'caches' in window) {
+    try {
+      const keys = await caches.keys()
+      await Promise.all(
+        keys
+          .filter(key => key.startsWith('momnts-') && !key.includes('fonts'))
+          .map(key => caches.delete(key))
+      )
+    } catch (error) {
+      console.error('Failed to clear caches on session cleanup:', error)
+    }
+  }
+}
+
 function fireSessionExpired() {
   if (expiredFired) return
   expiredFired = true
-  localStorage.removeItem('token')
-  localStorage.removeItem('refreshToken')
+  clearLocalSessionData().catch((err) => console.error(err))
   window.dispatchEvent(new CustomEvent(AUTH_EXPIRED_EVENT))
   // Reset after a tick so future expirations (e.g. user logs back in) work
   setTimeout(() => { expiredFired = false }, 500)
