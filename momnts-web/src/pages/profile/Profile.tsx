@@ -55,6 +55,8 @@ const Profile = () => {
 
   // Password reset modal
   const [isChangePasswordModalOpen, setIsChangePasswordModalOpen] = useState(false)
+  const [isWarningModalOpen, setIsWarningModalOpen] = useState(false)
+  const [isSendingChangeOtp, setIsSendingChangeOtp] = useState(false)
 
   // Email verification state
   const [isSendingOtp, setIsSendingOtp] = useState(false)
@@ -102,6 +104,20 @@ const Profile = () => {
     } finally {
       isSendingOtpRef.current = false
       setIsSendingOtp(false)
+    }
+  }
+
+  const handleConfirmWarning = async () => {
+    try {
+      setIsSendingChangeOtp(true)
+      await authApi.sendChangePasswordOtp()
+      toast.success("Verification code sent to your email")
+      setIsWarningModalOpen(false)
+      setIsChangePasswordModalOpen(true)
+    } catch (error: any) {
+      toast.error(error.message || "Failed to send verification code")
+    } finally {
+      setIsSendingChangeOtp(false)
     }
   }
 
@@ -442,7 +458,7 @@ const Profile = () => {
                     <p className="text-xs font-bold text-neutral-400 dark:text-neutral-500 uppercase tracking-widest mb-1 select-none">Password</p>
                     <p className="text-lg font-semibold text-neutral-900 dark:text-neutral-100 break-words">••••••••</p>
                   </div>
-                  <Button variant="outline" size="sm" onClick={() => setIsChangePasswordModalOpen(true)} className="rounded-xl font-semibold border-neutral-200 dark:border-neutral-800 hover:bg-neutral-100 dark:hover:bg-neutral-800">
+                  <Button variant="outline" size="sm" onClick={() => setIsWarningModalOpen(true)} className="rounded-xl font-semibold border-neutral-200 dark:border-neutral-800 hover:bg-neutral-100 dark:hover:bg-neutral-800">
                     Change
                   </Button>
                 </div>
@@ -541,7 +557,29 @@ const Profile = () => {
         onOpenChange={setIsUploadModalOpen}
         onImageSelected={handleImageSelected}
       />
-      <ChangePasswordModal open={isChangePasswordModalOpen} onOpenChange={setIsChangePasswordModalOpen} />
+      <ChangePasswordModal open={isChangePasswordModalOpen} onOpenChange={setIsChangePasswordModalOpen} initialStep={2} />
+
+      <AlertDialog open={isWarningModalOpen} onOpenChange={setIsWarningModalOpen}>
+        <AlertDialogContent className="rounded-3xl border-neutral-200 dark:border-neutral-800">
+          <AlertDialogHeader>
+            <AlertDialogTitle>Reset Password Warning</AlertDialogTitle>
+            <AlertDialogDescription>
+              Resetting your password will invalidate all active sessions and log you out of all devices, including this one. You will need to log back in with your new password.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel variant="outline" className="rounded-2xl" disabled={isSendingChangeOtp}>Cancel</AlertDialogCancel>
+            <Button 
+              onClick={handleConfirmWarning} 
+              disabled={isSendingChangeOtp}
+              className="bg-amber-600 hover:bg-amber-700 text-white rounded-2xl font-bold cursor-pointer"
+            >
+              {isSendingChangeOtp ? <CircleNotch size={18} className="animate-spin mr-2" /> : null}
+              {isSendingChangeOtp ? "Sending Code..." : "Confirm & Send Code"}
+            </Button>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   )
 }

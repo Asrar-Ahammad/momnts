@@ -97,7 +97,7 @@ export default defineConfig({
               },
             },
           },
-          // Cache images from S3/CDN (photo thumbnails, display images)
+          // Cache images from R2/CDN (photo thumbnails, display images)
           {
             urlPattern: /\.(?:png|jpg|jpeg|webp|gif|svg)$/i,
             handler: 'CacheFirst',

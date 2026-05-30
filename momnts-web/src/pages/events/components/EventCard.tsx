@@ -166,7 +166,7 @@ export const EventCard = ({ event }: EventCardProps) => {
           <div className="flex items-center justify-between pt-4 border-t border-white/20">
             <div className="flex items-center gap-2">
               <div className="flex -space-x-2.5">
-                {event.event_access?.map((access) => (
+                {event.event_access?.slice(0, 3).map((access) => (
                   <div key={access.user.id} className="relative">
                     <div className="w-8 h-8 rounded-full border-2 border-neutral-900 bg-neutral-800 flex items-center justify-center overflow-hidden shadow-sm">
                       {access.user.selfie_url ? (
@@ -183,9 +183,9 @@ export const EventCard = ({ event }: EventCardProps) => {
                     </div>
                   </div>
                 ))}
-                {event._count?.event_access > (event.event_access?.length || 0) && (
+                {(event._count?.event_access || event.event_access?.length || 0) > 3 && (
                   <div className="w-8 h-8 rounded-full border-2 border-neutral-900 bg-neutral-800 flex items-center justify-center text-[10px] font-bold text-neutral-400 shadow-sm">
-                    +{event._count.event_access - (event.event_access?.length || 0)}
+                    +{(event._count?.event_access || event.event_access?.length || 0) - Math.min(3, event.event_access?.length || 0)}
                   </div>
                 )}
               </div>

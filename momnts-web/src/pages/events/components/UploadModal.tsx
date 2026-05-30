@@ -101,7 +101,7 @@ const UploadModal = ({
           </label>
 
           {selectedFiles.length > 0 && (
-            <div className="mt-4 max-h-40 overflow-y-auto space-y-2">
+            <div className="mt-4 max-h-40 overflow-y-auto w-full overflow-x-hidden space-y-2">
               {selectedFiles.map((file, index) => {
                 const status = fileStatuses[index] || 'pending'
                 return (
@@ -137,8 +137,17 @@ const UploadModal = ({
         </div>
 
         {uploading && (
-          <div className="py-2 text-sm text-neutral-600 dark:text-neutral-400">
-            Uploading photos...
+          <div className="space-y-2 py-2">
+            <div className="flex justify-between text-xs font-semibold text-neutral-600 dark:text-neutral-400">
+              <span>Uploading: {fileStatuses.filter(s => s === 'completed').length} / {selectedFiles.length} completed</span>
+              <span>{selectedFiles.length > 0 ? Math.round((fileStatuses.filter(s => s === 'completed').length / selectedFiles.length) * 100) : 0}%</span>
+            </div>
+            <div className="w-full bg-neutral-100 dark:bg-neutral-800 rounded-full h-2 overflow-hidden">
+              <div 
+                className="bg-neutral-900 dark:bg-white h-full rounded-full transition-all duration-300"
+                style={{ width: `${selectedFiles.length > 0 ? (fileStatuses.filter(s => s === 'completed').length / selectedFiles.length) * 100 : 0}%` }}
+              />
+            </div>
           </div>
         )}
 

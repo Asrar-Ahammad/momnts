@@ -21,10 +21,45 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
 
   useEffect(() => {
     const checkAuth = async () => {
+      const token = localStorage.getItem('token');
+
+      const isTokenExpired = (tok: string | null): boolean => {
+        if (!tok) return true;
+        try {
+          const parts = tok.split('.');
+          if (parts.length !== 3) return true;
+          const base64Url = parts[1];
+          const base64 = base64Url.replace(/-/g, '+').replace(/_/g, '/');
+          const jsonPayload = decodeURIComponent(
+            window.atob(base64)
+              .split('')
+              .map((c) => '%' + ('00' + c.charCodeAt(0).toString(16)).slice(-2))
+              .join('')
+          );
+          const payload = JSON.parse(jsonPayload);
+          if (typeof payload.exp === 'number') {
+            return payload.exp < Math.floor(Date.now() / 1000);
+          }
+          return false;
+        } catch {
+          return true;
+        }
+      };
+
+      if (!token || isTokenExpired(token)) {
+        localStorage.removeItem('token');
+        localStorage.removeItem('refreshToken');
+        setUser(null);
+        setLoading(false);
+        return;
+      }
+
       try {
         const userData = await authApi.getMe();
         setUser(userData);
       } catch {
+        localStorage.removeItem('token');
+        localStorage.removeItem('refreshToken');
         setUser(null);
       } finally {
         setLoading(false);

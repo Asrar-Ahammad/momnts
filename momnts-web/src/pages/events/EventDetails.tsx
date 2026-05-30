@@ -74,14 +74,41 @@ const EventDetails = () => {
   useEventSocket({
     eventId,
     onPhotoProcessed: useCallback((data) => {
-      // Update the photo's processed flag in the query cache
+      // Update the photo's processed flag and URLs in the query cache
       queryClient.setQueryData<PhotoData[]>(["photos", eventId], (prev) =>
         prev?.map((p) =>
           p.id === data.photoId
-            ? { ...p, processed: true, _count: { photo_faces: data.totalFaces } }
+            ? {
+                ...p,
+                processed: true,
+                thumb_url: data.photo.thumb_url,
+                display_url: data.photo.display_url,
+                original_url: data.photo.original_url,
+                _count: { photo_faces: data.totalFaces },
+              }
             : p
         )
       )
+
+      // Update the photo's processed flag and URLs in the my-photos query cache
+      queryClient.setQueryData<{ data: PhotoData[]; prompt?: string; face_profile_id?: string }>(["my-photos", eventId], (prev) => {
+        if (!prev) return prev
+        return {
+          ...prev,
+          data: prev.data.map((p) =>
+            p.id === data.photoId
+              ? {
+                  ...p,
+                  processed: true,
+                  thumb_url: data.photo.thumb_url,
+                  display_url: data.photo.display_url,
+                  original_url: data.photo.original_url,
+                  _count: { photo_faces: data.totalFaces },
+                }
+              : p
+          )
+        }
+      })
 
       if (data.totalFaces > 0) {
         toast.info(`${data.totalFaces} face(s) detected in a photo`, {
