@@ -104,7 +104,7 @@ const DashboardLayout = () => {
             >
               Momnts
             </Link>
-            <Badge variant="secondary" className='ml-2 select-none text-gray-400'>v 1.0</Badge>
+            <Badge variant="secondary" className='ml-2 select-none text-neutral-600 dark:text-neutral-300'>v 1.0</Badge>
           </div>
 
           {/* Center: Desktop Navigation Pill */}
