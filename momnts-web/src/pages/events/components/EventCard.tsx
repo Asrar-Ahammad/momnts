@@ -40,7 +40,7 @@ export const EventCard = ({ event }: EventCardProps) => {
     }
   }
 
-  const initialCover = (event as any).cover_url || (event as any).photos?.[0]?.url || (event as any).cover_image;
+  const initialCover = (event as any).cover_url || (event as any).photos?.[0]?.thumb_url || (event as any).photos?.[0]?.url || (event as any).cover_image;
   const [coverPhoto, setCoverPhoto] = React.useState<string | null>(initialCover || null);
 
   React.useEffect(() => {
@@ -51,7 +51,7 @@ export const EventCard = ({ event }: EventCardProps) => {
           if (!mounted) return;
           if (photos && photos.length > 0) {
             const photo = photos.find(p => p.is_visible) || photos[0];
-            setCoverPhoto(photo.display_url || photo.thumb_url || photo.original_url);
+            setCoverPhoto(photo.thumb_url || photo.display_url || photo.original_url);
           }
         })
         .catch((err) => {
@@ -69,7 +69,7 @@ export const EventCard = ({ event }: EventCardProps) => {
       tabIndex={0}
       role="button"
       aria-label={`View details for event: ${event.name}`}
-      className="group cursor-pointer w-full relative rounded-[32px] overflow-hidden shadow-sm hover:shadow-2xl border border-neutral-100 dark:border-neutral-800 transition-all duration-500 focus:outline-none focus:ring-2 focus:ring-neutral-400 dark:focus:ring-neutral-500 aspect-[4/5] sm:aspect-video"
+      className="group cursor-pointer w-full relative rounded-[32px] overflow-hidden shadow-sm hover:shadow-2xl border border-neutral-100 dark:border-neutral-800 transition-[box-shadow,border-color] duration-300 focus:outline-none focus:ring-2 focus:ring-neutral-400 dark:focus:ring-neutral-500 aspect-[4/5] sm:aspect-video"
     >
       {/* Background Section */}
       <div className="absolute inset-0 z-0">
@@ -77,6 +77,7 @@ export const EventCard = ({ event }: EventCardProps) => {
           <img 
             src={coverPhoto} 
             alt={event.name} 
+            loading="lazy"
             className="absolute inset-0 w-full h-full object-cover transition-transform duration-700 group-hover:scale-110"
           />
         ) : (
@@ -149,16 +150,6 @@ export const EventCard = ({ event }: EventCardProps) => {
                 </div>
                 <CalendarDots size={14} weight="bold" className="text-white sm:hidden order-first" />
               </div>
-              {/* Optional: Show photo count if available */}
-              {event._count?.photos > 0 && (
-                <div className="flex items-center gap-2 text-neutral-200 text-xs sm:text-sm font-medium">
-                  <span>{event._count.photos} {event._count.photos === 1 ? 'Photo' : 'Photos'}</span>
-                  <div className="p-1 sm:p-1.5 rounded-lg bg-white/10 backdrop-blur-sm hidden sm:block">
-                    <ImageIcon size={14} weight="bold" className="text-white" />
-                  </div>
-                  <ImageIcon size={14} weight="bold" className="text-white sm:hidden order-first" />
-                </div>
-              )}
             </div>
         </div>
 
@@ -173,6 +164,7 @@ export const EventCard = ({ event }: EventCardProps) => {
                         <img 
                           src={access.user.selfie_url} 
                           alt={access.user.name} 
+                          loading="lazy"
                           className="w-full h-full object-cover transition-transform duration-300 group-hover:scale-110" 
                         />
                       ) : (

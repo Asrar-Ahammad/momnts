@@ -51,6 +51,7 @@ import {
   Columns,
   SquaresFour,
   DotsThree,
+  MusicNotes,
 } from '@phosphor-icons/react'
 import { EventData } from '../../../features/events/services/events.api'
 import { toast } from 'sonner'
@@ -82,6 +83,7 @@ interface EventHeaderProps {
   favouritesCount?: number
   galleryColumns?: GalleryColumns
   onGalleryColumnsChange?: (cols: GalleryColumns) => void
+  onMemoryLaneClick?: () => void
 }
 
 const EventHeader = ({
@@ -105,7 +107,8 @@ const EventHeader = ({
   onDownloadFavourites,
   favouritesCount = 0,
   galleryColumns = 1,
-  onGalleryColumnsChange
+  onGalleryColumnsChange,
+  onMemoryLaneClick
 }: EventHeaderProps) => {
   const [showLeaveConfirm, setShowLeaveConfirm] = useState(false)
   const [leaving, setLeaving] = useState(false)
@@ -590,7 +593,17 @@ const EventHeader = ({
                   )}
 
                   {/* CTA button */}
-                  <motion.div layout className="flex-none order-1 sm:order-none ml-12 sm:ml-0">
+                  <motion.div layout className="flex-none order-1 sm:order-none ml-12 sm:ml-0 flex items-center gap-2">
+                    {event && event._count.photos >= 5 && (
+                      <Button
+                        variant="outline"
+                        className="h-10 px-4 sm:px-6 flex items-center justify-center gap-2 rounded-xl border-neutral-200 dark:border-neutral-800 hover:bg-neutral-100 dark:hover:bg-neutral-850 cursor-pointer text-sm font-semibold transition-colors"
+                        onClick={onMemoryLaneClick}
+                      >
+                        <MusicNotes size={18} weight="bold" className="text-rose-500" />
+                        <span>Memory Lane</span>
+                      </Button>
+                    )}
                     {renderCTA(false)}
                   </motion.div>
                 </motion.div>

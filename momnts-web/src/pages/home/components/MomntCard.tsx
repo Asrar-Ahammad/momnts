@@ -1,10 +1,6 @@
-import { useState, useEffect } from 'react'
 import { motion } from 'framer-motion'
 import { cn } from '../../../lib/utils'
-import { photosApi } from '../../../features/events/services/photos.api'
 import { EventData } from '../../../features/events/services/events.api'
-import { Badge } from '../../../components/ui/badge'
-import { ImagesSquareIcon } from '@phosphor-icons/react'
 import { toast } from 'sonner'
 
 const momntThemes = [
@@ -29,33 +25,10 @@ interface MomntCardProps {
 }
 
 export const MomntCard = ({ event, onClick }: MomntCardProps) => {
-  const [coverPhoto, setCoverPhoto] = useState<string | null>(null)
-  const [photoCount, setPhotoCount] = useState<number | null>(null)
+  const photoCount = event._count?.photos || 0
+  const coverPhoto = event.photos?.[0]?.thumb_url || event.photos?.[0]?.display_url || null
 
-  useEffect(() => {
-    let active = true
-    const loadCover = async () => {
-      try {
-        const photos = await photosApi.getEventPhotos(event.id)
-        if (active) {
-          setPhotoCount(photos.length)
-          if (photos.length > 0) {
-            const processed = photos.filter((p) => p.processed && p.is_visible)
-            const chosen = processed.length > 0 ? processed[0] : photos[0]
-            setCoverPhoto(chosen.display_url)
-          }
-        }
-      } catch (err) {
-        console.error('Failed to load cover for event card', err)
-      }
-    }
-    loadCover()
-    return () => {
-      active = false
-    }
-  }, [event.id])
-
-  if (photoCount === null || photoCount === 0) {
+  if (photoCount === 0) {
     return null
   }
 
@@ -75,7 +48,7 @@ export const MomntCard = ({ event, onClick }: MomntCardProps) => {
       transition={{ type: 'spring', stiffness: 300, damping: 20 }}
       onClick={handleCardClick}
       className={cn(
-        "shrink-0 w-48 h-72 rounded-2xl relative overflow-hidden shadow-md hover:shadow-xl border border-neutral-200/10 cursor-pointer snap-start flex flex-col justify-between p-5 text-white select-none group transition-all",
+        "shrink-0 w-48 h-72 rounded-2xl relative overflow-hidden shadow-md hover:shadow-xl border border-neutral-200/10 cursor-pointer flex flex-col justify-between p-5 text-white select-none group transition-all",
         coverPhoto ? "bg-neutral-900" : theme.bg
       )}
     >
@@ -84,6 +57,7 @@ export const MomntCard = ({ event, onClick }: MomntCardProps) => {
         <img
           src={coverPhoto}
           alt={event.name}
+          loading="lazy"
           className="absolute inset-0 w-full h-full object-cover group-hover:scale-105 transition-transform duration-700 pointer-events-none"
         />
       )}
@@ -105,12 +79,6 @@ export const MomntCard = ({ event, onClick }: MomntCardProps) => {
 
       {/* Top content: role and photo count pill */}
       <div className="flex justify-between items-start z-10">
-        {/* <Badge className="text-[9px] h-auto font-extrabold uppercase tracking-widest bg-black/35 text-white hover:bg-black/45 border border-white/10 rounded-full px-2 py-1">
-          {event.user_role === 'ORGANIZER' ? 'Organizer' : 'Attendee'}
-        </Badge>
-        <Badge className="text-[9px] h-auto font-bold bg-black/35 text-white hover:bg-black/45 border border-white/10 rounded-full px-2.5 py-1 flex items-center gap-1 shadow-sm">
-          <ImagesSquareIcon/> {photoCount}
-        </Badge> */}
       </div>
 
       {/* Bottom content: name */}

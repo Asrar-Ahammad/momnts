@@ -79,31 +79,15 @@ export const SlideshowControls = ({
       <div className="flex flex-col md:flex-row items-center justify-between gap-3 md:gap-4 pt-2 border-t border-white/5 w-full">
 
         {/* Left side: Position indicator & options */}
-        <div className="flex items-center justify-center md:justify-start gap-3 md:gap-4 w-full md:w-auto">
+        <div className="flex items-center justify-center md:justify-start gap-3 md:gap-4 w-full md:flex-1">
           <div className="bg-white/5 border border-white/10 rounded-full px-2.5 py-1 md:px-3 md:py-1.5 text-[10px] md:text-[11px] text-white font-mono tracking-wider">
             {currentIndex + 1} / {photos.length}
           </div>
-          <button
-            onClick={() => {
-              setShowThumbnails((prev) => !prev)
-              resetControlsTimer()
-            }}
-            className="flex items-center gap-1.5 px-2.5 py-1 md:px-3 md:py-1.5 bg-white/5 hover:bg-white/10 border border-white/10 hover:border-white/20 rounded-full transition-all cursor-pointer text-white text-[11px]"
-            title={showThumbnails ? "Hide Thumbnails" : "Show Thumbnails"}
-          >
-            <SquaresFour size={14} weight={showThumbnails ? "fill" : "regular"} />
-            <CaretDown
-              size={11}
-              className={cn(
-                "transition-transform duration-300",
-                showThumbnails ? "rotate-180 text-white" : "text-neutral-400"
-              )}
-            />
-          </button>
+          
         </div>
 
         {/* Center Side: Media & Slideshow controls */}
-        <div className="flex items-center justify-center gap-4 md:gap-5 w-full md:w-auto">
+        <div className="flex items-center justify-center gap-4 md:gap-5 w-full md:w-auto shrink-0">
           {/* Play/Pause Slideshow */}
           <button
             onClick={() => {
@@ -139,10 +123,28 @@ export const SlideshowControls = ({
               </SelectGroup>
             </SelectContent>
           </Select>
+
+          <button
+            onClick={() => {
+              setShowThumbnails((prev) => !prev)
+              resetControlsTimer()
+            }}
+            className="flex items-center gap-1.5 px-2.5 py-1 md:px-3 md:py-1.5 bg-white/5 hover:bg-white/10 border border-white/10 hover:border-white/20 rounded-full transition-all cursor-pointer text-white text-[11px]"
+            title={showThumbnails ? "Hide Thumbnails" : "Show Thumbnails"}
+          >
+            <SquaresFour size={14} weight={showThumbnails ? "fill" : "regular"} />
+            <CaretDown
+              size={11}
+              className={cn(
+                "transition-transform duration-300",
+                showThumbnails ? "rotate-180 text-white" : "text-neutral-400"
+              )}
+            />
+          </button>
         </div>
 
         {/* Right Side: Background Music controls & visualizer */}
-        <div className="flex items-center justify-center md:justify-end gap-3 md:gap-4 w-full md:w-auto">
+        <div className="flex items-center justify-center md:justify-end gap-3 md:gap-4 w-full md:flex-1">
 
           {/* CSS Dancing Visualizer bar graphic */}
           <div className="flex items-end gap-[3px] h-6 px-1" title="Audio Visualizer">

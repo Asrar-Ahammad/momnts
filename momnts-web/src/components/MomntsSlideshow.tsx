@@ -66,6 +66,15 @@ export const MomntsSlideshow = ({
   const controlsTimeoutRef = useRef<number | null>(null)
   const slideshowIntervalRef = useRef<number | null>(null)
 
+  // Unmount cleanup to stop music playback (e.g. back button navigation)
+  useEffect(() => {
+    return () => {
+      if (audioRef.current) {
+        audioRef.current.pause()
+      }
+    }
+  }, [])
+
   // Initialize and load photos
   useEffect(() => {
     if (!open || !eventId) return
@@ -375,7 +384,7 @@ export const MomntsSlideshow = ({
                 className="p-3 bg-black/40 hover:bg-white/10 hover:text-white text-white border border-white/10 rounded-full transition-all duration-300 ease-in-out group cursor-pointer"
                 aria-label="Exit Slideshow"
               >
-                <X size={20} className="group-hover:text-white text-white/40 transition-all duration-300 ease-in-out" />
+                <X size={20} className="group-hover:text-white text-white/80 transition-all duration-300 ease-in-out" />
               </button>
             </motion.div>
 

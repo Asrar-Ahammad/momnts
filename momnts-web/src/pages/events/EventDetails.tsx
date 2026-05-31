@@ -13,6 +13,7 @@ import { useEventSocket } from '../../hooks/useEventSocket'
 import EventHeader from './components/EventHeader'
 import { useQueryClient } from '@tanstack/react-query'
 import { useEventDetails, useEventPhotos, useMyPhotos, useEventAttendees } from '../../features/events/hooks/useEvents'
+import { MomntsSlideshow } from '../../components/MomntsSlideshow'
 import PhotoGrid from './components/PhotoGrid'
 import UploadModal, { FileUploadStatus } from './components/UploadModal'
 import EventSettingsModal from './components/EventSettingsModal'
@@ -40,6 +41,7 @@ const EventDetails = () => {
 
   const [uploadModalOpen, setUploadModalOpen] = useState(false)
   const [uploading, setUploading] = useState(false)
+  const [slideshowOpen, setSlideshowOpen] = useState(false)
   const [selectedFiles, setSelectedFiles] = useState<File[]>([])
   const [inviteCodeCopied, setInviteCodeCopied] = useState(false)
   const [settingsModalOpen, setSettingsModalOpen] = useState(false)
@@ -629,6 +631,7 @@ const EventDetails = () => {
         favouritesCount={favouritePhotoIds.size}
         galleryColumns={galleryColumns}
         onGalleryColumnsChange={handleGalleryColumnsChange}
+        onMemoryLaneClick={() => setSlideshowOpen(true)}
       />
 
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
@@ -770,6 +773,17 @@ const EventDetails = () => {
           </motion.div>
         )}
       </AnimatePresence>
+
+      {event && (
+        <MomntsSlideshow
+          open={slideshowOpen}
+          onOpenChange={setSlideshowOpen}
+          eventId={event.id}
+          eventName={event.name}
+          eventLocation={event.location}
+          eventDate={event.date}
+        />
+      )}
     </div>
   )
 }

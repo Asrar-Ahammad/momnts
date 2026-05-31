@@ -124,7 +124,7 @@ const Home = () => {
             <Button
               size="sm"
               className="mt-3 bg-amber-600 hover:bg-amber-700 text-white rounded-lg"
-              onClick={() => navigate('/onboarding')}
+              onClick={() => navigate('/profile')}
             >
               Upload Selfie
             </Button>
@@ -173,7 +173,7 @@ const Home = () => {
             <Skeleton className="h-72 w-48 rounded-2xl shrink-0 bg-neutral-200 dark:bg-neutral-800" />
           </div>
         ) : events.length > 0 ? (
-          <div className="flex gap-6 overflow-x-auto scrollbar-hide py-2 px-1 scroll-smooth snap-x">
+          <div className="flex gap-6 overflow-x-auto scrollbar-hide py-2 px-1 scroll-smooth">
             {events.map((event) => (
               <MomntCard
                 key={event.id}

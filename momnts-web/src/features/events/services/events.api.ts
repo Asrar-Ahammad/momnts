@@ -26,6 +26,10 @@ export interface EventData {
     }
     role: string
   }[]
+  photos?: {
+    thumb_url: string
+    display_url: string
+  }[]
 }
 
 export interface EventsResponse {

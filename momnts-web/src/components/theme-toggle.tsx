@@ -1,5 +1,6 @@
 import { Moon, Sun } from "@phosphor-icons/react";
 import { useTheme } from "next-themes";
+import { flushSync } from "react-dom";
 
 import { Button } from "@/components/ui/button";
 import {
@@ -10,7 +11,48 @@ import {
 } from "@/components/ui/dropdown-menu";
 
 export function ThemeToggle() {
-  const { setTheme } = useTheme();
+  const { theme, setTheme } = useTheme();
+
+  const handleThemeChange = (newTheme: string, e: React.MouseEvent) => {
+    const doc = document as any;
+    if (
+      !doc.startViewTransition ||
+      window.matchMedia("(prefers-reduced-motion: reduce)").matches
+    ) {
+      setTheme(newTheme);
+      return;
+    }
+
+    const x = e.clientX || window.innerWidth / 2;
+    const y = e.clientY || window.innerHeight / 2;
+
+    const transition = doc.startViewTransition(() => {
+      flushSync(() => {
+        setTheme(newTheme);
+      });
+    });
+
+    transition.ready.then(() => {
+      const radius = Math.hypot(
+        Math.max(x, window.innerWidth - x),
+        Math.max(y, window.innerHeight - y)
+      );
+
+      document.documentElement.animate(
+        {
+          clipPath: [
+            `circle(0px at ${x}px ${y}px)`,
+            `circle(${radius}px at ${x}px ${y}px)`,
+          ],
+        },
+        {
+          duration: 500,
+          easing: "ease-in-out",
+          pseudoElement: "::view-transition-new(root)",
+        }
+      );
+    });
+  };
 
   return (
     <DropdownMenu>
@@ -21,15 +63,18 @@ export function ThemeToggle() {
           <span className="sr-only">Toggle theme</span>
         </Button>
       </DropdownMenuTrigger>
-      <DropdownMenuContent align="end">
-        <DropdownMenuItem onClick={() => setTheme("light")}>
-          Light
+      <DropdownMenuContent align="end" className="min-w-[8rem]">
+        <DropdownMenuItem onClick={(e) => handleThemeChange("light", e)} className="flex items-center justify-between cursor-pointer">
+          <span>Light</span>
+          {theme === "light" && <span className="w-1.5 h-1.5 rounded-full bg-current" />}
         </DropdownMenuItem>
-        <DropdownMenuItem onClick={() => setTheme("dark")}>
-          Dark
+        <DropdownMenuItem onClick={(e) => handleThemeChange("dark", e)} className="flex items-center justify-between cursor-pointer">
+          <span>Dark</span>
+          {theme === "dark" && <span className="w-1.5 h-1.5 rounded-full bg-current" />}
         </DropdownMenuItem>
-        <DropdownMenuItem onClick={() => setTheme("system")}>
-          System
+        <DropdownMenuItem onClick={(e) => handleThemeChange("system", e)} className="flex items-center justify-between cursor-pointer">
+          <span>System</span>
+          {theme === "system" && <span className="w-1.5 h-1.5 rounded-full bg-current" />}
         </DropdownMenuItem>
       </DropdownMenuContent>
     </DropdownMenu>

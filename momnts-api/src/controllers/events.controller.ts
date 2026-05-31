@@ -141,6 +141,14 @@ async function getEventDetailsController(req: AuthRequest, res: Response) {
                         photos: true,
                         event_access: true,
                     }
+                },
+                photos: {
+                    take: 1,
+                    orderBy: { uploaded_at: 'desc' },
+                    select: {
+                        thumb_url: true,
+                        display_url: true,
+                    }
                 }
             }
         })
@@ -309,7 +317,15 @@ async function getJoinedEventsController(req: AuthRequest, res: Response) {
                 event: {
                     include: {
                         _count: {
-                            select: { event_access: true }
+                            select: { event_access: true, photos: true }
+                        },
+                        photos: {
+                            take: 1,
+                            orderBy: { uploaded_at: 'desc' },
+                            select: {
+                                thumb_url: true,
+                                display_url: true,
+                            }
                         },
                         event_access: {
                             take: 5,
@@ -468,7 +484,15 @@ async function getEventsController(req: AuthRequest, res: Response) {
             },
             include: {
                 _count: {
-                    select: { event_access: true }
+                    select: { event_access: true, photos: true }
+                },
+                photos: {
+                    take: 1,
+                    orderBy: { uploaded_at: 'desc' },
+                    select: {
+                        thumb_url: true,
+                        display_url: true,
+                    }
                 },
                 event_access: {
                     take: 5,

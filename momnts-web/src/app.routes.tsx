@@ -9,7 +9,6 @@ import Home from './pages/home/Home'
 import Events from './pages/events/Events'
 import EventDetails from './pages/events/EventDetails'
 import Profile from './pages/profile/Profile'
-import Onboarding from './features/auth/pages/onboarding/Onboarding'
 import LandingPage from './pages/landing_page/LandingPage'
 
 const AuthLayout = () => (
@@ -34,10 +33,7 @@ export const router = createBrowserRouter([
         path: "/register",
         element: <Register />,
       },
-      {
-        path: "/onboarding",
-        element: <Onboarding />,
-      },
+
       {
         path: "/verify-email",
         element: <VerifyEmail />,

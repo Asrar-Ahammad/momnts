@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from 'react'
+import { useState, useEffect, useRef, useCallback } from 'react'
 import { Button } from '../../components/ui/button'
 import { Input } from '../../components/ui/input'
 import { Popover, PopoverContent, PopoverTrigger } from '../../components/ui/popover'
@@ -16,7 +16,8 @@ import {
   User,
   SquaresFour,
   Rows,
-  CakeIcon
+  CakeIcon,
+  CircleNotch
 } from '@phosphor-icons/react'
 import { Tabs, TabsList, TabsTrigger } from '../../components/ui/tabs'
 import { 
@@ -112,6 +113,65 @@ const Events = () => {
       const dateB = new Date(b.date).getTime()
       return sortOrder === 'asc' ? dateA - dateB : dateB - dateA
     })
+
+  const [visibleCount, setVisibleCount] = useState(6)
+  const [isPageLoading, setIsPageLoading] = useState(false)
+
+  const visibleCountRef = useRef(visibleCount)
+  const eventsLengthRef = useRef(filteredEvents.length)
+  const isPageLoadingRef = useRef(isPageLoading)
+  const observerInstanceRef = useRef<IntersectionObserver | null>(null)
+
+  useEffect(() => {
+    visibleCountRef.current = visibleCount
+    eventsLengthRef.current = filteredEvents.length
+    isPageLoadingRef.current = isPageLoading
+  })
+
+  // Reset pagination when search query or filters change
+  useEffect(() => {
+    setVisibleCount(6)
+    setIsPageLoading(false)
+  }, [searchQuery, dateRange.from, dateRange.to, sortOrder, roleFilter])
+
+  useEffect(() => {
+    return () => {
+      if (observerInstanceRef.current) {
+        observerInstanceRef.current.disconnect()
+      }
+    }
+  }, [])
+
+  const observerRef = useCallback((node: HTMLDivElement | null) => {
+    if (observerInstanceRef.current) {
+      observerInstanceRef.current.disconnect()
+      observerInstanceRef.current = null
+    }
+
+    if (node) {
+      const observer = new IntersectionObserver(
+        (entries) => {
+          const entry = entries[0]
+          if (
+            entry.isIntersecting &&
+            visibleCountRef.current < eventsLengthRef.current &&
+            !isPageLoadingRef.current
+          ) {
+            setIsPageLoading(true)
+            setTimeout(() => {
+              setVisibleCount((prev) => Math.min(prev + 6, eventsLengthRef.current))
+              setIsPageLoading(false)
+            }, 600)
+          }
+        },
+        { rootMargin: '150px' }
+      )
+      observer.observe(node)
+      observerInstanceRef.current = observer
+    }
+  }, [])
+
+  const visibleEvents = filteredEvents.slice(0, visibleCount)
 
   const handleEventsUpdate = () => {
     queryClient.invalidateQueries({ queryKey: ['events'] })
@@ -385,15 +445,28 @@ const Events = () => {
 
       {/* Events Grid/List */}
       <div className={viewMode === 'grid' 
-        ? "grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 px-6 pb-24" 
-        : "flex flex-col gap-4 px-6 pb-24"
+        ? "grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 px-6" 
+        : "flex flex-col gap-4 px-6"
       }>
-        {filteredEvents.map((event) => (
+        {visibleEvents.map((event) => (
           viewMode === 'grid' 
             ? <EventCard key={event.id} event={event} />
             : <EventListItem key={event.id} event={event} />
         ))}
       </div>
+
+      {visibleCount < filteredEvents.length ? (
+        <div ref={observerRef} className="w-full flex justify-center items-center py-8 pb-24">
+          {isPageLoading && (
+            <div className="flex flex-col items-center gap-2">
+              <CircleNotch size={32} className="animate-spin text-neutral-400 dark:text-neutral-500" />
+              <span className="text-xs text-neutral-400 dark:text-neutral-500 font-medium">Loading more events...</span>
+            </div>
+          )}
+        </div>
+      ) : (
+        <div className="h-24" />
+      )}
 
       {loading && (
         <div className="text-center py-12">

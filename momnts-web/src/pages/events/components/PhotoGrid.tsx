@@ -90,10 +90,13 @@ const PhotoGrid = ({
     isPageLoadingRef.current = isPageLoading
   })
 
+  const firstPhotoId = photos[0]?.id
+
   useEffect(() => {
     setVisibleCount(10)
     setIsPageLoading(false)
-  }, [activeTab, event?.user_id])
+  }, [activeTab, event?.user_id, firstPhotoId])
+
 
   useEffect(() => {
     return () => {
