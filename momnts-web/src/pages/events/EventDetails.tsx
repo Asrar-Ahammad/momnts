@@ -20,6 +20,7 @@ import EventSettingsModal from './components/EventSettingsModal'
 import AttendeesModal from './components/AttendeesModal'
 import PhotoCarousel from './components/PhotoCarousel'
 import WhoWasIWith from '../../features/connections/components/WhoWasIWith'
+import ShareEventModal from './components/ShareEventModal'
 
 type TabType = 'all' | 'your-photos' | 'favourites' | 'your-uploads' | 'connections'
 type GalleryColumns = 1 | 2 | 3
@@ -44,6 +45,7 @@ const EventDetails = () => {
   const [slideshowOpen, setSlideshowOpen] = useState(false)
   const [selectedFiles, setSelectedFiles] = useState<File[]>([])
   const [inviteCodeCopied, setInviteCodeCopied] = useState(false)
+  const [shareModalOpen, setShareModalOpen] = useState(false)
   const [settingsModalOpen, setSettingsModalOpen] = useState(false)
   const [settingsForm, setSettingsForm] = useState({
     name: '',
@@ -644,6 +646,7 @@ const EventDetails = () => {
         onMemoryLaneClick={() => setSlideshowOpen(true)}
         onSelectAll={handleSelectAll}
         isAllSelected={isAllSelected}
+        onShareClick={() => setShareModalOpen(true)}
       />
 
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
@@ -796,6 +799,12 @@ const EventDetails = () => {
           eventDate={event.date}
         />
       )}
+
+      <ShareEventModal
+        open={shareModalOpen}
+        onOpenChange={setShareModalOpen}
+        event={event}
+      />
     </div>
   )
 }

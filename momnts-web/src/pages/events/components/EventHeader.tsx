@@ -53,6 +53,7 @@ import {
   DotsThree,
   MusicNotes,
   DownloadSimpleIcon,
+  ShareNetwork,
 } from '@phosphor-icons/react'
 import { EventData } from '../../../features/events/services/events.api'
 import { toast } from 'sonner'
@@ -86,6 +87,7 @@ interface EventHeaderProps {
   onMemoryLaneClick?: () => void
   onSelectAll?: () => void
   isAllSelected?: boolean
+  onShareClick?: () => void
 }
 
 const EventHeader = ({
@@ -112,7 +114,8 @@ const EventHeader = ({
   onGalleryColumnsChange,
   onMemoryLaneClick,
   onSelectAll,
-  isAllSelected = false
+  isAllSelected = false,
+  onShareClick
 }: EventHeaderProps) => {
   const [showLeaveConfirm, setShowLeaveConfirm] = useState(false)
   const [leaving, setLeaving] = useState(false)
@@ -196,11 +199,11 @@ const EventHeader = ({
     if (activeTab === 'favourites') {
       return (
         <Button
-          className={`${fullWidth ? 'flex-1 w-full' : ''} h-10 px-6 sm:px-8 flex items-center justify-center gap-2 rounded-xl bg-rose-600 hover:bg-rose-700 text-white transition-colors`}
+          className={`${fullWidth ? 'flex-1 w-full' : ''} h-9 lg:h-10 px-4 lg:px-8 flex items-center justify-center gap-1.5 lg:gap-2 rounded-xl bg-rose-600 hover:bg-rose-700 text-white transition-colors text-xs lg:text-sm shrink-0 whitespace-nowrap`}
           onClick={onDownloadFavourites}
           disabled={favouritesCount === 0}
         >
-          <DownloadSimple size={18} weight="bold" />
+          <DownloadSimple size={18} weight="bold" className="w-4 h-4 lg:w-[18px] lg:h-[18px]" />
           <span className="hidden sm:inline">Download Favourites</span>
           <span className="inline sm:hidden">Download</span>
           {favouritesCount > 0 && (
@@ -219,10 +222,10 @@ const EventHeader = ({
           <TooltipTrigger asChild>
             <div className={fullWidth ? 'w-full' : ''}>
               <Button
-                className={`${fullWidth ? 'w-full' : ''} h-10 px-6 sm:px-8 flex items-center justify-center gap-2 rounded-xl bg-neutral-200 dark:bg-neutral-800 text-neutral-400 cursor-not-allowed`}
+                className={`${fullWidth ? 'w-full' : ''} h-9 lg:h-10 px-4 lg:px-8 flex items-center justify-center gap-1.5 lg:gap-2 rounded-xl bg-neutral-200 dark:bg-neutral-800 text-neutral-400 cursor-not-allowed text-xs lg:text-sm shrink-0 whitespace-nowrap`}
                 disabled
               >
-                <Upload size={18} weight="bold" />
+                <Upload size={18} weight="bold" className="w-4 h-4 lg:w-[18px] lg:h-[18px]" />
                 <span className="hidden sm:inline">Upload Photos</span>
                 <span className="inline sm:hidden">Upload</span>
               </Button>
@@ -241,10 +244,10 @@ const EventHeader = ({
           <TooltipTrigger asChild>
             <div className={fullWidth ? 'w-full' : ''}>
               <Button
-                className={`${fullWidth ? 'w-full' : ''} h-10 px-6 sm:px-8 flex items-center justify-center gap-2 rounded-xl bg-neutral-100 dark:bg-neutral-800 text-neutral-400 border border-neutral-200 dark:border-neutral-700 cursor-not-allowed`}
+                className={`${fullWidth ? 'w-full' : ''} h-9 lg:h-10 px-4 lg:px-8 flex items-center justify-center gap-1.5 lg:gap-2 rounded-xl bg-neutral-100 dark:bg-neutral-800 text-neutral-400 border border-neutral-200 dark:border-neutral-700 cursor-not-allowed text-xs lg:text-sm shrink-0 whitespace-nowrap`}
                 disabled
               >
-                <Upload size={18} weight="bold" />
+                <Upload size={18} weight="bold" className="w-4 h-4 lg:w-[18px] lg:h-[18px]" />
                 <span className="hidden sm:inline">Upload Limit Reached</span>
                 <span className="inline sm:hidden">Limit Reached</span>
               </Button>
@@ -259,10 +262,10 @@ const EventHeader = ({
 
     return (
       <Button
-        className={`${fullWidth ? 'w-full' : ''} h-10 px-6 sm:px-8 flex items-center justify-center gap-2 rounded-xl bg-neutral-900 dark:bg-white text-white dark:text-neutral-900 hover:opacity-90 transition-opacity`}
+        className={`${fullWidth ? 'w-full' : ''} h-9 lg:h-10 px-4 lg:px-8 flex items-center justify-center gap-1.5 lg:gap-2 rounded-xl bg-neutral-900 dark:bg-white text-white dark:text-neutral-900 hover:opacity-90 transition-opacity text-xs lg:text-sm font-semibold shrink-0 whitespace-nowrap`}
         onClick={onUploadClick}
       >
-        <Upload size={18} weight="bold" />
+        <Upload size={18} weight="bold" className="w-4 h-4 lg:w-[18px] lg:h-[18px]" />
         <span className="hidden sm:inline">Upload Photos</span>
         <span className="inline sm:hidden">Upload</span>
       </Button>
@@ -277,8 +280,8 @@ const EventHeader = ({
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4 flex flex-col gap-4">
           
           {/* Row 1: Title Section (Left) & Actions Section (Right) */}
-          <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4 w-full">
-            <div className="flex items-center gap-3 sm:gap-4 flex-1 min-w-0">
+          <div className="flex flex-wrap items-center justify-between gap-4 w-full">
+            <div className="flex items-center gap-3 sm:gap-4 flex-1 min-w-[200px]">
               <Tooltip>
                 <TooltipTrigger delay={0} asChild>
                   <Button className="cursor-pointer shrink-0" variant="ghost" size="icon" onClick={onBack}>
@@ -312,16 +315,22 @@ const EventHeader = ({
                         <DropdownMenuTrigger asChild>
                           <Badge
                             variant="outline"
-                            className="cursor-pointer hover:bg-neutral-100 dark:hover:bg-neutral-800 h-7 px-2 text-xs flex items-center gap-1.5 border-neutral-200 dark:border-neutral-700"
+                            className="cursor-pointer hover:bg-neutral-100 dark:hover:bg-neutral-800 h-7 px-2.5 text-xs flex items-center gap-1.5 border-neutral-200 dark:border-neutral-700 text-neutral-600 dark:text-neutral-300"
                           >
-                            {inviteCodeCopied ? <Check size={12} className="text-green-500" /> : <CopySimpleIcon size={12} />}
-                            <span className="font-mono">{event?.invite_code}</span>
+                            <ShareNetwork size={14} />
+                            <span className="font-medium">Share</span>
                           </Badge>
                         </DropdownMenuTrigger>
-                        <DropdownMenuContent align="start" className="w-40 rounded-2xl">
-                          <DropdownMenuItem onClick={onCopyInviteCode} className="cursor-pointer py-2">
-                            <CopySimpleIcon size={16} className="mr-2" />
+                        <DropdownMenuContent align="start" className="w-48 rounded-2xl p-1.5">
+                          <DropdownMenuItem onClick={onShareClick} className="cursor-pointer py-2 text-rose-600 dark:text-rose-500 font-medium">
+                            <ShareNetwork size={16} className="mr-2.5" />
+                            Share Event & QR
+                          </DropdownMenuItem>
+                          <DropdownMenuSeparator className="my-1" />
+                          <DropdownMenuItem onClick={onCopyInviteCode} className="cursor-pointer py-2 text-neutral-600 dark:text-neutral-400">
+                            <CopySimpleIcon size={16} className="mr-2.5" />
                             Copy Code
+                            <span className="ml-auto font-mono text-[10px] text-neutral-400">{event?.invite_code}</span>
                           </DropdownMenuItem>
                           <DropdownMenuItem onClick={async () => {
                             const url = `${window.location.origin}/events?joinCode=${event?.invite_code}`
@@ -331,8 +340,8 @@ const EventHeader = ({
                             } catch (err) {
                               toast.error('Failed to copy invite link')
                             }
-                          }} className="cursor-pointer py-2">
-                            <LinkSimple size={16} className="mr-2" />
+                          }} className="cursor-pointer py-2 text-neutral-600 dark:text-neutral-400">
+                            <LinkSimple size={16} className="mr-2.5" />
                             Copy Link
                           </DropdownMenuItem>
                         </DropdownMenuContent>
@@ -346,10 +355,10 @@ const EventHeader = ({
             {/* Right Action Section */}
             <motion.div
               layout
-              className="flex items-center justify-between sm:justify-end gap-2 sm:gap-3 overflow-x-auto no-scrollbar pb-1 w-full lg:w-auto shrink-0"
+              className="flex items-center justify-between sm:justify-end gap-2 sm:gap-3 overflow-x-auto no-scrollbar py-2 -my-2 px-1 -mx-1 w-full lg:w-auto shrink-0"
             >
               {!isSelectMode ? (
-                <motion.div layout className="flex items-center justify-between sm:justify-end gap-2 w-full lg:w-auto">
+                <motion.div layout className="flex items-center justify-between sm:justify-end gap-2 w-max lg:w-auto">
                   <AnimatePresence mode="popLayout">
                     <motion.div
                       key="gallery-controls"
@@ -446,6 +455,10 @@ const EventHeader = ({
                                   <DropdownMenuLabel className="text-[10px] uppercase tracking-wider text-neutral-400 dark:text-neutral-500 font-semibold px-2 pt-1.5 pb-1">
                                     Share
                                   </DropdownMenuLabel>
+                                  <DropdownMenuItem onClick={onShareClick} className="cursor-pointer py-2.5 px-2.5 rounded-lg text-rose-600 dark:text-rose-500 font-medium">
+                                    <ShareNetwork size={16} className="mr-2.5" />
+                                    Share Event & QR
+                                  </DropdownMenuItem>
                                   <DropdownMenuItem onClick={onCopyInviteCode} className="cursor-pointer py-2.5 px-2.5 rounded-lg">
                                     <CopySimpleIcon size={16} className="mr-2.5 text-neutral-500" />
                                     Copy Invite Code
@@ -516,10 +529,10 @@ const EventHeader = ({
                             <TooltipTrigger asChild delay={0}>
                               <Button
                                 variant="outline"
-                                className="h-10 w-10 sm:w-auto sm:px-4 flex items-center justify-center gap-2 rounded-xl"
+                                className="h-9 lg:h-10 w-9 sm:w-auto sm:px-3 lg:px-4 flex items-center justify-center gap-1.5 lg:gap-2 rounded-xl text-xs lg:text-sm shrink-0 whitespace-nowrap"
                                 onClick={onToggleSort}
                               >
-                                {sortOrder === 'desc' ? <SortDescending size={18} weight="bold" /> : <SortAscending size={18} weight="bold" />}
+                                {sortOrder === 'desc' ? <SortDescending size={18} weight="bold" className="w-4 h-4 lg:w-[18px] lg:h-[18px]" /> : <SortAscending size={18} weight="bold" className="w-4 h-4 lg:w-[18px] lg:h-[18px]" />}
                                 <span className="hidden sm:inline">Sort</span>
                               </Button>
                             </TooltipTrigger>
@@ -530,10 +543,10 @@ const EventHeader = ({
                             <TooltipTrigger asChild delay={0}>
                               <Button
                                 variant="outline"
-                                className="h-10 w-10 sm:w-auto sm:px-4 flex items-center justify-center gap-2 rounded-xl"
+                                className="h-9 lg:h-10 w-9 sm:w-auto sm:px-3 lg:px-4 flex items-center justify-center gap-1.5 lg:gap-2 rounded-xl text-xs lg:text-sm shrink-0 whitespace-nowrap"
                                 onClick={onToggleSelectMode}
                               >
-                                <DownloadSimpleIcon size={18} weight="bold" />
+                                <DownloadSimpleIcon size={18} weight="bold" className="w-4 h-4 lg:w-[18px] lg:h-[18px]" />
                                 <span className="hidden sm:inline">Download</span>
                               </Button>
                             </TooltipTrigger>
@@ -547,14 +560,15 @@ const EventHeader = ({
                   {/* Desktop: Organizer-only buttons */}
                   {isOrganizer && (
                     <motion.div layout className="hidden sm:flex items-center gap-2 shrink-0">
+
                       <Tooltip>
                         <TooltipTrigger asChild delay={0}>
                           <Button
                             variant="outline"
-                            className="h-10 w-10 sm:w-auto sm:px-4 flex items-center justify-center gap-2 rounded-xl"
+                            className="h-9 lg:h-10 w-9 sm:w-auto sm:px-3 lg:px-4 flex items-center justify-center gap-1.5 lg:gap-2 rounded-xl text-xs lg:text-sm shrink-0 whitespace-nowrap"
                             onClick={onAttendeesClick}
                           >
-                            <Users size={18} weight="bold" />
+                            <Users size={18} weight="bold" className="w-4 h-4 lg:w-[18px] lg:h-[18px]" />
                             <span className="hidden sm:inline">Attendees</span>
                           </Button>
                         </TooltipTrigger>
@@ -565,10 +579,10 @@ const EventHeader = ({
                         <TooltipTrigger asChild delay={0}>
                           <Button
                             variant="outline"
-                            className="h-10 w-10 sm:w-auto sm:px-4 flex items-center justify-center gap-2 rounded-xl"
+                            className="h-9 lg:h-10 w-9 sm:w-auto sm:px-3 lg:px-4 flex items-center justify-center gap-1.5 lg:gap-2 rounded-xl text-xs lg:text-sm shrink-0 whitespace-nowrap"
                             onClick={onSettingsClick}
                           >
-                            <Gear size={18} weight="bold" />
+                            <Gear size={18} weight="bold" className="w-4 h-4 lg:w-[18px] lg:h-[18px]" />
                             <span className="hidden sm:inline">Settings</span>
                           </Button>
                         </TooltipTrigger>
@@ -584,7 +598,7 @@ const EventHeader = ({
                         <TooltipTrigger asChild delay={0}>
                           <Button
                             variant="outline"
-                            className="h-10 w-10 sm:w-auto sm:px-4 flex items-center justify-center gap-2 rounded-xl text-red-500 border-red-200 hover:bg-red-50 hover:text-red-600 dark:border-red-900 dark:hover:bg-red-950"
+                            className="h-10 w-10 sm:w-auto sm:px-4 flex items-center justify-center gap-2 rounded-xl text-red-500 border-red-200 hover:bg-red-50 hover:text-red-600 dark:border-red-900 dark:hover:bg-red-950 shrink-0 whitespace-nowrap"
                             onClick={() => setShowLeaveConfirm(true)}
                           >
                             <SignOut size={18} weight="bold" />
@@ -601,10 +615,10 @@ const EventHeader = ({
                     {event && event._count.photos >= 5 && (
                       <Button
                         variant="outline"
-                        className="h-10 px-4 sm:px-6 flex items-center justify-center gap-2 rounded-xl border-neutral-200 dark:border-neutral-800 hover:bg-neutral-100 dark:hover:bg-neutral-850 cursor-pointer text-sm font-semibold transition-colors"
+                        className="h-9 lg:h-10 px-3 lg:px-6 flex items-center justify-center gap-1.5 lg:gap-2 rounded-xl border-neutral-200 dark:border-neutral-800 hover:bg-neutral-100 dark:hover:bg-neutral-850 cursor-pointer text-xs lg:text-sm font-semibold transition-colors shrink-0 whitespace-nowrap"
                         onClick={onMemoryLaneClick}
                       >
-                        <MusicNotes size={18} weight="bold" className="text-rose-500" />
+                        <MusicNotes size={18} weight="bold" className="text-rose-500 w-4 h-4 lg:w-[18px] lg:h-[18px]" />
                         <span>Memory Lane</span>
                       </Button>
                     )}
@@ -613,7 +627,7 @@ const EventHeader = ({
                 </motion.div>
               ) : (
                 // Select mode buttons
-                <motion.div layout className="flex items-center gap-2 sm:gap-4 w-full sm:w-auto">
+                <motion.div layout className="flex items-center gap-2 sm:gap-4 w-max sm:w-auto justify-between sm:justify-start">
                   <span className="text-sm font-semibold text-neutral-600 dark:text-neutral-400 mr-auto sm:mr-0 px-2 shrink-0">
                     {selectedCount} <span className="hidden sm:inline">selected</span>
                   </span>
