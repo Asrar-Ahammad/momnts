@@ -31,6 +31,17 @@ export function Turnstile({ sitekey, onVerify, onExpire, onError }: TurnstilePro
   const containerRef = useRef<HTMLDivElement>(null);
   const widgetIdRef = useRef<string | null>(null);
 
+  const onVerifyRef = useRef(onVerify);
+  const onExpireRef = useRef(onExpire);
+  const onErrorRef = useRef(onError);
+
+  // Keep refs updated with latest callbacks
+  useEffect(() => {
+    onVerifyRef.current = onVerify;
+    onExpireRef.current = onExpire;
+    onErrorRef.current = onError;
+  });
+
   useEffect(() => {
     // Check if script is already present in document
     let script = document.querySelector('script[src*="challenges.cloudflare.com/turnstile"]');
@@ -46,9 +57,9 @@ export function Turnstile({ sitekey, onVerify, onExpire, onError }: TurnstilePro
       if (window.turnstile && containerRef.current && !widgetIdRef.current) {
         widgetIdRef.current = window.turnstile.render(containerRef.current, {
           sitekey,
-          callback: onVerify,
-          "expired-callback": onExpire,
-          "error-callback": onError,
+          callback: (token) => onVerifyRef.current?.(token),
+          "expired-callback": () => onExpireRef.current?.(),
+          "error-callback": () => onErrorRef.current?.(),
         });
       }
     };
@@ -71,7 +82,7 @@ export function Turnstile({ sitekey, onVerify, onExpire, onError }: TurnstilePro
         widgetIdRef.current = null;
       }
     };
-  }, [sitekey, onVerify, onExpire, onError]);
+  }, [sitekey]);
 
   return (
     <div
