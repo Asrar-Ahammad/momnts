@@ -1,5 +1,6 @@
 import type { Response } from "express";
 import { prisma } from "../lib/prisma.js";
+import { presignPhotos, presignStoredUrl } from "../lib/r2.js";
 import type { AuthRequest } from "../middleware/auth.middleware.js";
 
 const CONNECTIONS_LIMIT = 50;
@@ -86,17 +87,17 @@ async function getWhoWasIWithController(req: AuthRequest, res: Response) {
       LIMIT ${CONNECTIONS_LIMIT}
     `;
 
-    const mappedResults = results.map((r) => ({
+    const mappedResults = await Promise.all(results.map(async (r) => ({
       face_profile_id: r.face_profile_id,
       shared_photo_count: Number(r.shared_photo_count),
       is_claimed: r.is_claimed,
       person: {
         user_id: r.user_id ?? null,
         name: r.user_name ?? "Unknown Person",
-        selfie_url: r.selfie_url ?? null,
+        selfie_url: r.selfie_url ? await presignStoredUrl(r.selfie_url, 86400) : null,
         is_you: false,
       },
-    }));
+    })));
 
     return res.status(200).json({
       total_people: mappedResults.length,
@@ -230,16 +231,18 @@ async function getSharedPhotosController(req: AuthRequest, res: Response) {
       is_favourited: favouritePhotoIds.has(p.id),
     }));
 
+    const signedPhotosWithFavourites = await presignPhotos(photosWithFavourites);
+
     return res.status(200).json({
       shared_with: {
         face_profile_id: faceProfileId,
         name: otherProfile.claimed?.name ?? "Unknown Person",
         is_claimed: otherProfile.is_claimed,
         user_id: otherProfile.claimed?.id ?? null,
-        selfie_url: otherProfile.claimed?.selfie_url ?? null,
+        selfie_url: otherProfile.claimed?.selfie_url ? await presignStoredUrl(otherProfile.claimed.selfie_url, 86400) : null,
       },
-      total_shared: photosWithFavourites.length,
-      photos: photosWithFavourites,
+      total_shared: signedPhotosWithFavourites.length,
+      photos: signedPhotosWithFavourites,
     });
   } catch (error) {
     const message =

@@ -1,4 +1,5 @@
-import { S3Client, PutObjectCommand, DeleteObjectCommand } from '@aws-sdk/client-s3'
+import { S3Client, PutObjectCommand, DeleteObjectCommand, GetObjectCommand } from '@aws-sdk/client-s3'
+import { getSignedUrl } from '@aws-sdk/s3-request-presigner'
 import { NodeHttpHandler } from '@smithy/node-http-handler'
 import * as http from 'http'
 import * as https from 'https'
@@ -65,9 +66,8 @@ export async function uploadToR2(
     ContentDisposition: options?.contentDisposition,
   }))
 
-  // R2_PUBLIC_URL is your r2.dev or custom domain URL
-  // The full URL is just base URL + the key (file path)
-  return `${requiredEnvVars.R2_PUBLIC_URL}/${key}`
+  // NEW return value (key only, presign when needed):
+  return key
 }
 
 /**
@@ -88,4 +88,75 @@ export async function deleteFromR2(key: string): Promise<void> {
  */
 export function extractKeyFromUrl(url: string): string {
   return url.replace(`${requiredEnvVars.R2_PUBLIC_URL}/`, '')
+}
+
+/**
+ * Generates a presigned URL for temporary access to a private R2 object.
+ * @param key - R2 object key e.g. "events/abc/photo-id/thumb.webp"
+ * @param expiresIn - seconds until URL expires (default 3600 = 1 hour)
+ */
+export async function getPresignedUrl(
+  key: string,
+  expiresIn: number = 3600
+): Promise<string> {
+  const command = new GetObjectCommand({
+    Bucket: requiredEnvVars.R2_BUCKET_NAME!,
+    Key: key,
+  })
+  return getSignedUrl(r2 as any, command as any, { expiresIn })
+}
+
+/**
+ * Takes a stored public URL or R2 key and returns a presigned URL.
+ * Handles both formats:
+ *   - Full URL: https://pub-xxx.r2.dev/events/abc/thumb.webp
+ *   - Raw key:  events/abc/thumb.webp
+ */
+export async function presignStoredUrl(
+  urlOrKey: string,
+  expiresIn: number = 3600
+): Promise<string> {
+  // If it looks like a full URL, extract the key first
+  const key = urlOrKey.startsWith('http')
+    ? extractKeyFromUrl(urlOrKey)
+    : urlOrKey
+  return getPresignedUrl(key, expiresIn)
+}
+
+/**
+ * Takes a Photo DB object and returns a new object with all
+ * three URL fields replaced by presigned URLs.
+ * Use this in every controller that returns photo data.
+ *
+ * @param photo - object with thumb_url, display_url, original_url
+ * @param displayExpiry - seconds for thumb and display URLs (default 3600)
+ * @param downloadExpiry - seconds for original URL (default 86400 = 24hrs)
+ */
+export async function presignPhoto<T extends {
+  thumb_url: string
+  display_url: string
+  original_url: string
+}>(
+  photo: T,
+  displayExpiry: number = 3600,
+  downloadExpiry: number = 86400
+): Promise<T> {
+  const [thumb_url, display_url, original_url] = await Promise.all([
+    presignStoredUrl(photo.thumb_url, displayExpiry),
+    presignStoredUrl(photo.display_url, displayExpiry),
+    presignStoredUrl(photo.original_url, downloadExpiry),
+  ])
+  return { ...photo, thumb_url, display_url, original_url }
+}
+
+/**
+ * Presigns an array of photos in parallel.
+ * Use this for gallery endpoints that return multiple photos.
+ */
+export async function presignPhotos<T extends {
+  thumb_url: string
+  display_url: string
+  original_url: string
+}>(photos: T[]): Promise<T[]> {
+  return Promise.all(photos.map(p => presignPhoto(p)))
 }

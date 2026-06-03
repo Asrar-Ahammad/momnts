@@ -1,5 +1,6 @@
 import type { Response } from 'express'
 import { prisma } from '../lib/prisma.js'
+import { presignPhotos } from '../lib/r2.js'
 import type { AuthRequest } from '../middleware/auth.middleware.js'
 
 /**
@@ -35,7 +36,9 @@ export async function getAllPhotosController(req: AuthRequest, res: Response) {
       orderBy: { uploaded_at: 'desc' }
     })
 
-    return res.status(200).json({ data: photos })
+    const signedPhotos = await presignPhotos(photos)
+
+    return res.status(200).json({ data: signedPhotos })
   } catch (error: any) {
     return res.status(500).json({ message: error.message })
   }
@@ -110,8 +113,10 @@ export async function getMyPhotosController(req: AuthRequest, res: Response) {
       })
       .sort((a, b) => new Date(b.uploaded_at).getTime() - new Date(a.uploaded_at).getTime())
 
+    const signedPhotos = await presignPhotos(photos)
+
     return res.status(200).json({
-      data: photos,
+      data: signedPhotos,
       face_profile_ids: profileIds
     })
   } catch (error: any) {
@@ -159,8 +164,10 @@ export async function getMyUploadsController(req: AuthRequest, res: Response) {
       remaining: (event?.attendee_upload_limit || 0) - eventAccess.upload_count
     }
 
+    const signedPhotos = await presignPhotos(photos)
+
     return res.status(200).json({
-      data: photos,
+      data: signedPhotos,
       quota
     })
   } catch (error: any) {

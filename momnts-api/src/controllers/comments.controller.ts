@@ -2,6 +2,7 @@ import type { Response } from "express";
 import { prisma } from "../lib/prisma.js";
 import type { AuthRequest } from "../middleware/auth.middleware.js";
 import { getIO } from "../lib/socket.js";
+import { presignStoredUrl } from "../lib/r2.js";
 
 /**
  * @name getCommentsController
@@ -55,9 +56,24 @@ export async function getCommentsController(req: AuthRequest, res: Response) {
       orderBy: { created_at: "asc" },
     });
 
+    const signedComments = await Promise.all(comments.map(async (c) => ({
+      ...c,
+      user: {
+        ...c.user,
+        selfie_url: c.user.selfie_url ? await presignStoredUrl(c.user.selfie_url, 86400) : null
+      },
+      replies: await Promise.all(c.replies.map(async (r) => ({
+        ...r,
+        user: {
+          ...r.user,
+          selfie_url: r.user.selfie_url ? await presignStoredUrl(r.user.selfie_url, 86400) : null
+        }
+      })))
+    })));
+
     return res.status(200).json({
       total: comments.length,
-      data: comments,
+      data: signedComments,
     });
   } catch (error) {
     console.error("[getCommentsController] Error:", error);
@@ -226,9 +242,24 @@ export async function addCommentController(req: AuthRequest, res: Response) {
       console.error("[comments.controller] Failed to process mentions/notifications:", notifErr);
     }
 
+    const signedComment = {
+      ...comment,
+      user: {
+        ...comment.user,
+        selfie_url: comment.user.selfie_url ? await presignStoredUrl(comment.user.selfie_url, 86400) : null
+      },
+      replies: await Promise.all(comment.replies.map(async (r) => ({
+        ...r,
+        user: {
+          ...r.user,
+          selfie_url: r.user.selfie_url ? await presignStoredUrl(r.user.selfie_url, 86400) : null
+        }
+      })))
+    };
+
     return res.status(201).json({
       message: "Comment added",
-      data: comment,
+      data: signedComment,
     });
   } catch (error) {
     console.error("[addCommentController] Error:", error);

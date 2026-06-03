@@ -40,6 +40,7 @@ export const useEventPhotos = (eventId: string | undefined) => {
     queryKey: ["photos", eventId],
     queryFn: () => photosApi.getEventPhotos(eventId!),
     enabled: !!eventId,
+    staleTime: 45 * 60 * 1000, // 45 minutes to refresh before presigned URLs expire
   })
 }
 
@@ -48,6 +49,7 @@ export const useMyPhotos = (eventId: string | undefined) => {
     queryKey: ["my-photos", eventId],
     queryFn: () => photosApi.getMyPhotos(eventId!),
     enabled: !!eventId,
+    staleTime: 45 * 60 * 1000,
   })
 }
 

@@ -1,6 +1,6 @@
 import type { Response } from 'express'
 import { prisma } from '../lib/prisma.js'
-import { uploadToR2, deleteFromR2 } from '../lib/r2.js'
+import { uploadToR2, deleteFromR2, presignStoredUrl } from '../lib/r2.js'
 import sharp from 'sharp'
 import axios from 'axios'
 import type { AuthRequest } from '../middleware/auth.middleware.js'
@@ -41,18 +41,21 @@ export async function uploadSelfieController(req: AuthRequest, res: Response) {
 
     // 4. Upload to R2 with unique key (timestamp prevents CDN cache)
     const r2Key = `selfies/${userId}/selfie-${Date.now()}.jpg`
-    const selfieUrl = await uploadToR2(r2Key, compressedSelfie, 'image/jpeg', {
+    const selfieKey = await uploadToR2(r2Key, compressedSelfie, 'image/jpeg', {
       cacheControl: 'public, max-age=3600'
     })
 
     // 5. Call Python /embed
     // POST ${PYTHON_SERVICE_URL}/embed
     const pythonServiceUrl = process.env.PYTHON_SERVICE_URL || 'http://localhost:8000'
+    
+    // Generate a presigned URL for Python to download (1 hour expiry)
+    const presignedSelfieUrlForPython = await presignStoredUrl(selfieKey, 3600)
 
     let embedding: number[]
     try {
       const response = await axios.post(`${pythonServiceUrl}/embed`, {
-        selfie_url: selfieUrl
+        selfie_url: presignedSelfieUrlForPython
       })
       embedding = response.data.embedding
     } catch (error: any) {
@@ -82,7 +85,7 @@ export async function uploadSelfieController(req: AuthRequest, res: Response) {
     // We must use ::vector cast for pgvector
     await prisma.$executeRaw`
       UPDATE "User"
-      SET selfie_url = ${selfieUrl},
+      SET selfie_url = ${selfieKey},
           selfie_embedding = ${vectorString}::vector
       WHERE id = ${userId}
     `
@@ -100,11 +103,15 @@ export async function uploadSelfieController(req: AuthRequest, res: Response) {
         select: { event_id: true },
       })
       for (const { event_id } of userEvents) {
+        // Presign selfie URL for the worker to use (30 min expiry)
+        const presignedSelfieUrlForMatch = await presignStoredUrl(selfieKey, 1800)
+
         await matchingQueue.add(
           'match-user',
           {
             userId,
             eventId: event_id,
+            selfieUrl: presignedSelfieUrlForMatch,
             ...(matchOnlyAfter != null ? { matchOnlyAfter } : {}),
           },
           {
@@ -119,9 +126,10 @@ export async function uploadSelfieController(req: AuthRequest, res: Response) {
       console.error('[ONBOARDING] Failed to enqueue match jobs:', queueErr)
     }
 
+    const signedSelfieUrl = await presignStoredUrl(selfieKey, 86400)
     return res.status(200).json({
       message: "Selfie uploaded successfully",
-      selfie_url: selfieUrl
+      selfie_url: signedSelfieUrl
     })
 
   } catch (error: any) {

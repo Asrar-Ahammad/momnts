@@ -1,6 +1,7 @@
 import { Request, Response } from "express";
 import { randomUUID } from "crypto";
-import { prisma } from "../lib/prisma";
+import { prisma } from "../lib/prisma.js";
+import { presignStoredUrl } from "../lib/r2.js";
 import bcrypt from "bcryptjs";
 import jwt from "jsonwebtoken";
 import crypto from "crypto";
@@ -151,13 +152,14 @@ function parseUserAgent(userAgent: string | undefined) {
 }
 
 // ─── User response shape helper ──────────────────────────────────────
-function userResponse(user: { id: string; name: string; email: string; email_verified: boolean; selfie_url: string | null; created_at: Date }) {
+async function userResponse(user: { id: string; name: string; email: string; email_verified: boolean; selfie_url: string | null; created_at: Date }) {
+  const selfie_url = user.selfie_url ? await presignStoredUrl(user.selfie_url, 86400) : null;
   return {
     id: user.id,
     username: user.name,
     email: user.email,
     email_verified: user.email_verified,
-    selfie_url: user.selfie_url,
+    selfie_url,
     created_at: user.created_at,
   };
 }
@@ -258,7 +260,7 @@ async function registerUserController(req: Request, res: Response) {
       message: "User created successfully",
       accessToken,
       refreshToken,
-      user: userResponse(user),
+      user: await userResponse(user),
     });
   } catch (error:any) {
     res.status(500).json({ message: error.message });
@@ -352,7 +354,7 @@ async function loginUserController(req: Request, res: Response) {
       message: "User logged in successfully",
       accessToken,
       refreshToken,
-      user: userResponse(user),
+      user: await userResponse(user),
     });
   } catch (error) {
     const message = error instanceof Error ? error.message : "Internal server error";
@@ -458,7 +460,7 @@ async function refreshUserController(req: Request, res: Response) {
       message: "Token refreshed successfully",
       accessToken: newAccessToken,
       refreshToken: newRefreshToken,
-      user: userResponse(storedToken.user),
+      user: await userResponse(storedToken.user),
     });
   } catch (error) {
     if (error instanceof jwt.JsonWebTokenError) {
@@ -541,7 +543,7 @@ async function getMeController(req: any, res: any) {
     }
 
     return res.status(200).json({
-      user: userResponse(user),
+      user: await userResponse(user),
     });
   } catch (error) {
     const message = error instanceof Error ? error.message : "Internal server error";
@@ -682,7 +684,7 @@ async function verifyOtpController(req: any, res: any) {
 
     return res.status(200).json({
       message: "Email verified successfully",
-      user: userResponse(updatedUser),
+      user: await userResponse(updatedUser),
     });
   } catch (error) {
     const message = error instanceof Error ? error.message : "Internal server error";

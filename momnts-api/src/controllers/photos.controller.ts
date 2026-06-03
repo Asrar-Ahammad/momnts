@@ -1,7 +1,7 @@
 import type { Response } from 'express'
 import type { AuthRequest } from '../middleware/auth.middleware.js'
 import { prisma } from '../lib/prisma.js'
-import { uploadToR2, deleteFromR2, extractKeyFromUrl } from '../lib/r2.js'
+import { uploadToR2, deleteFromR2, extractKeyFromUrl, presignPhotos, presignPhoto, presignStoredUrl } from '../lib/r2.js'
 import { photoQueue } from '../lib/queue.js'
 import crypto from 'crypto'
 import fs from 'fs'
@@ -116,16 +116,15 @@ export async function uploadPhotoController(req: AuthRequest, res: Response) {
                 // Get dimensions
                 const metadata = await sharp(file.path).metadata()
 
-                // Create DB record — worker will replace URLs with processed variants
-                const tempUrl = `${process.env.R2_PUBLIC_URL}/${tempKey}`
+                // Create DB record — worker will replace keys with processed variant keys
                 const photo = await prisma.photo.create({
                     data: {
                         id: photoId,
                         event_id: eventId,
                         user_id: req.user!.id,
-                        thumb_url: tempUrl,
-                        display_url: tempUrl,
-                        original_url: tempUrl,
+                        thumb_url: tempKey,
+                        display_url: tempKey,
+                        original_url: tempKey,
                         width: metadata.width || null,
                         height: metadata.height || null,
                         processed: false,
@@ -146,7 +145,8 @@ export async function uploadPhotoController(req: AuthRequest, res: Response) {
             })
 
             const photos = await Promise.all(uploadPromises)
-            uploadedPhotos.push(...photos)
+            const signedPhotos = await presignPhotos(photos)
+            uploadedPhotos.push(...signedPhotos)
         } finally {
             // Clean up multer temp files
             for (const file of files) {
@@ -241,9 +241,11 @@ export async function getEventPhotosController(req: AuthRequest, res: Response) 
             orderBy: { uploaded_at: 'desc' }
         })
 
+        const signedPhotos = await presignPhotos(photos)
+
         return res.status(200).json({
             message: 'Photos retrieved successfully',
-            data: photos,
+            data: signedPhotos,
         })
 
     } catch (error) {
@@ -313,9 +315,11 @@ export async function getPhotoDetailController(req: AuthRequest, res: Response) 
             return res.status(404).json({ message: 'Photo not found' })
         }
 
+        const signedPhoto = await presignPhoto(photo)
+
         return res.status(200).json({
             message: 'Photo retrieved successfully',
-            data: photo,
+            data: signedPhoto,
         })
 
     } catch (error) {
@@ -453,7 +457,8 @@ export async function downloadPhotoController(req: AuthRequest, res: Response) {
         }
 
         // Fetch from R2 and stream to response
-        const response = await fetch(photo.original_url)
+        const presignedOriginalUrl = await presignStoredUrl(photo.original_url, 86400)
+        const response = await fetch(presignedOriginalUrl)
         if (!response.ok) throw new Error('Failed to fetch from storage')
 
         const contentType = response.headers.get('content-type') || 'image/jpeg'

@@ -3,7 +3,43 @@ import { prisma } from "../lib/prisma.js";
 import type { AuthRequest } from "../middleware/auth.middleware.js";
 import crypto from 'crypto'
 import { matchingQueue } from "../lib/queue.js";
-import { deleteFromR2, extractKeyFromUrl } from "../lib/r2.js";
+import { presignStoredUrl, deleteFromR2, extractKeyFromUrl } from "../lib/r2.js";
+
+/**
+ * Presigns nested photo preview URLs and attendee selfie_urls
+ * found in event listing / detail responses.
+ */
+async function presignEventData(event: any): Promise<any> {
+    const result = { ...event };
+
+    // Presign cover photo preview (photos[] array with thumb_url / display_url)
+    if (Array.isArray(result.photos)) {
+        result.photos = await Promise.all(
+            result.photos.map(async (p: any) => ({
+                ...p,
+                ...(p.thumb_url ? { thumb_url: await presignStoredUrl(p.thumb_url, 3600) } : {}),
+                ...(p.display_url ? { display_url: await presignStoredUrl(p.display_url, 3600) } : {}),
+            }))
+        );
+    }
+
+    // Presign attendee selfie avatars (event_access[].user.selfie_url)
+    if (Array.isArray(result.event_access)) {
+        result.event_access = await Promise.all(
+            result.event_access.map(async (ea: any) => {
+                if (ea.user?.selfie_url) {
+                    return {
+                        ...ea,
+                        user: { ...ea.user, selfie_url: await presignStoredUrl(ea.user.selfie_url, 86400) }
+                    };
+                }
+                return ea;
+            })
+        );
+    }
+
+    return result;
+}
 import { getIO } from "../lib/socket.js";
 
 /**
@@ -73,16 +109,18 @@ async function createEventController(req: AuthRequest, res: Response) {
         })
 
         // Enqueue face-matching job if user has a selfie
-        const users = await prisma.$queryRaw<any[]>`
-            SELECT id FROM "User" 
-            WHERE id = ${req.user.id} AND selfie_embedding IS NOT NULL
+        const users = await prisma.$queryRaw<{ selfie_url: string | null }[]>`
+            SELECT selfie_url FROM "User" 
+            WHERE id = ${req.user.id}::text AND selfie_embedding IS NOT NULL
         `
-        if (users.length > 0) {
+        if (users.length > 0 && users[0]?.selfie_url) {
+            const presignedSelfieUrlForMatch = await presignStoredUrl(users[0].selfie_url, 1800)
             await matchingQueue.add(
                 'match-user',
                 {
                     userId: req.user.id,
                     eventId: event.id,
+                    selfieUrl: presignedSelfieUrlForMatch,
                 },
                 {
                     jobId: `match-${event.id}-${req.user.id}-${Date.now()}`
@@ -155,9 +193,10 @@ async function getEventDetailsController(req: AuthRequest, res: Response) {
         if (!event) {
             return res.status(404).json({ message: "Event not found" })
         }
+        const signedEvent = await presignEventData(event);
         return res.status(200).json({
             event: {
-                ...event,
+                ...signedEvent,
                 user_role: eventAccess.role,
                 attendee_upload_limit: eventAccess.upload_limit !== null && eventAccess.upload_limit !== undefined
                     ? eventAccess.upload_limit
@@ -260,16 +299,18 @@ async function joinEventController(req: AuthRequest, res: Response) {
         }
 
         // Enqueue face-matching job if user has a selfie
-        const users = await prisma.$queryRaw<any[]>`
-            SELECT id FROM "User" 
+        const users = await prisma.$queryRaw<{ selfie_url: string | null }[]>`
+            SELECT selfie_url FROM "User" 
             WHERE id = ${req.user.id}::text AND selfie_embedding IS NOT NULL
         `
-        if (users.length > 0) {
+        if (users.length > 0 && users[0]?.selfie_url) {
+            const presignedSelfieUrlForMatch = await presignStoredUrl(users[0].selfie_url, 1800)
             await matchingQueue.add(
                 'match-user',
                 {
                     userId: req.user.id,
                     eventId: event.id,
+                    selfieUrl: presignedSelfieUrlForMatch,
                 },
                 {
                     jobId: `match-${event.id}-${req.user.id}-${Date.now()}`,
@@ -346,18 +387,19 @@ async function getJoinedEventsController(req: AuthRequest, res: Response) {
                 }
             }
         })
-        const eventsWithOverride = events.map(acc => {
+        const eventsWithOverride = await Promise.all(events.map(async acc => {
             const ev = acc.event as any;
+            const signedEv = await presignEventData(ev);
             return {
                 ...acc,
                 event: {
-                    ...ev,
+                    ...signedEv,
                     attendee_upload_limit: acc.upload_limit !== null && acc.upload_limit !== undefined
                         ? acc.upload_limit
                         : ev.attendee_upload_limit
                 }
             }
-        })
+        }))
         return res.status(200).json({ message: "Events fetched successfully", data: eventsWithOverride })
     } catch (error) {
         const message = error instanceof Error ? error.message : "Internal server error";
@@ -513,9 +555,12 @@ async function getEventsController(req: AuthRequest, res: Response) {
         });
 
         // Add user_role as ORGANIZER since these are the user's own events
-        const eventsWithRole = events.map(event => ({
-            ...event,
-            user_role: "ORGANIZER"
+        const eventsWithRole = await Promise.all(events.map(async event => {
+            const signedEvent = await presignEventData(event);
+            return {
+                ...signedEvent,
+                user_role: "ORGANIZER"
+            };
         }));
 
         return res.status(200).json({
@@ -595,7 +640,10 @@ async function getEventAttendeesController(req: AuthRequest, res: Response) {
             })
             return {
                 ...acc,
-                upload_count: count
+                upload_count: count,
+                user: acc.user?.selfie_url
+                    ? { ...acc.user, selfie_url: await presignStoredUrl(acc.user.selfie_url, 86400) }
+                    : acc.user
             }
         }))
 

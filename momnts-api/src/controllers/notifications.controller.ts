@@ -2,6 +2,7 @@ import type { Response } from "express";
 import { prisma } from "../lib/prisma.js";
 import type { AuthRequest } from "../middleware/auth.middleware.js";
 import { Prisma } from "../generated/prisma/index.js";
+import { presignStoredUrl } from "../lib/r2.js";
 
 /**
  * @name getNotificationsController
@@ -24,9 +25,16 @@ async function getNotificationsController(req: AuthRequest, res: Response) {
             take: 20
         });
 
+        const signedNotifications = await Promise.all(notifications.map(async (n) => {
+            if (n.image_url) {
+                return { ...n, image_url: await presignStoredUrl(n.image_url, 86400) }
+            }
+            return n;
+        }))
+
         return res.status(200).json({
             message: "Notifications retrieved successfully",
-            notifications,
+            notifications: signedNotifications,
         });
     } catch (error) {
         console.error("[getNotificationsController] Error:", error);

@@ -2,7 +2,7 @@ import 'dotenv/config'
 import { Worker } from 'bullmq'
 import { redis } from '../lib/redis.js'
 import { prisma } from '../lib/prisma.js'
-import { uploadToR2, deleteFromR2 } from '../lib/r2.js'
+import { uploadToR2, deleteFromR2, presignStoredUrl, presignPhoto } from '../lib/r2.js'
 import { processImage } from '../lib/imageProcesser.js'
 import axios from 'axios'
 import { randomUUID } from 'crypto'
@@ -53,7 +53,7 @@ async function handleProcessPhoto(data: { photoId: string; eventId: string; temp
 
   try {
     // Download raw file from R2
-    const rawUrl = `${R2_PUBLIC_URL}/${tempKey}`
+    const rawUrl = await presignStoredUrl(tempKey, 3600)
     const response = await axios.get(rawUrl, { responseType: 'arraybuffer', timeout: 60000 })
     const rawBuffer = Buffer.from(response.data)
 
@@ -85,21 +85,23 @@ async function handleProcessPhoto(data: { photoId: string; eventId: string; temp
       }
     })
 
+    const signedUpdatedPhoto = await presignPhoto({
+      id: updatedPhoto.id,
+      display_url: updatedPhoto.display_url,
+      thumb_url: updatedPhoto.thumb_url,
+      original_url: updatedPhoto.original_url,
+      width: updatedPhoto.width,
+      height: updatedPhoto.height,
+      uploaded_at: updatedPhoto.uploaded_at.toISOString(),
+      processed: true,
+    })
+
     // Publish event immediately with updated URLs so client stops using tempUrl
     await publishPhotoProcessed({
       eventId,
       photoId,
       totalFaces: 0,
-      photo: {
-        id: updatedPhoto.id,
-        display_url: updatedPhoto.display_url,
-        thumb_url: updatedPhoto.thumb_url,
-        original_url: updatedPhoto.original_url,
-        width: updatedPhoto.width,
-        height: updatedPhoto.height,
-        uploaded_at: updatedPhoto.uploaded_at.toISOString(),
-        processed: true,
-      }
+      photo: signedUpdatedPhoto
     })
 
     // Delete temp raw file from R2
@@ -137,9 +139,10 @@ async function handleDetectFaces(data: { photoId: string; eventId: string; displ
 
   try {
     // ── Step 1: Call Python service to detect faces ──
+    const presignedDisplayUrl = await presignStoredUrl(displayUrl, 3600)
     const { data: responseData } = await axios.post(`${PYTHON_SERVICE_URL}/detect`, {
       photo_id: photoId,
-      image_url: displayUrl,
+      image_url: presignedDisplayUrl,
     })
 
     const faces = responseData.faces
@@ -222,36 +225,40 @@ async function handleDetectFaces(data: { photoId: string; eventId: string; displ
     })
 
     // ── Step 5: Publish WebSocket event ──
+    const signedPhoto = await presignPhoto({
+      id: updatedPhoto.id,
+      display_url: updatedPhoto.display_url,
+      thumb_url: updatedPhoto.thumb_url,
+      original_url: updatedPhoto.original_url,
+      width: updatedPhoto.width,
+      height: updatedPhoto.height,
+      uploaded_at: updatedPhoto.uploaded_at.toISOString(),
+      processed: true,
+    })
+
     await publishPhotoProcessed({
       eventId,
       photoId,
       totalFaces: faces.length,
-      photo: {
-        id: updatedPhoto.id,
-        display_url: updatedPhoto.display_url,
-        thumb_url: updatedPhoto.thumb_url,
-        original_url: updatedPhoto.original_url,
-        width: updatedPhoto.width,
-        height: updatedPhoto.height,
-        uploaded_at: updatedPhoto.uploaded_at.toISOString(),
-        processed: true,
-      }
+      photo: signedPhoto
     })
 
     // ── Step 6: Trigger matching for all users with selfies ──
-    const usersWithSelfies = await prisma.$queryRaw<any[]>`
-      SELECT DISTINCT ea.user_id
+    const usersWithSelfies = await prisma.$queryRaw<{ user_id: string; selfie_url: string }[]>`
+      SELECT DISTINCT ea.user_id, u.selfie_url
       FROM "EventAccess" ea
       INNER JOIN "User" u ON u.id = ea.user_id
       WHERE ea.event_id = ${eventId}::text AND u.selfie_embedding IS NOT NULL
     `
 
     for (const user of usersWithSelfies) {
+      const presignedSelfieUrlForMatch = user.selfie_url ? await presignStoredUrl(user.selfie_url, 1800) : null;
       await matchingQueue.add(
         'match-user',
         {
           userId: user.user_id,
           eventId: eventId,
+          ...(presignedSelfieUrlForMatch ? { selfieUrl: presignedSelfieUrlForMatch } : {})
         },
         {
           jobId: `match-${eventId}-${user.user_id}-${Date.now()}`,

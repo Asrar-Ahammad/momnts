@@ -10,7 +10,7 @@ export function useConnections(eventId: string) {
     queryKey: ["connections", eventId],
     queryFn: () => fetchConnections(eventId),
     enabled: !!eventId,
-    staleTime: 5 * 60 * 1000,
+    staleTime: 45 * 60 * 1000,
   })
 }
 
@@ -22,7 +22,7 @@ export function useSharedPhotos(
     queryKey: ["shared-photos", eventId, faceProfileId],
     queryFn: () => fetchSharedPhotos(eventId, faceProfileId!),
     enabled: !!eventId && !!faceProfileId,
-    staleTime: 5 * 60 * 1000,
+    staleTime: 45 * 60 * 1000,
   })
 }
 
