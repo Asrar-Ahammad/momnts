@@ -7,6 +7,7 @@ import { Button } from "../../../components/ui/button"
 import { CalendarDots, MapPin, ArrowRight, Crown, User, Image as ImageIcon } from '@phosphor-icons/react'
 import { cn } from '../../../lib/utils'
 import { photosApi } from '../../../features/events/services/photos.api'
+import { useWebHaptics } from 'web-haptics/react'
 
 interface EventCardProps {
   event: EventData
@@ -32,6 +33,7 @@ export const EventCard = ({ event }: EventCardProps) => {
   const navigate = useNavigate()
   const theme = getThemeForEvent(event.id)
   const isOrganizer = event.user_role === 'ORGANIZER'
+  const haptic = useWebHaptics()
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
     if (e.key === 'Enter' || e.key === ' ') {
@@ -64,7 +66,7 @@ export const EventCard = ({ event }: EventCardProps) => {
     <motion.div
       whileHover={{ y: -8 }}
       transition={{ type: 'spring', stiffness: 300, damping: 20 }}
-      onClick={() => navigate(`/events/${event.id}`)}
+      onClick={() => { haptic.trigger("light"); navigate(`/events/${event.id}`) }}
       onKeyDown={handleKeyDown}
       tabIndex={0}
       role="button"

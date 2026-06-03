@@ -14,6 +14,7 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from "../../../components/ui/alert-dialog";
+import { useWebHaptics } from "web-haptics/react";
 
 interface CommentItemProps {
   comment: CommentData;
@@ -41,6 +42,7 @@ export function CommentItem({
   onDelete,
   onReply,
 }: CommentItemProps) {
+  const haptic = useWebHaptics();
   const [showReplies, setShowReplies] = useState(true);
   const [, setShowReplyInput] = useState(false); // Declared state as requested
 
@@ -60,6 +62,7 @@ export function CommentItem({
   const hasReplies = comment.replies && comment.replies.length > 0;
 
   const handleReplyClick = () => {
+    haptic.trigger("light");
     setShowReplyInput(true);
     onReply(comment.id, comment.user?.name || "User");
   };
@@ -142,9 +145,12 @@ export function CommentItem({
                 </AlertDialogDescription>
               </AlertDialogHeader>
               <AlertDialogFooter>
-                <AlertDialogCancel>Cancel</AlertDialogCancel>
+                <AlertDialogCancel onClick={() => haptic.trigger("light")}>Cancel</AlertDialogCancel>
                 <AlertDialogAction 
-                  onClick={() => onDelete(comment.id)}
+                  onClick={() => {
+                    haptic.trigger("warning");
+                    onDelete(comment.id);
+                  }}
                   className="bg-red-600 hover:bg-red-700 text-white"
                 >
                   Delete

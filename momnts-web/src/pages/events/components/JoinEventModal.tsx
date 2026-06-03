@@ -7,6 +7,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, Di
 import { X } from '@phosphor-icons/react'
 import { eventsApi, EventData } from '../../../features/events/services/events.api'
 import { toast } from 'sonner'
+import { useWebHaptics } from 'web-haptics/react'
 
 interface JoinEventModalProps {
   open: boolean
@@ -20,6 +21,7 @@ export const JoinEventModal = ({ open, onOpenChange, onEventJoined, initialInvit
   const [inviteCode, setInviteCode] = useState(initialInviteCode.toUpperCase())
   const [joiningEvent, setJoiningEvent] = useState(false)
   const joiningEventRef = useRef(false)
+  const haptic = useWebHaptics()
 
   useEffect(() => {
     if (open && initialInviteCode) {
@@ -31,6 +33,7 @@ export const JoinEventModal = ({ open, onOpenChange, onEventJoined, initialInvit
     if (joiningEventRef.current) return
     if (!inviteCode || inviteCode.length !== 6) {
       toast.error('Please enter a valid 6-digit invite code')
+      haptic.trigger("error")
       return
     }
 
@@ -39,6 +42,7 @@ export const JoinEventModal = ({ open, onOpenChange, onEventJoined, initialInvit
       setJoiningEvent(true)
       const event = await eventsApi.joinEvent(inviteCode)
       toast.success(`Successfully joined ${event.name}!`)
+      haptic.trigger("success")
       onOpenChange(false)
       setInviteCode('')
       navigate(`/events/${event.id}`)
@@ -55,6 +59,7 @@ export const JoinEventModal = ({ open, onOpenChange, onEventJoined, initialInvit
     } catch (error) {
       console.error('Failed to join event:', error)
       toast.error(error instanceof Error ? error.message : 'Failed to join event')
+      haptic.trigger("error")
     } finally {
       joiningEventRef.current = false
       setJoiningEvent(false)

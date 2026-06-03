@@ -10,6 +10,7 @@ import { Button } from './ui/button'
 import { useAuth } from '../features/auth/hooks/useAuth'
 import { useNotificationSocket } from '../hooks/useNotificationSocket'
 import { toast } from 'sonner'
+import { useWebHaptics } from 'web-haptics/react'
 
 function avatarColor(name: string): string {
   let hash = 0
@@ -28,6 +29,7 @@ function getInitials(name: string): string {
 const NotificationsPopover = () => {
   const navigate = useNavigate()
   const { user } = useAuth()
+  const haptic = useWebHaptics()
   const [notifications, setNotifications] = useState<NotificationData[]>([])
   const [unreadCount, setUnreadCount] = useState(0)
   const [popoverOpen, setPopoverOpen] = useState(false)
@@ -75,6 +77,7 @@ const NotificationsPopover = () => {
   })
 
   const handleNotificationClick = async (n: NotificationData) => {
+    haptic.trigger("light")
     setPopoverOpen(false)
     if (!n.is_read) {
       try {
@@ -93,9 +96,11 @@ const NotificationsPopover = () => {
   const handleClearAll = async () => {
     try {
       await notificationsApi.clearNotifications()
+      haptic.trigger("success")
       setNotifications([])
       setUnreadCount(0)
     } catch (error) {
+      haptic.trigger("error")
       console.error('Failed to clear notifications:', error)
     }
   }

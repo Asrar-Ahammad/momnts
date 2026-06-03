@@ -10,12 +10,14 @@ import { toast } from "sonner"
 import { Spinner } from "../../../../components/ui/spinner"
 import { ForgotPasswordModal } from "../../components/ForgotPasswordModal"
 import { useForm } from "@tanstack/react-form"
+import { useWebHaptics } from 'web-haptics/react'
 
 
 const Login = () => {
     const navigate = useNavigate()
     const [searchParams] = useSearchParams()
     const { user, setUser } = useAuth()
+    const haptic = useWebHaptics()
     const [showPassword, setShowPassword] = useState(false)
     const [isLoading, setIsLoading] = useState(false)
     const isLoadingRef = useRef(false)
@@ -42,12 +44,14 @@ const Login = () => {
                 setIsLoading(true)
                 const data = await authApi.login(value.email, value.password)
                 setUser(data.user)
+                haptic.trigger("success")
                 const redirect = searchParams.get('redirect')
                 const safeRedirect = redirect && redirect.startsWith('/') && !redirect.startsWith('//') ? redirect : "/dashboard"
                 navigate(safeRedirect, { replace: true })
             } catch (error) {
                 console.error("Login error:", error)
                 toast.error(error instanceof Error ? error.message : "Login failed")
+                haptic.trigger("error")
             } finally {
                 isLoadingRef.current = false
                 setIsLoading(false)

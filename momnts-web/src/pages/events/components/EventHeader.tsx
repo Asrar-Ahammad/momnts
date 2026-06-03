@@ -58,6 +58,7 @@ import {
 import { EventData } from '../../../features/events/services/events.api'
 import { toast } from 'sonner'
 import { motion, AnimatePresence } from 'framer-motion'
+import { useWebHaptics } from 'web-haptics/react'
 
 type TabType = 'all' | 'your-photos' | 'favourites' | 'your-uploads' | 'connections'
 type GalleryColumns = 1 | 2 | 3
@@ -120,6 +121,7 @@ const EventHeader = ({
   const [showLeaveConfirm, setShowLeaveConfirm] = useState(false)
   const [leaving, setLeaving] = useState(false)
   const leavingRef = useRef(false)
+  const haptic = useWebHaptics()
   // TODO: Add error handling for this hook
   const { data: summaryData } = useConnectionsSummary(event?.id ?? '')
 
@@ -670,7 +672,7 @@ const EventHeader = ({
 
           {/* Row 2: Tabs (Full Width) */}
           <div className="mt-2 -mx-4 px-4 sm:mx-0 sm:px-0 overflow-x-auto no-scrollbar border-t border-neutral-100 dark:border-neutral-800/60 pt-3">
-            <Tabs value={activeTab} onValueChange={(v) => onTabChange(v as TabType)} className="w-full">
+            <Tabs value={activeTab} onValueChange={(v) => { haptic.trigger("selection"); onTabChange(v as TabType) }} className="w-full">
               <TabsList className="bg-neutral-100 dark:bg-neutral-800 w-max min-w-full sm:w-auto flex shrink-0 rounded-full p-1 relative">
                 {(['all', 'your-photos', 'favourites', 'your-uploads', 'connections'] as TabType[]).map((tab) => {
                   const isActive = activeTab === tab;
@@ -720,9 +722,9 @@ const EventHeader = ({
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel className="rounded-2xl" disabled={leaving}>Cancel</AlertDialogCancel>
+            <AlertDialogCancel className="rounded-2xl" disabled={leaving} onClick={() => haptic.trigger("light")}>Cancel</AlertDialogCancel>
             <AlertDialogAction
-              onClick={handleLeave}
+              onClick={() => { haptic.trigger("warning"); handleLeave() }}
               disabled={leaving}
               className="bg-red-500 hover:bg-red-600 text-white rounded-2xl"
             >

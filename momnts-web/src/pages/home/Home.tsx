@@ -21,6 +21,7 @@ import {
   CaretLeft,
   CaretRight
 } from '@phosphor-icons/react'
+import { useWebHaptics } from 'web-haptics/react'
 
 
 const Home = () => {
@@ -28,6 +29,7 @@ const Home = () => {
   const { user } = useAuth()
   const { events, isLoading } = useEvents()
   const queryClient = useQueryClient()
+  const haptic = useWebHaptics()
 
   const [showSelfieBanner, setShowSelfieBanner] = useState(true)
   const [createModalOpen, setCreateModalOpen] = useState(false)
@@ -71,7 +73,7 @@ const Home = () => {
         <div className="flex flex-col sm:flex-row gap-4 w-full sm:w-auto">
           <Button
             className="rounded-full h-12 px-8 bg-neutral-900 dark:bg-neutral-100 dark:text-neutral-900"
-            onClick={() => setCreateModalOpen(true)}
+            onClick={() => { haptic.trigger("medium"); setCreateModalOpen(true) }}
           >
             <PlusCircle size={20} weight="bold" className="mr-2" />
             Create Event
@@ -79,7 +81,7 @@ const Home = () => {
           <Button
             variant="outline"
             className="rounded-full h-12 px-8 border-neutral-200 dark:border-neutral-700"
-            onClick={() => setJoinModalOpen(true)}
+            onClick={() => { haptic.trigger("medium"); setJoinModalOpen(true) }}
           >
             <Ticket size={20} weight="bold" className="mr-2" />
             Join Event
@@ -132,7 +134,7 @@ const Home = () => {
             </Button>
           </div>
           <button
-            onClick={() => setShowSelfieBanner(false)}
+            onClick={() => { haptic.trigger("light"); setShowSelfieBanner(false) }}
             className="text-amber-900/50 dark:text-amber-100/50 hover:text-amber-900 dark:hover:text-amber-100"
           >
             <X size={20} weight="bold" />
@@ -144,7 +146,7 @@ const Home = () => {
       <div className="flex flex-col sm:flex-row gap-4">
         <Button
           className="rounded-full h-11 px-8 bg-neutral-900 dark:bg-neutral-100 dark:text-neutral-900 font-medium"
-          onClick={() => setCreateModalOpen(true)}
+          onClick={() => { haptic.trigger("medium"); setCreateModalOpen(true) }}
         >
           <PlusCircle size={20} weight="bold" className="mr-2" />
           Create Event
@@ -152,7 +154,7 @@ const Home = () => {
         <Button
           variant="outline"
           className="rounded-full h-11 px-8 border-neutral-200 dark:border-neutral-700 font-medium"
-          onClick={() => setJoinModalOpen(true)}
+          onClick={() => { haptic.trigger("medium"); setJoinModalOpen(true) }}
         >
           <Ticket size={20} weight="bold" className="mr-2" />
           Join Event
@@ -160,7 +162,7 @@ const Home = () => {
       </div>
 
       {/* 3.5. Relive Your Momnts Memory Lanes */}
-      <div className="space-y-4 relative group">
+      <div className="space-y-4 relative group/lane">
         <div className="flex items-center justify-between gap-2">
           
           <h2 className="text-2xl font-sirage font-bold text-neutral-800 dark:text-neutral-200 select-none">
@@ -168,7 +170,7 @@ const Home = () => {
           </h2>
           
           {events.length > 0 && (
-            <div className="flex items-center gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
+            <div className="flex items-center gap-2 opacity-0 group-hover/lane:opacity-100 transition-opacity">
               <Button
                 variant="outline"
                 size="icon"

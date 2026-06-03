@@ -11,6 +11,7 @@ import { useSharedPhotos } from "../hooks/useConnections"
 import { photosApi } from "../../events/services/photos.api"
 import type { PhotoData } from "../../events/services/photos.api"
 import PhotoCarousel from "../../../pages/events/components/PhotoCarousel"
+import { useWebHaptics } from "web-haptics/react"
 
 interface SharedPhotosModalProps {
   eventId: string
@@ -27,12 +28,20 @@ export default function SharedPhotosSheet({
   favouritePhotoIds: parentFavouritePhotoIds,
   onToggleFavourite: parentOnToggleFavourite,
 }: SharedPhotosModalProps) {
+  const haptic = useWebHaptics()
   const { data, isLoading, isError, refetch } = useSharedPhotos(
     eventId,
     faceProfileId
   )
   const [carouselIndex, setCarouselIndex] = useState<number | null>(null)
   const isOpen = faceProfileId !== null
+
+  // Trigger medium haptic when the sheet opens
+  useEffect(() => {
+    if (isOpen) {
+      haptic.trigger("medium")
+    }
+  }, [isOpen])
 
   // Local fallback state
   const [localFavouritePhotoIds, setLocalFavouritePhotoIds] = useState<Set<string>>(new Set())

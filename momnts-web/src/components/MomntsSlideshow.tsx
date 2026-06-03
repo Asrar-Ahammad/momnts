@@ -11,6 +11,7 @@ import { cn } from '../lib/utils'
 import { SlideshowIntro } from './SlideshowIntro'
 import { SlideshowThumbnails } from './SlideshowThumbnails'
 import { SlideshowControls } from './SlideshowControls'
+import { useWebHaptics } from 'web-haptics/react'
 
 // Dynamically resolve all music tracks in the assets/music folder
 const musicModules = import.meta.glob('../assets/music/*.{mp3,wav,ogg,m4a,aac}', { eager: true })
@@ -65,6 +66,7 @@ export const MomntsSlideshow = ({
   const audioRef = useRef<HTMLAudioElement | null>(null)
   const controlsTimeoutRef = useRef<number | null>(null)
   const slideshowIntervalRef = useRef<number | null>(null)
+  const haptic = useWebHaptics()
 
   // Unmount cleanup to stop music playback (e.g. back button navigation)
   useEffect(() => {
@@ -252,10 +254,12 @@ export const MomntsSlideshow = ({
     switch (e.key) {
       case 'ArrowLeft':
         goToPrevious()
+        haptic.trigger("selection")
         resetControlsTimer()
         break
       case 'ArrowRight':
         goToNext()
+        haptic.trigger("selection")
         resetControlsTimer()
         break
       case ' ':
@@ -293,6 +297,7 @@ export const MomntsSlideshow = ({
   const handleStart = () => {
     setShowIntro(false)
     setIsSlideshowPlaying(true)
+    haptic.trigger("medium")
   }
 
   // Handle Close & cleanup
@@ -302,6 +307,7 @@ export const MomntsSlideshow = ({
     }
     setShowThumbnails(false)
     setThumbnailPage(0)
+    haptic.trigger("light")
     onOpenChange(false)
   }
 

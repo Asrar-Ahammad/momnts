@@ -21,6 +21,7 @@ import AttendeesModal from './components/AttendeesModal'
 import PhotoCarousel from './components/PhotoCarousel'
 import WhoWasIWith from '../../features/connections/components/WhoWasIWith'
 import ShareEventModal from './components/ShareEventModal'
+import { useWebHaptics } from 'web-haptics/react'
 
 type TabType = 'all' | 'your-photos' | 'favourites' | 'your-uploads' | 'connections'
 type GalleryColumns = 1 | 2 | 3
@@ -33,6 +34,7 @@ const EventDetails = () => {
 
   const [activeTab, setActiveTab] = useState<TabType>('all')
   const queryClient = useQueryClient()
+  const haptic = useWebHaptics()
   const { data: event, isLoading: eventLoading } = useEventDetails(eventId)
   const { data: photos = [], isLoading: photosLoading } = useEventPhotos(eventId)
   const { data: myPhotosResponse, isLoading: myPhotosLoading } = useMyPhotos(eventId)
@@ -183,8 +185,10 @@ const EventDetails = () => {
 
       if (response.isFavourite) {
         toast.success('Added to Favourites! ❤️')
+        haptic.trigger("success")
       } else {
         toast.success('Removed from Favourites')
+        haptic.trigger("light")
       }
       queryClient.invalidateQueries({ queryKey: ['photos', eventId] })
       queryClient.invalidateQueries({ queryKey: ['my-photos', eventId] })
@@ -336,6 +340,7 @@ const EventDetails = () => {
     if (files.length > 0) {
       setSelectedFiles(prev => [...prev, ...files])
       setFileStatuses(prev => [...prev, ...files.map((): FileUploadStatus => 'pending')])
+      haptic.trigger("light")
     }
   }
 
@@ -352,6 +357,7 @@ const EventDetails = () => {
         } else {
           toast.error(`You can only upload ${remaining} more photo(s).`)
         }
+        haptic.trigger("warning")
         return
       }
     }
@@ -384,6 +390,7 @@ const EventDetails = () => {
       )
 
       toast.success(`${selectedFiles.length} photo(s) uploaded successfully!`)
+      haptic.trigger("success")
 
       // Delay closing so user can see the green check marks
       await new Promise(resolve => setTimeout(resolve, 1000))
@@ -397,6 +404,7 @@ const EventDetails = () => {
     } catch (error) {
       console.error('Failed to upload photos:', error)
       toast.error(error instanceof Error ? error.message : 'Failed to upload photos')
+      haptic.trigger("error")
     } finally {
       uploadingRef.current = false
       setUploading(false)
@@ -409,6 +417,7 @@ const EventDetails = () => {
       setInviteCodeCopied(true)
       setTimeout(() => setInviteCodeCopied(false), 2000)
       toast.success('Invite code copied!')
+      haptic.trigger("success")
     }
   }
 
@@ -438,12 +447,14 @@ const EventDetails = () => {
         settingsForm.isActive
       )
       toast.success('Event updated successfully!')
+      haptic.trigger("success")
       setSettingsModalOpen(false)
       queryClient.invalidateQueries({ queryKey: ['event', eventId] })
       queryClient.invalidateQueries({ queryKey: ['events'] })
     } catch (error) {
       console.error('Failed to update event:', error)
       toast.error(error instanceof Error ? error.message : 'Failed to update event')
+      haptic.trigger("error")
     } finally {
       savingSettingsRef.current = false
       setSavingSettings(false)

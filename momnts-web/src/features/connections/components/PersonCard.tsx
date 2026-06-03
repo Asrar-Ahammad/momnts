@@ -1,5 +1,6 @@
 import { Images, UserCircleDashed } from "@phosphor-icons/react"
 import type { ConnectionPerson } from "../services/connections.api"
+import { useWebHaptics } from "web-haptics/react"
 
 interface PersonCardProps {
   connection: ConnectionPerson
@@ -29,18 +30,24 @@ function getInitials(name: string): string {
 }
 
 export default function PersonCard({ connection, onClick }: PersonCardProps) {
+  const haptic = useWebHaptics()
   const { person, shared_photo_count, is_claimed } = connection
   const photoLabel =
     shared_photo_count === 1
       ? "1 photo together"
       : `${shared_photo_count} photos together`
 
+  const handleButtonClick = () => {
+    haptic.trigger("light")
+    onClick()
+  }
+
   return (
     <>
       {/* ── Desktop: Photo background card ── */}
       <button
         type="button"
-        onClick={onClick}
+        onClick={handleButtonClick}
         className="hidden md:block relative w-full aspect-[3/4] overflow-hidden rounded-2xl cursor-pointer group focus:outline-none"
       >
         {/* Background image or color fallback */}
@@ -98,7 +105,7 @@ export default function PersonCard({ connection, onClick }: PersonCardProps) {
       {/* ── Mobile: Compact row card ── */}
       <button
         type="button"
-        onClick={onClick}
+        onClick={handleButtonClick}
         className="md:hidden w-full bg-neutral-50 dark:bg-neutral-800 hover:bg-neutral-100 dark:hover:bg-neutral-700 border border-neutral-200 dark:border-neutral-700 p-3 flex items-center gap-3 cursor-pointer transition-colors rounded-4xl group focus:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-blue-500 dark:focus-visible:ring-offset-neutral-800"
       >
         {/* Avatar */}

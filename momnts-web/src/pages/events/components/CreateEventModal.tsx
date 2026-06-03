@@ -10,6 +10,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, Di
 import { CalendarIcon, X } from '@phosphor-icons/react'
 import { eventsApi, EventData } from '../../../features/events/services/events.api'
 import { toast } from 'sonner'
+import { useWebHaptics } from 'web-haptics/react'
 
 interface CreateEventModalProps {
   open: boolean
@@ -25,11 +26,13 @@ export const CreateEventModal = ({ open, onOpenChange, onEventCreated }: CreateE
   const [newEventUploadLimit, setNewEventUploadLimit] = useState(10)
   const [creatingEvent, setCreatingEvent] = useState(false)
   const creatingEventRef = useRef(false)
+  const haptic = useWebHaptics()
 
   const handleCreateEvent = async () => {
     if (creatingEventRef.current) return
     if (!newEventName || !newEventLocation || !newEventDate) {
       toast.error('Please fill in all fields')
+      haptic.trigger("error")
       return
     }
 
@@ -43,6 +46,7 @@ export const CreateEventModal = ({ open, onOpenChange, onEventCreated }: CreateE
         newEventUploadLimit
       )
       toast.success('Event created successfully!')
+      haptic.trigger("success")
       onOpenChange(false)
       setNewEventName('')
       setNewEventLocation('')
@@ -61,6 +65,7 @@ export const CreateEventModal = ({ open, onOpenChange, onEventCreated }: CreateE
     } catch (error) {
       console.error('Failed to create event:', error)
       toast.error(error instanceof Error ? error.message : 'Failed to create event')
+      haptic.trigger("error")
     } finally {
       creatingEventRef.current = false
       setCreatingEvent(false)

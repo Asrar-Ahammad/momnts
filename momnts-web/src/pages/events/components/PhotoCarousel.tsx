@@ -19,6 +19,7 @@ import { cn } from '../../../lib/utils'
 import { Tooltip, TooltipContent, TooltipTrigger, TooltipProvider } from '../../../components/ui/tooltip'
 import { Kbd } from '../../../components/ui/kbd'
 import { motion, AnimatePresence } from 'framer-motion'
+import { useWebHaptics } from 'web-haptics/react'
 
 interface PhotoCarouselProps {
   open: boolean
@@ -66,6 +67,7 @@ const PhotoCarousel = ({
   const preloadedRef = useRef<Set<string>>(new Set())
   const lastScrollTopRef = useRef(0)
   const isTransitioningRef = useRef(false)
+  const haptic = useWebHaptics()
 
   // Automatically open comments when highlighted comment is passed
   useEffect(() => {
@@ -200,11 +202,13 @@ const PhotoCarousel = ({
 
   const goToPrevious = useCallback(() => {
     setCurrentIndex((prev) => (prev > 0 ? prev - 1 : photos.length - 1))
-  }, [photos.length])
+    haptic.trigger("selection")
+  }, [photos.length, haptic])
 
   const goToNext = useCallback(() => {
     setCurrentIndex((prev) => (prev < photos.length - 1 ? prev + 1 : 0))
-  }, [photos.length])
+    haptic.trigger("selection")
+  }, [photos.length, haptic])
 
   const handleKeyDown = useCallback((e: KeyboardEvent | React.KeyboardEvent) => {
     const activeEl = document.activeElement
@@ -432,7 +436,7 @@ const PhotoCarousel = ({
                           variant="ghost"
                           size="icon"
                           className="bg-black/40 hover:bg-black/80 hover:text-white backdrop-blur-md text-white px-3 py-1.5 rounded-full border border-white/10 flex items-center justify-center gap-1"
-                          onClick={() => onOpenChange(false)}
+                          onClick={() => { haptic.trigger("light"); onOpenChange(false) }}
                         >
                           <XIcon size={20} weight="bold" />
                         </Button>
@@ -592,9 +596,9 @@ const PhotoCarousel = ({
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogCancel onClick={() => haptic.trigger("light")}>Cancel</AlertDialogCancel>
             <AlertDialogAction 
-              onClick={handleDelete}
+              onClick={() => { haptic.trigger("warning"); handleDelete() }}
               className="bg-red-600 hover:bg-red-700 text-white"
             >
               Delete

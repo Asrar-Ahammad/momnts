@@ -9,6 +9,7 @@ import { cn } from '../../../lib/utils'
 import { Popover, PopoverContent, PopoverTrigger } from '../../../components/ui/popover'
 import { Calendar } from '../../../components/ui/calendar'
 import { Switch } from '../../../components/ui/switch'
+import { useWebHaptics } from 'web-haptics/react'
 
 interface EventSettingsModalProps {
   open: boolean
@@ -37,6 +38,7 @@ const EventSettingsModal = ({
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false)
   const [deleting, setDeleting] = useState(false)
   const deletingRef = useRef(false)
+  const haptic = useWebHaptics()
 
   const handleDelete = async () => {
     if (deletingRef.current) return
@@ -181,14 +183,14 @@ const EventSettingsModal = ({
           <div className="flex gap-2 justify-end pt-2">
             <Button
               variant="outline"
-              onClick={() => setShowDeleteConfirm(false)}
+              onClick={() => { haptic.trigger("light"); setShowDeleteConfirm(false) }}
               disabled={deleting}
             >
               Cancel
             </Button>
             <Button
               variant="destructive"
-              onClick={handleDelete}
+              onClick={() => { haptic.trigger("warning"); handleDelete() }}
               disabled={deleting}
             >
               {deleting ? 'Deleting...' : 'Delete Forever'}

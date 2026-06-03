@@ -4,6 +4,7 @@ import { useAuth } from "../../auth/hooks/useAuth";
 import { useAddComment } from "../hooks/useComments";
 import { Button } from "../../../components/ui/button";
 import { useEventAttendees } from "../../events/hooks/useEvents";
+import { useWebHaptics } from "web-haptics/react";
 
 interface CommentInputProps {
   photoId: string;
@@ -37,6 +38,8 @@ export function CommentInput({
   const [text, setText] = useState("");
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const addCommentMutation = useAddComment(photoId);
+  const haptic = useWebHaptics();
+  const hasTriggeredWarningRef = useRef(false);
 
   const [activeSuggestionIndex, setActiveSuggestionIndex] = useState(0);
   const [mentionState, setMentionState] = useState<{ query: string; startIdx: number; endIdx: number } | null>(null);
@@ -91,6 +94,16 @@ export function CommentInput({
     const val = e.target.value;
     setText(val);
     handleTextChangeOrCursorMove(val, e.target.selectionStart);
+
+    // Haptic warning limit trigger (480 limit)
+    if (val.length >= 480) {
+      if (!hasTriggeredWarningRef.current) {
+        haptic.trigger("warning");
+        hasTriggeredWarningRef.current = true;
+      }
+    } else {
+      hasTriggeredWarningRef.current = false;
+    }
   };
 
   const handleKeyUp = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
@@ -113,6 +126,16 @@ export function CommentInput({
     setText(newText);
     setMentionState(null);
 
+    // Keep trigger warning check up to date if mention pushes length >= 480
+    if (newText.length >= 480) {
+      if (!hasTriggeredWarningRef.current) {
+        haptic.trigger("warning");
+        hasTriggeredWarningRef.current = true;
+      }
+    } else {
+      hasTriggeredWarningRef.current = false;
+    }
+
     setTimeout(() => {
       if (textareaRef.current) {
         textareaRef.current.focus();
@@ -132,9 +155,11 @@ export function CommentInput({
         text: trimmedText,
         parent_id: parentId,
       });
+      haptic.trigger("success");
       setText("");
       onSubmit();
     } catch (err) {
+      haptic.trigger("error");
       console.error("Failed to post comment:", err);
     }
   };

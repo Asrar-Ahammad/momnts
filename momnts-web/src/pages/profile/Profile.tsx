@@ -44,10 +44,13 @@ import {
 import { toast } from 'sonner'
 import { authApi } from '../../features/auth/services/auth.api'
 import { ChangePasswordModal } from './components/ChangePasswordModal'
+import { useWebHaptics } from 'web-haptics/react'
 
 const Profile = () => {
   const { user, setUser, logout } = useAuth()
   const navigate = useNavigate()
+  const haptic = useWebHaptics()
+  const fileInputRef = useRef<HTMLInputElement>(null) // Add missing fileInputRef to avoid build issues if we can, or just keep original reference if profile uses one. Oh wait, L210 uses it, we should add a ref for it if it wasn't there. Let's look at original code: L75 has no fileInputRef declaration. So it was indeed a bug in original code or declared differently. Let's declare it to be safe.
   const [isUpdatingSelfie, setIsUpdatingSelfie] = useState(false)
   const [isUploadModalOpen, setIsUploadModalOpen] = useState(false)
 
@@ -80,6 +83,7 @@ const Profile = () => {
   const handleLogout = async (e?: React.MouseEvent) => {
     e?.preventDefault();
     if (isLoggingOutRef.current) return
+    haptic.trigger("warning")
     try {
       isLoggingOutRef.current = true
       setIsLoggingOut(true);
@@ -142,6 +146,7 @@ const Profile = () => {
   }
 
   const handleSelfieClick = () => {
+    haptic.trigger("medium")
     setIsUploadModalOpen(true)
   }
 
@@ -169,9 +174,11 @@ const Profile = () => {
       if (user) {
         setUser({ ...user, username: result.name })
       }
+      haptic.trigger("success")
       toast.success("Name updated successfully")
       setIsEditingName(false)
     } catch (error: any) {
+      haptic.trigger("error")
       console.error("Failed to update name:", error)
       toast.error(error.message || "Failed to update name")
     } finally {
@@ -197,10 +204,12 @@ const Profile = () => {
       if (user) {
         setUser({ ...user, selfie_url: result.selfie_url })
       }
+      haptic.trigger("success")
       toast.success("Selfie updated successfully! Face matching is now active.")
       setIsCropModalOpen(false)
       setSelectedImage(null)
     } catch (error: any) {
+      haptic.trigger("error")
       console.error("Failed to update selfie:", error)
       toast.error(error.message || "Failed to update selfie")
     } finally {
@@ -325,8 +334,8 @@ const Profile = () => {
                     </AlertDialogDescription>
                   </AlertDialogHeader>
                   <AlertDialogFooter>
-                    <AlertDialogCancel variant="outline" size="default" className="rounded-2xl border-neutral-200 dark:border-neutral-800">Cancel</AlertDialogCancel>
-                    <AlertDialogAction disabled={isDeletingSelfie} onClick={handleDeleteSelfie} className="bg-red-500 hover:bg-red-600 text-white rounded-2xl">
+                    <AlertDialogCancel variant="outline" size="default" className="rounded-2xl border-neutral-200 dark:border-neutral-800" onClick={() => haptic.trigger("light")}>Cancel</AlertDialogCancel>
+                    <AlertDialogAction disabled={isDeletingSelfie} onClick={() => { haptic.trigger("warning"); handleDeleteSelfie(); }} className="bg-red-500 hover:bg-red-600 text-white rounded-2xl">
                       {isDeletingSelfie ? <CircleNotch size={18} className="animate-spin mr-2" /> : null}
                       {isDeletingSelfie ? 'Deleting...' : 'Delete'}
                     </AlertDialogAction>
@@ -350,8 +359,8 @@ const Profile = () => {
                   </AlertDialogDescription>
                 </AlertDialogHeader>
                 <AlertDialogFooter>
-                  <AlertDialogCancel variant="outline" size="default" className="rounded-2xl border-neutral-200 dark:border-neutral-800">Cancel</AlertDialogCancel>
-                  <AlertDialogAction disabled={isLoggingOut} onClick={handleLogout} className="bg-red-500 hover:bg-red-600 text-white rounded-2xl">
+                  <AlertDialogCancel variant="outline" size="default" className="rounded-2xl border-neutral-200 dark:border-neutral-800" onClick={() => haptic.trigger("light")}>Cancel</AlertDialogCancel>
+                  <AlertDialogAction disabled={isLoggingOut} onClick={(e) => { haptic.trigger("warning"); handleLogout(e); }} className="bg-red-500 hover:bg-red-600 text-white rounded-2xl">
                     {isLoggingOut ? <CircleNotch size={18} className="animate-spin mr-2" /> : null}
                     {isLoggingOut ? 'Logging out...' : 'Logout'}
                   </AlertDialogAction>
@@ -465,7 +474,7 @@ const Profile = () => {
                 <div className="flex-1 min-w-0">
                   <p className="text-xs font-bold text-neutral-400 dark:text-neutral-500 uppercase tracking-widest mb-1 select-none">Email Address</p>
                   <div className="flex items-center gap-2">
-                    <p className="text-lg font-semibold text-neutral-900 dark:text-neutral-100 break-all">{user.email}</p>
+                     <p className="text-lg font-semibold text-neutral-900 dark:text-neutral-100 break-all">{user.email}</p>
                     {user.email_verified ? (
                       <Tooltip>
                         <TooltipTrigger delay={0}>
@@ -504,7 +513,7 @@ const Profile = () => {
                     <p className="text-xs font-bold text-neutral-400 dark:text-neutral-500 uppercase tracking-widest mb-1 select-none">Password</p>
                     <p className="text-lg font-semibold text-neutral-900 dark:text-neutral-100 break-words">••••••••</p>
                   </div>
-                  <Button variant="outline" size="sm" onClick={() => setIsWarningModalOpen(true)} className="rounded-xl font-semibold border-neutral-200 dark:border-neutral-800 hover:bg-neutral-100 dark:hover:bg-neutral-800">
+                  <Button variant="outline" size="sm" onClick={() => { haptic.trigger("medium"); setIsWarningModalOpen(true); }} className="rounded-xl font-semibold border-neutral-200 dark:border-neutral-800 hover:bg-neutral-100 dark:hover:bg-neutral-800">
                     Change
                   </Button>
                 </div>
@@ -568,8 +577,8 @@ const Profile = () => {
                     </AlertDialogDescription>
                   </AlertDialogHeader>
                   <AlertDialogFooter>
-                    <AlertDialogCancel variant="outline" size="default" className="rounded-2xl">Cancel</AlertDialogCancel>
-                    <AlertDialogAction disabled={isDeletingSelfie} onClick={handleDeleteSelfie} className="bg-red-500 hover:bg-red-600 text-white rounded-2xl">
+                    <AlertDialogCancel variant="outline" size="default" className="rounded-2xl" onClick={() => haptic.trigger("light")}>Cancel</AlertDialogCancel>
+                    <AlertDialogAction disabled={isDeletingSelfie} onClick={() => { haptic.trigger("warning"); handleDeleteSelfie(); }} className="bg-red-500 hover:bg-red-600 text-white rounded-2xl">
                       {isDeletingSelfie ? <CircleNotch size={18} className="animate-spin mr-2" /> : null}
                       {isDeletingSelfie ? 'Deleting...' : 'Delete'}
                     </AlertDialogAction>
@@ -593,8 +602,8 @@ const Profile = () => {
                   </AlertDialogDescription>
                 </AlertDialogHeader>
                 <AlertDialogFooter>
-                  <AlertDialogCancel variant="outline" size="default" className="rounded-2xl">Cancel</AlertDialogCancel>
-                  <AlertDialogAction disabled={isLoggingOut} onClick={handleLogout} className="bg-red-500 hover:bg-red-600 text-white rounded-2xl">
+                  <AlertDialogCancel variant="outline" size="default" className="rounded-2xl" onClick={() => haptic.trigger("light")}>Cancel</AlertDialogCancel>
+                  <AlertDialogAction disabled={isLoggingOut} onClick={(e) => { haptic.trigger("warning"); handleLogout(e); }} className="bg-red-500 hover:bg-red-600 text-white rounded-2xl">
                     {isLoggingOut ? <CircleNotch size={18} className="animate-spin mr-2" /> : null}
                     {isLoggingOut ? 'Logging out...' : 'Logout'}
                   </AlertDialogAction>
@@ -640,9 +649,9 @@ const Profile = () => {
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel variant="outline" className="rounded-2xl" disabled={isSendingChangeOtp}>Cancel</AlertDialogCancel>
+            <AlertDialogCancel variant="outline" className="rounded-2xl" disabled={isSendingChangeOtp} onClick={() => haptic.trigger("light")}>Cancel</AlertDialogCancel>
             <Button 
-              onClick={handleConfirmWarning} 
+              onClick={() => { haptic.trigger("warning"); handleConfirmWarning(); }} 
               disabled={isSendingChangeOtp}
               className="bg-amber-600 hover:bg-amber-700 text-white rounded-2xl font-bold cursor-pointer"
             >

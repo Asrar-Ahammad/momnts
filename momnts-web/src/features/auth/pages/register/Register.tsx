@@ -9,6 +9,7 @@ import { authApi } from "../../services/auth.api"
 import { EyeIcon, EyeSlashIcon, Check } from "@phosphor-icons/react"
 import { toast } from "sonner"
 import { Spinner } from "../../../../components/ui/spinner"
+import { useWebHaptics } from 'web-haptics/react'
 import { Progress } from "../../../../components/ui/progress"
 import { useForm, useStore } from "@tanstack/react-form"
 
@@ -26,6 +27,7 @@ const Register = () => {
     const navigate = useNavigate()
     const [searchParams] = useSearchParams()
     const { user, setUser } = useAuth()
+    const haptic = useWebHaptics()
     const [showPassword, setShowPassword] = useState(false)
     const [showConfirmPassword, setShowConfirmPassword] = useState(false)
     const [isLoading, setIsLoading] = useState(false)
@@ -63,11 +65,13 @@ const Register = () => {
             const isPasswordValid = passwordCriteria.every(c => c.test(value.password))
             if (!isPasswordValid) {
                 toast.error("Password must meet all security criteria")
+                haptic.trigger("error")
                 return
             }
 
             if (value.password !== value.confirmPassword) {
                 toast.error("Passwords do not match")
+                haptic.trigger("error")
                 return
             }
 
@@ -76,11 +80,13 @@ const Register = () => {
                 setIsLoading(true)
                 const data = await authApi.register(value.username, value.email, value.password)
                 setUser(data.user)
+                haptic.trigger("success")
                 // Always redirect to verify-email for new users
                 navigate("/verify-email", { replace: true })
             } catch (error) {
                 console.error("Registration error:", error)
                 toast.error(error instanceof Error ? error.message : "Registration failed")
+                haptic.trigger("error")
             } finally {
                 isLoadingRef.current = false
                 setIsLoading(false)
