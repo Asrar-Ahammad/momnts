@@ -145,7 +145,7 @@ const Register = () => {
                                 <span className="text-4xl font-bold font-logo select-none">Momnts</span>
                             </div>
                             <div className="">
-                                <h1 className="text-2xl font-bold select-none">Hello!</h1>
+                                <h1 className="text-3xl font-bold select-none font-sirage">Hello!</h1>
                             </div>
                             <FieldSet>
                                 <form.Field
@@ -339,8 +339,6 @@ const Register = () => {
                                 relaxation={0.9}
                             />
                         </div>
-                        <div className="absolute inset-2 rounded-xl pointer-events-none bg-gradient-to-r from-background/60 via-transparent to-transparent" />
-                        <div className="absolute inset-2 rounded-xl pointer-events-none bg-gradient-to-t from-background/50 via-transparent to-transparent" />
                     </div>
                 </div>
             </div>

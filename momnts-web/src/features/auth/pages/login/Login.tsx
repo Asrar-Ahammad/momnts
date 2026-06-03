@@ -80,7 +80,7 @@ const Login = () => {
                                 <span className="text-4xl font-bold font-logo select-none">Momnts</span>
                             </div>
                             <div className="flex items-start justify-start">
-                                <h1 className="text-2xl font-bold select-none">Welcome Back!</h1>
+                                <h1 className="text-3xl font-bold select-none font-sirage">Welcome Back!</h1>
                             </div>
                             <FieldSet>
                                 <form.Field
@@ -167,8 +167,6 @@ const Login = () => {
                                 relaxation={0.9}
                             />
                         </div>
-                        <div className="absolute inset-2 rounded-xl pointer-events-none bg-gradient-to-r from-background/60 via-transparent to-transparent" />
-                        <div className="absolute inset-2 rounded-xl pointer-events-none bg-gradient-to-t from-background/50 via-transparent to-transparent" />
                     </div>
                 </div>
             </div>
