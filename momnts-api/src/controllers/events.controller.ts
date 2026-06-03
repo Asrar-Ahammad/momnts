@@ -725,6 +725,91 @@ async function updateAttendeeLimitController(req: AuthRequest, res: Response) {
     }
 }
 
+/**
+ * @name removeAttendeeController
+ * @description Organizer removes an attendee from the event. Deletes their uploaded photos from R2 and DB,
+ * unclaims their matched face profiles, and removes their EventAccess.
+ */
+async function removeAttendeeController(req: AuthRequest, res: Response) {
+    try {
+        if (!req.user?.id) {
+            return res.status(401).json({ message: "User not authenticated" });
+        }
+
+        const eventId = req.params.eventId as string;
+        const attendeeId = req.params.userId as string;
+
+        if (!eventId || !attendeeId) {
+            return res.status(400).json({ message: "Event ID and Attendee ID are required" });
+        }
+
+        // Verify the requester is the ORGANIZER of this event
+        const organizerAccess = await prisma.eventAccess.findUnique({
+            where: {
+                event_id_user_id: { event_id: eventId, user_id: req.user.id }
+            }
+        });
+
+        if (!organizerAccess || organizerAccess.role !== 'ORGANIZER') {
+            return res.status(403).json({ message: "Only the organizer can remove attendees" });
+        }
+
+        // Verify the target user is part of this event and is an ATTENDEE (organizers cannot be removed)
+        const targetAccess = await prisma.eventAccess.findUnique({
+            where: {
+                event_id_user_id: { event_id: eventId, user_id: attendeeId }
+            }
+        });
+
+        if (!targetAccess) {
+            return res.status(404).json({ message: "Attendee is not part of this event" });
+        }
+
+        if (targetAccess.role === 'ORGANIZER') {
+            return res.status(400).json({ message: "Organizers cannot be removed from their own event" });
+        }
+
+        // 1. Fetch all photos uploaded by this user in the event
+        const photos = await prisma.photo.findMany({
+            where: { event_id: eventId, user_id: attendeeId },
+            select: { id: true, thumb_url: true, display_url: true, original_url: true },
+        });
+
+        // 2. Delete photo files from R2
+        if (photos.length > 0) {
+            const r2Deletions = photos.flatMap((photo) => [
+                deleteFromR2(extractKeyFromUrl(photo.thumb_url)),
+                deleteFromR2(extractKeyFromUrl(photo.display_url)),
+                deleteFromR2(extractKeyFromUrl(photo.original_url)),
+            ]);
+            await Promise.allSettled(r2Deletions);
+            console.log(`Deleted ${photos.length} photo(s) from R2 for user ${attendeeId} removed from event ${eventId}`);
+
+            // 3. Delete photos from DB (cascades to PhotoFace)
+            await prisma.photo.deleteMany({
+                where: { event_id: eventId, user_id: attendeeId },
+            });
+        }
+
+        // 4. Unclaim face profiles matched to this user in this event
+        await prisma.faceProfile.updateMany({
+            where: { event_id: eventId, claimed_by: attendeeId },
+            data: { claimed_by: null, is_claimed: false },
+        });
+
+        // 5. Delete EventAccess record
+        await prisma.eventAccess.delete({
+            where: { event_id_user_id: { event_id: eventId, user_id: attendeeId } },
+        });
+
+        return res.status(200).json({ message: "Attendee removed successfully" });
+
+    } catch (error) {
+        const message = error instanceof Error ? error.message : "Internal server error";
+        return res.status(500).json({ message });
+    }
+}
+
 export {
     createEventController,
     getEventDetailsController,
@@ -736,5 +821,6 @@ export {
     getEventAttendeesController,
     generateUniqueInviteCode,
     leaveEventController,
-    updateAttendeeLimitController
+    updateAttendeeLimitController,
+    removeAttendeeController
 };
