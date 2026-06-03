@@ -23,6 +23,7 @@ export const CreateEventModal = ({ open, onOpenChange, onEventCreated }: CreateE
   const [newEventName, setNewEventName] = useState('')
   const [newEventLocation, setNewEventLocation] = useState('')
   const [newEventDate, setNewEventDate] = useState<Date | undefined>()
+  const [isDatePickerOpen, setIsDatePickerOpen] = useState(false)
   const [newEventUploadLimit, setNewEventUploadLimit] = useState(10)
   const [creatingEvent, setCreatingEvent] = useState(false)
   const creatingEventRef = useRef(false)
@@ -110,7 +111,7 @@ export const CreateEventModal = ({ open, onOpenChange, onEventCreated }: CreateE
           </div>
           <div className="grid gap-2">
             <Label>Date</Label>
-            <Popover>
+            <Popover open={isDatePickerOpen} onOpenChange={setIsDatePickerOpen}>
               <PopoverTrigger>
                 <Button variant="outline" className="w-full text-center font-normal">
                   <CalendarIcon size={16} weight="bold" className="mr-2" />
@@ -121,7 +122,10 @@ export const CreateEventModal = ({ open, onOpenChange, onEventCreated }: CreateE
                 <Calendar
                   mode="single"
                   selected={newEventDate}
-                  onSelect={setNewEventDate}
+                  onSelect={(date) => {
+                    setNewEventDate(date)
+                    setIsDatePickerOpen(false)
+                  }}
                   initialFocus
                 />
               </PopoverContent>

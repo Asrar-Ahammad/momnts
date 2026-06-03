@@ -20,11 +20,11 @@ export interface AuthResponse {
 }
 
 export const authApi = {
-  async login(email: string, password: string): Promise<AuthResponse> {
+  async login(email: string, password: string, captchaToken?: string): Promise<AuthResponse> {
     const response = await fetch(`${API_URL}/api/auth/login`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ email, password }),
+      body: JSON.stringify({ email, password, captchaToken }),
     })
 
     if (!response.ok) {
@@ -38,11 +38,11 @@ export const authApi = {
     return data
   },
 
-  async register(name: string, email: string, password: string): Promise<AuthResponse> {
+  async register(name: string, email: string, password: string, captchaToken?: string): Promise<AuthResponse> {
     const response = await fetch(`${API_URL}/api/auth/register`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ name, email, password }),
+      body: JSON.stringify({ name, email, password, captchaToken }),
     })
 
     if (!response.ok) {

@@ -7,6 +7,7 @@ import jwt from "jsonwebtoken";
 import crypto from "crypto";
 import { redis } from "../lib/redis";
 import { sendOtpEmail, sendPasswordResetOtpEmail } from "../lib/mailer";
+import { verifyTurnstileToken } from "../lib/turnstile";
 
 // ─── OTP Constants ───────────────────────────────────────────────────
 const OTP_LENGTH = 6;
@@ -172,7 +173,15 @@ async function userResponse(user: { id: string; name: string; email: string; ema
  */
 async function registerUserController(req: Request, res: Response) {
   try {
-    const { name, password } = req.body;
+    const { name, password, captchaToken } = req.body;
+    const ipAddress = req.ip || req.socket.remoteAddress || 'Unknown';
+
+    // Verify Captcha
+    const isCaptchaValid = await verifyTurnstileToken(captchaToken, ipAddress);
+    if (!isCaptchaValid) {
+      return res.status(400).json({ message: "Invalid or missing CAPTCHA. Please try again." });
+    }
+
     if (typeof req.body.email !== "string") {
       return res.status(400).json({ message: "Please provide a valid email string" });
     }
@@ -233,8 +242,6 @@ async function registerUserController(req: Request, res: Response) {
     );
 
     const uaMetadata = parseUserAgent(req.headers['user-agent']);
-    const ipAddress = req.ip || req.socket.remoteAddress || 'Unknown';
-
     // Store refresh token in database
     await prisma.refreshToken.create({
       data: {
@@ -275,7 +282,15 @@ async function registerUserController(req: Request, res: Response) {
 
 async function loginUserController(req: Request, res: Response) {
   try {
-    const { password } = req.body;
+    const { password, captchaToken } = req.body;
+    const ipAddress = req.ip || req.socket.remoteAddress || 'Unknown';
+
+    // Verify Captcha
+    const isCaptchaValid = await verifyTurnstileToken(captchaToken, ipAddress);
+    if (!isCaptchaValid) {
+      return res.status(400).json({ message: "Invalid or missing CAPTCHA. Please try again." });
+    }
+
     if (typeof req.body.email !== "string") {
       return res.status(400).json({ message: "Please provide a valid email string" });
     }
@@ -332,8 +347,6 @@ async function loginUserController(req: Request, res: Response) {
     );
 
     const uaMetadata = parseUserAgent(req.headers['user-agent']);
-    const ipAddress = req.ip || req.socket.remoteAddress || 'Unknown';
-
     // Store refresh token in database
     await prisma.refreshToken.create({
       data: {

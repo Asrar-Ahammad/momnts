@@ -12,6 +12,8 @@ import { Spinner } from "../../../../components/ui/spinner"
 import { useWebHaptics } from 'web-haptics/react'
 import { Progress } from "../../../../components/ui/progress"
 import { useForm, useStore } from "@tanstack/react-form"
+import { Turnstile } from "../../../../components/ui/Turnstile"
+import GridDistortion from "../../../../components/ui/GridDistortion"
 
 const passwordCriteria = [
     { id: "length", label: "At least 8 characters", test: (pw: string) => pw.length >= 8 },
@@ -33,6 +35,8 @@ const Register = () => {
     const [isLoading, setIsLoading] = useState(false)
     const toastId = useRef<string | number | null>(null)
     const isLoadingRef = useRef(false)
+    const [captchaToken, setCaptchaToken] = useState("")
+    const sitekey = import.meta.env.PROD ? import.meta.env.VITE_TURNSTILE_SITEKEY : undefined
     
     const [openedPrivacy, setOpenedPrivacy] = useState(false)
     const [openedTerms, setOpenedTerms] = useState(false)
@@ -78,7 +82,7 @@ const Register = () => {
             try {
                 isLoadingRef.current = true
                 setIsLoading(true)
-                const data = await authApi.register(value.username, value.email, value.password)
+                const data = await authApi.register(value.username, value.email, value.password, captchaToken)
                 setUser(data.user)
                 haptic.trigger("success")
                 // Always redirect to verify-email for new users
@@ -126,8 +130,8 @@ const Register = () => {
 
     return (
         <>
-            <div className="register-main-view flex w-full h-screen">
-                <div className="register-left flex flex-col items-center justify-center md:w-1/2 w-full auth-gradient-bg">
+            <div className="register-main-view flex w-full min-h-screen">
+                <div className="register-left flex flex-col items-center justify-start md:justify-center py-10 md:py-16 w-full md:w-1/2 auth-gradient-bg overflow-y-auto">
                     <div className="auth-blob" />
                     <form onSubmit={(e) => {
                         e.preventDefault()
@@ -305,8 +309,16 @@ const Register = () => {
                                     )}
                                 </div>
 
+                                 {sitekey && (
+                                    <Turnstile
+                                        sitekey={sitekey}
+                                        onVerify={setCaptchaToken}
+                                        onExpire={() => setCaptchaToken("")}
+                                        onError={() => setCaptchaToken("")}
+                                    />
+                                )}
                                 <Field>
-                                    <Button type="submit" className="w-full cursor-pointer" disabled={isLoading || !agreed || (password.length > 0 && !passwordCriteria.every(c => c.test(password)))}>
+                                    <Button type="submit" className="w-full cursor-pointer" disabled={isLoading || !agreed || (password.length > 0 && !passwordCriteria.every(c => c.test(password))) || (!!sitekey && !captchaToken)}>
                                         {isLoading ? <Spinner className="mr-2 h-4 w-4 animate-spin" /> : null}
                                         {isLoading ? "Starting..." : "Get Started"}
                                     </Button>
@@ -316,9 +328,17 @@ const Register = () => {
                         </FieldGroup>
                     </form>
                 </div>
-                <div className="register-right md:w-1/2 hidden md:block">
-                    <div className="register-right-content w-full h-full p-2 relative">
-                        <img src="/register_image.jpg" alt="register-image" className="w-full h-full object-cover rounded-xl" />
+                <div className="register-right md:w-1/2 hidden md:block h-screen sticky top-0">
+                    <div className="register-right-content w-full h-full p-2 relative overflow-hidden rounded-xl">
+                        <div className="absolute inset-0 rounded-xl overflow-hidden">
+                            <GridDistortion
+                                imageSrc="/register_image.jpg"
+                                grid={10}
+                                mouse={0.1}
+                                strength={0.15}
+                                relaxation={0.9}
+                            />
+                        </div>
                         <div className="absolute inset-2 rounded-xl pointer-events-none bg-gradient-to-r from-background/60 via-transparent to-transparent" />
                         <div className="absolute inset-2 rounded-xl pointer-events-none bg-gradient-to-t from-background/50 via-transparent to-transparent" />
                     </div>

@@ -11,6 +11,8 @@ import { Spinner } from "../../../../components/ui/spinner"
 import { ForgotPasswordModal } from "../../components/ForgotPasswordModal"
 import { useForm } from "@tanstack/react-form"
 import { useWebHaptics } from 'web-haptics/react'
+import { Turnstile } from "../../../../components/ui/Turnstile"
+import GridDistortion from "../../../../components/ui/GridDistortion"
 
 
 const Login = () => {
@@ -22,6 +24,8 @@ const Login = () => {
     const [isLoading, setIsLoading] = useState(false)
     const isLoadingRef = useRef(false)
     const [isForgotModalOpen, setIsForgotModalOpen] = useState(false)
+    const [captchaToken, setCaptchaToken] = useState("")
+    const sitekey = import.meta.env.PROD ? import.meta.env.VITE_TURNSTILE_SITEKEY : undefined
 
 
     useEffect(() => {
@@ -42,7 +46,7 @@ const Login = () => {
             try {
                 isLoadingRef.current = true
                 setIsLoading(true)
-                const data = await authApi.login(value.email, value.password)
+                const data = await authApi.login(value.email, value.password, captchaToken)
                 setUser(data.user)
                 haptic.trigger("success")
                 const redirect = searchParams.get('redirect')
@@ -133,8 +137,16 @@ const Login = () => {
                                         </Field>
                                     )}
                                 />
+                                 {sitekey && (
+                                    <Turnstile
+                                        sitekey={sitekey}
+                                        onVerify={setCaptchaToken}
+                                        onExpire={() => setCaptchaToken("")}
+                                        onError={() => setCaptchaToken("")}
+                                    />
+                                )}
                                 <Field>
-                                    <Button type="submit" className="w-full cursor-pointer" disabled={isLoading}>
+                                    <Button type="submit" className="w-full cursor-pointer" disabled={isLoading || (!!sitekey && !captchaToken)}>
                                         {isLoading ? <Spinner className="mr-2 h-4 w-4 animate-spin" /> : null}
                                         {isLoading ? "Logging in..." : "Log in"}
                                     </Button>
@@ -145,8 +157,16 @@ const Login = () => {
                     </form>
                 </div>
                 <div className="register-right md:w-1/2 hidden md:block">
-                    <div className="register-right-content w-full h-full p-2 relative">
-                        <img src="/register_image.jpg" alt="register-image" className="w-full h-full object-cover rounded-xl" />
+                    <div className="register-right-content w-full h-full p-2 relative overflow-hidden rounded-xl">
+                        <div className="absolute inset-0 rounded-xl overflow-hidden">
+                            <GridDistortion
+                                imageSrc="/register_image.jpg"
+                                grid={10}
+                                mouse={0.1}
+                                strength={0.15}
+                                relaxation={0.9}
+                            />
+                        </div>
                         <div className="absolute inset-2 rounded-xl pointer-events-none bg-gradient-to-r from-background/60 via-transparent to-transparent" />
                         <div className="absolute inset-2 rounded-xl pointer-events-none bg-gradient-to-t from-background/50 via-transparent to-transparent" />
                     </div>
