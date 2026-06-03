@@ -4,6 +4,7 @@ import { Input } from "../../../../components/ui/input"
 import { Button } from "../../../../components/ui/button"
 import { useEffect, useState, useRef } from "react"
 import { useAuth } from "../../hooks/useAuth"
+import { Checkbox } from "../../../../components/ui/checkbox"
 import { authApi } from "../../services/auth.api"
 import { EyeIcon, EyeSlashIcon, Check } from "@phosphor-icons/react"
 import { toast } from "sonner"
@@ -30,6 +31,24 @@ const Register = () => {
     const [isLoading, setIsLoading] = useState(false)
     const toastId = useRef<string | number | null>(null)
     const isLoadingRef = useRef(false)
+    
+    const [openedPrivacy, setOpenedPrivacy] = useState(false)
+    const [openedTerms, setOpenedTerms] = useState(false)
+    const [agreed, setAgreed] = useState(false)
+
+    const isAgreementCheckboxEnabled = openedPrivacy && openedTerms
+
+    const handleOpenPrivacy = (e: React.MouseEvent<HTMLAnchorElement>) => {
+        e.preventDefault()
+        window.open('/privacy', '_blank')
+        setOpenedPrivacy(true)
+    }
+
+    const handleOpenTerms = (e: React.MouseEvent<HTMLAnchorElement>) => {
+        e.preventDefault()
+        window.open('/terms', '_blank')
+        setOpenedTerms(true)
+    }
 
     const form = useForm({
         defaultValues: {
@@ -237,8 +256,51 @@ const Register = () => {
                                         </Field>
                                     )}
                                 />
+                                <div className="flex flex-col gap-2 mt-2 mb-4">
+                                    <div className="flex items-start gap-2.5">
+                                        <Checkbox
+                                            id="terms-checkbox"
+                                            checked={agreed}
+                                            onCheckedChange={(checked) => setAgreed(!!checked)}
+                                            disabled={!isAgreementCheckboxEnabled}
+                                        />
+                                        <label
+                                            htmlFor="terms-checkbox"
+                                            className={`text-xs leading-normal select-none ${
+                                                !isAgreementCheckboxEnabled 
+                                                    ? "text-neutral-400 dark:text-neutral-500 cursor-not-allowed" 
+                                                    : "text-neutral-600 dark:text-neutral-300 cursor-pointer"
+                                            }`}
+                                        >
+                                            I agree to the{" "}
+                                            <a
+                                                href="/terms"
+                                                onClick={handleOpenTerms}
+                                                className="underline font-medium text-primary hover:opacity-80 inline-flex items-center gap-0.5"
+                                            >
+                                                Terms and Conditions
+                                                {openedTerms && <Check className="text-emerald-500 inline h-3 w-3" weight="bold" />}
+                                            </a>{" "}
+                                            and{" "}
+                                            <a
+                                                href="/privacy"
+                                                onClick={handleOpenPrivacy}
+                                                className="underline font-medium text-primary hover:opacity-80 inline-flex items-center gap-0.5"
+                                            >
+                                                Privacy Policy
+                                                {openedPrivacy && <Check className="text-emerald-500 inline h-3 w-3" weight="bold" />}
+                                            </a>
+                                        </label>
+                                    </div>
+                                    {!isAgreementCheckboxEnabled && (
+                                        <span className="text-[10px] text-neutral-400 dark:text-neutral-500">
+                                            Please click and read both documents above to enable the checkbox.
+                                        </span>
+                                    )}
+                                </div>
+
                                 <Field>
-                                    <Button type="submit" className="w-full cursor-pointer" disabled={isLoading || (password.length > 0 && !passwordCriteria.every(c => c.test(password)))}>
+                                    <Button type="submit" className="w-full cursor-pointer" disabled={isLoading || !agreed || (password.length > 0 && !passwordCriteria.every(c => c.test(password)))}>
                                         {isLoading ? <Spinner className="mr-2 h-4 w-4 animate-spin" /> : null}
                                         {isLoading ? "Starting..." : "Get Started"}
                                     </Button>

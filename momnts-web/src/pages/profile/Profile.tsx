@@ -3,7 +3,7 @@ import { useAuth } from '../../features/auth/hooks/useAuth'
 import { usersApi } from '../../features/users/services/users.api'
 import { Button } from '../../components/ui/button'
 import { Input } from '../../components/ui/input'
-import { useNavigate } from 'react-router'
+import { useNavigate, Link } from 'react-router'
 import { Tooltip, TooltipTrigger, TooltipContent } from '../../components/ui/tooltip'
 import SelfieCropModal from './components/SelfieCropModal'
 import SelfieUploadModal from './components/SelfieUploadModal'
@@ -581,6 +581,14 @@ const Profile = () => {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+      
+      <div className="mt-16 pt-8 border-t border-neutral-100 dark:border-neutral-800 text-center text-xs text-neutral-400 dark:text-neutral-500 flex flex-wrap justify-center gap-x-4 gap-y-2">
+        <Link to="/privacy" className="hover:text-neutral-600 dark:hover:text-neutral-300 transition-colors">Privacy Policy</Link>
+        <span>&bull;</span>
+        <Link to="/terms" className="hover:text-neutral-600 dark:hover:text-neutral-300 transition-colors">Terms and Conditions</Link>
+        <span>&bull;</span>
+        <span>&copy; {new Date().getFullYear()} Momnts</span>
+      </div>
     </div>
   )
 }

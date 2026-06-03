@@ -3,15 +3,31 @@ import { Link } from 'react-router'
 import { ArrowRight } from '@phosphor-icons/react'
 import gsap from 'gsap'
 
-const Navbar = () => {
+interface NavbarProps {
+  showProgress?: boolean
+}
+
+const Navbar = ({ showProgress }: NavbarProps = {}) => {
   const [scrolled, setScrolled] = useState(false)
   const navRef = useRef<HTMLElement>(null)
+  const progressRef = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
-    const handleScroll = () => setScrolled(window.scrollY > 40)
+    const handleScroll = () => {
+      setScrolled(window.scrollY > 40)
+      
+      if (showProgress && progressRef.current) {
+        const totalHeight = document.documentElement.scrollHeight - window.innerHeight
+        if (totalHeight > 0) {
+          const progress = (window.scrollY / totalHeight) * 100
+          progressRef.current.style.width = `${progress}%`
+        }
+      }
+    }
     window.addEventListener('scroll', handleScroll, { passive: true })
+    handleScroll() // Initialize
     return () => window.removeEventListener('scroll', handleScroll)
-  }, [])
+  }, [showProgress])
 
   useEffect(() => {
     if (!navRef.current) return
@@ -40,6 +56,14 @@ const Navbar = () => {
           </Link>
         </div>
       </div>
+
+      {showProgress && (
+        <div 
+          ref={progressRef}
+          className="absolute bottom-0 left-0 h-[3px] bg-gradient-to-r from-violet-500 via-fuchsia-500 to-violet-600 z-[101] transition-none" 
+          style={{ width: '0%' }}
+        />
+      )}
     </nav>
   )
 }

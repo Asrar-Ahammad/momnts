@@ -579,6 +579,16 @@ const EventDetails = () => {
     }
   }
 
+  const handleSelectAll = () => {
+    if (selectedPhotoIds.size === filteredPhotos.length && filteredPhotos.length > 0) {
+      setSelectedPhotoIds(new Set())
+    } else {
+      setSelectedPhotoIds(new Set(filteredPhotos.map(p => p.id)))
+    }
+  }
+
+  const isAllSelected = filteredPhotos.length > 0 && selectedPhotoIds.size === filteredPhotos.length
+
   if (!event && !loading) {
     return (
       <div className="flex flex-col items-center justify-center h-screen gap-4">
@@ -632,6 +642,8 @@ const EventDetails = () => {
         galleryColumns={galleryColumns}
         onGalleryColumnsChange={handleGalleryColumnsChange}
         onMemoryLaneClick={() => setSlideshowOpen(true)}
+        onSelectAll={handleSelectAll}
+        isAllSelected={isAllSelected}
       />
 
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">

@@ -52,6 +52,7 @@ import {
   SquaresFour,
   DotsThree,
   MusicNotes,
+  DownloadSimpleIcon,
 } from '@phosphor-icons/react'
 import { EventData } from '../../../features/events/services/events.api'
 import { toast } from 'sonner'
@@ -81,9 +82,10 @@ interface EventHeaderProps {
   onLeaveEvent?: () => Promise<void>
   onDownloadFavourites?: () => void
   favouritesCount?: number
-  galleryColumns?: GalleryColumns
   onGalleryColumnsChange?: (cols: GalleryColumns) => void
   onMemoryLaneClick?: () => void
+  onSelectAll?: () => void
+  isAllSelected?: boolean
 }
 
 const EventHeader = ({
@@ -108,7 +110,9 @@ const EventHeader = ({
   favouritesCount = 0,
   galleryColumns = 1,
   onGalleryColumnsChange,
-  onMemoryLaneClick
+  onMemoryLaneClick,
+  onSelectAll,
+  isAllSelected = false
 }: EventHeaderProps) => {
   const [showLeaveConfirm, setShowLeaveConfirm] = useState(false)
   const [leaving, setLeaving] = useState(false)
@@ -392,8 +396,8 @@ const EventHeader = ({
                                   onClick={onToggleSelectMode}
                                   className="cursor-pointer py-2.5 px-2.5 rounded-lg"
                                 >
-                                  <Selection size={16} className="mr-2.5 text-neutral-500" />
-                                  Select Photos
+                                  <DownloadSimpleIcon size={16} className="mr-2.5 text-neutral-500" />
+                                  Download Photos
                                 </DropdownMenuItem>
 
                                 {/* Grid Layout toggle */}
@@ -509,7 +513,7 @@ const EventHeader = ({
                       {showGalleryActions && (
                         <div className="hidden sm:flex items-center gap-2">
                           <Tooltip>
-                            <TooltipTrigger asChild>
+                            <TooltipTrigger asChild delay={0}>
                               <Button
                                 variant="outline"
                                 className="h-10 w-10 sm:w-auto sm:px-4 flex items-center justify-center gap-2 rounded-xl"
@@ -523,17 +527,17 @@ const EventHeader = ({
                           </Tooltip>
 
                           <Tooltip>
-                            <TooltipTrigger asChild>
+                            <TooltipTrigger asChild delay={0}>
                               <Button
                                 variant="outline"
                                 className="h-10 w-10 sm:w-auto sm:px-4 flex items-center justify-center gap-2 rounded-xl"
                                 onClick={onToggleSelectMode}
                               >
-                                <Selection size={18} weight="bold" />
-                                <span className="hidden sm:inline">Select</span>
+                                <DownloadSimpleIcon size={18} weight="bold" />
+                                <span className="hidden sm:inline">Download</span>
                               </Button>
                             </TooltipTrigger>
-                            <TooltipContent>Select Photos</TooltipContent>
+                            <TooltipContent>Select Photos to download</TooltipContent>
                           </Tooltip>
                         </div>
                       )}
@@ -544,7 +548,7 @@ const EventHeader = ({
                   {isOrganizer && (
                     <motion.div layout className="hidden sm:flex items-center gap-2 shrink-0">
                       <Tooltip>
-                        <TooltipTrigger asChild>
+                        <TooltipTrigger asChild delay={0}>
                           <Button
                             variant="outline"
                             className="h-10 w-10 sm:w-auto sm:px-4 flex items-center justify-center gap-2 rounded-xl"
@@ -558,7 +562,7 @@ const EventHeader = ({
                       </Tooltip>
 
                       <Tooltip>
-                        <TooltipTrigger asChild>
+                        <TooltipTrigger asChild delay={0}>
                           <Button
                             variant="outline"
                             className="h-10 w-10 sm:w-auto sm:px-4 flex items-center justify-center gap-2 rounded-xl"
@@ -577,7 +581,7 @@ const EventHeader = ({
                   {isAttendee && (
                     <motion.div layout className="hidden sm:block">
                       <Tooltip>
-                        <TooltipTrigger asChild>
+                        <TooltipTrigger asChild delay={0}>
                           <Button
                             variant="outline"
                             className="h-10 w-10 sm:w-auto sm:px-4 flex items-center justify-center gap-2 rounded-xl text-red-500 border-red-200 hover:bg-red-50 hover:text-red-600 dark:border-red-900 dark:hover:bg-red-950"
@@ -593,7 +597,7 @@ const EventHeader = ({
                   )}
 
                   {/* CTA button */}
-                  <motion.div layout className="flex-none order-1 sm:order-none ml-12 sm:ml-0 flex items-center gap-2">
+                  <motion.div layout className="flex-none order-1 sm:order-none flex items-center gap-2">
                     {event && event._count.photos >= 5 && (
                       <Button
                         variant="outline"
@@ -610,11 +614,22 @@ const EventHeader = ({
               ) : (
                 // Select mode buttons
                 <motion.div layout className="flex items-center gap-2 sm:gap-4 w-full sm:w-auto">
-                  <span className="text-sm font-semibold text-neutral-600 dark:text-neutral-400 mr-auto sm:mr-0 px-2">
+                  <span className="text-sm font-semibold text-neutral-600 dark:text-neutral-400 mr-auto sm:mr-0 px-2 shrink-0">
                     {selectedCount} <span className="hidden sm:inline">selected</span>
                   </span>
 
-                  <div className="flex items-center gap-2">
+                  <div className="flex items-center gap-2 shrink-0">
+                    {onSelectAll && (
+                      <Button
+                        variant="outline"
+                        onClick={onSelectAll}
+                        className="h-10 px-3 sm:px-4 flex items-center justify-center rounded-xl"
+                      >
+                        <span className="hidden sm:inline">{isAllSelected ? "Deselect All" : "Select All"}</span>
+                        <span className="inline sm:hidden">{isAllSelected ? "Deselect" : "All"}</span>
+                      </Button>
+                    )}
+
                     <Button
                       onClick={onDownloadSelected}
                       disabled={selectedCount === 0}

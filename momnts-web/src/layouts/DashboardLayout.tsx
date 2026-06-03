@@ -27,6 +27,14 @@ const DashboardLayout = () => {
     }
   }, [])
 
+  // Scroll to top on route change
+  useEffect(() => {
+    const mainEl = document.getElementById('dashboard-main')
+    if (mainEl) {
+      mainEl.scrollTo({ top: 0, behavior: 'instant' })
+    }
+  }, [location.pathname])
+
   const getPathIndex = (path: string) => {
     if (path.startsWith('/dashboard')) return 0
     if (path.startsWith('/events')) return 1
@@ -85,6 +93,8 @@ const DashboardLayout = () => {
     },
   ];
 
+  const isEventDetailsPage = location.pathname.match(/^\/events\/[a-zA-Z0-9_-]+$/)
+
   return (
     <div className="h-screen flex flex-col bg-white dark:bg-neutral-950 overflow-hidden relative">
       {/* Top Header */}
@@ -92,23 +102,36 @@ const DashboardLayout = () => {
         style={{ 
           paddingTop: 'env(safe-area-inset-top, 0px)'
         }}
-        className="bg-white/80 dark:bg-neutral-900/80 backdrop-blur-md fixed top-0 left-0 right-0 z-40 border-b border-neutral-200/10 dark:border-neutral-800/10"
+        className={cn(
+          "fixed z-40 transition-all duration-300 ease-out",
+          // Mobile: full width, stick to top
+          "top-0 left-0 w-full rounded-none border-b",
+          "bg-white/80 dark:bg-neutral-900/80 backdrop-blur-md",
+          "border-neutral-200/50 dark:border-neutral-800/50",
+          // Desktop: Floating Island (unless event details)
+          !isEventDetailsPage && [
+            "md:top-6 md:left-1/2 md:-translate-x-1/2 md:w-[calc(100%-64px)] md:max-w-[900px]",
+            "md:rounded-full md:border",
+            "md:bg-white/70 md:dark:bg-[#0f0f0f]/70 md:backdrop-blur-[24px]",
+            "md:shadow-[0_16px_40px_rgba(0,0,0,0.05)] dark:md:shadow-[0_16px_40px_rgba(0,0,0,0.3)]"
+          ]
+        )}
       >
-        <div className="h-[72px] px-6 flex items-center justify-between w-full">
+        <div className={cn("px-6 flex items-center justify-between w-full", isEventDetailsPage ? "h-[72px]" : "h-[72px] md:h-16")}>
           {/* Left: Logo */}
           <div className="flex-1 flex items-center">
             <Link
               to="/dashboard"
               aria-label="Go to dashboard"
-              className='font-logo text-3xl select-none cursor-pointer tracking-tight text-neutral-900 dark:text-white'
+              className={cn("font-logo select-none cursor-pointer tracking-tight text-neutral-900 dark:text-white", isEventDetailsPage ? "text-3xl" : "text-3xl md:text-2xl")}
             >
               Momnts
             </Link>
             <Badge variant="secondary" className='ml-2 select-none text-neutral-600 dark:text-neutral-300'>v 1.0</Badge>
           </div>
 
-          {/* Center: Desktop Navigation Pill */}
-          <nav className="hidden md:flex items-center gap-1 border border-neutral-200/30 dark:border-neutral-800/30 rounded-full px-1.5 py-1.5 bg-white/30 dark:bg-neutral-900/30 backdrop-blur-xl shadow-lg">
+          {/* Center: Desktop Navigation */}
+          <nav className={cn("hidden md:flex items-center gap-1 px-1.5 py-1.5", isEventDetailsPage && "border border-neutral-200/30 dark:border-neutral-800/30 rounded-full bg-white/30 dark:bg-neutral-900/30 backdrop-blur-xl shadow-lg")}>
             {navItems.map((item) => (
               <button
                 key={item.title}
@@ -164,10 +187,12 @@ const DashboardLayout = () => {
 
       {/* Main Content Area */}
       <main 
-        style={{ 
-          paddingTop: 'calc(72px + env(safe-area-inset-top, 0px))' 
-        }}
-        className="flex-1 overflow-x-hidden pb-24 md:pb-8 relative"
+        id="dashboard-main"
+        className={cn(
+          "flex-1 overflow-x-hidden overflow-y-auto pb-24 md:pb-8 relative",
+          "pt-[calc(72px+env(safe-area-inset-top,0px))]",
+          !isEventDetailsPage && "md:pt-[104px]"
+        )}
       >
         <AnimatePresence initial={false} custom={direction} mode="popLayout">
           <motion.div

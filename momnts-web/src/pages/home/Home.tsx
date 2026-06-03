@@ -17,7 +17,9 @@ import {
   PlusCircle,
   Ticket,
   X,
-  MusicNotes
+  MusicNotes,
+  CaretLeft,
+  CaretRight
 } from '@phosphor-icons/react'
 
 
@@ -158,12 +160,39 @@ const Home = () => {
       </div>
 
       {/* 3.5. Relive Your Momnts Memory Lanes */}
-      <div className="space-y-4">
-        <div className="flex items-center gap-2">
+      <div className="space-y-4 relative group">
+        <div className="flex items-center justify-between gap-2">
           
           <h2 className="text-2xl font-sirage font-bold text-neutral-800 dark:text-neutral-200 select-none">
             Momnts Memory Lanes
           </h2>
+          
+          {events.length > 0 && (
+            <div className="flex items-center gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
+              <Button
+                variant="outline"
+                size="icon"
+                className="h-8 w-8 rounded-full border-neutral-200 dark:border-neutral-800 bg-white/50 dark:bg-neutral-900/50 backdrop-blur-sm"
+                onClick={() => {
+                  const el = document.getElementById('memory-lane-container')
+                  if (el) el.scrollBy({ left: -320, behavior: 'smooth' })
+                }}
+              >
+                <CaretLeft size={16} weight="bold" />
+              </Button>
+              <Button
+                variant="outline"
+                size="icon"
+                className="h-8 w-8 rounded-full border-neutral-200 dark:border-neutral-800 bg-white/50 dark:bg-neutral-900/50 backdrop-blur-sm"
+                onClick={() => {
+                  const el = document.getElementById('memory-lane-container')
+                  if (el) el.scrollBy({ left: 320, behavior: 'smooth' })
+                }}
+              >
+                <CaretRight size={16} weight="bold" />
+              </Button>
+            </div>
+          )}
         </div>
 
         {isLoading ? (
@@ -173,20 +202,21 @@ const Home = () => {
             <Skeleton className="h-72 w-48 rounded-2xl shrink-0 bg-neutral-200 dark:bg-neutral-800" />
           </div>
         ) : events.length > 0 ? (
-          <div className="flex gap-6 overflow-x-auto scrollbar-hide py-2 px-1 scroll-smooth">
+          <div id="memory-lane-container" className="flex gap-6 overflow-x-auto scrollbar-hide py-2 px-1 scroll-smooth snap-x snap-mandatory">
             {events.map((event) => (
-              <MomntCard
-                key={event.id}
-                event={event}
-                onClick={() => {
-                  setSelectedSlideshowEvent({
-                    id: event.id,
-                    name: event.name,
-                    location: event.location,
-                    date: event.date
-                  })
-                }}
-              />
+              <div key={event.id} className="snap-start shrink-0">
+                <MomntCard
+                  event={event}
+                  onClick={() => {
+                    setSelectedSlideshowEvent({
+                      id: event.id,
+                      name: event.name,
+                      location: event.location,
+                      date: event.date
+                    })
+                  }}
+                />
+              </div>
             ))}
           </div>
         ) : (
