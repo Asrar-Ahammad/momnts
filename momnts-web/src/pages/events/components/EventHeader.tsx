@@ -324,7 +324,7 @@ const EventHeader = ({
                           </Badge>
                         </DropdownMenuTrigger>
                         <DropdownMenuContent align="start" className="w-48 rounded-2xl p-1.5">
-                          <DropdownMenuItem onClick={onShareClick} className="cursor-pointer py-2 text-rose-600 dark:text-rose-500 font-medium">
+                          <DropdownMenuItem onClick={onShareClick} className="cursor-pointer py-2 text-neutral-600 dark:text-neutral-400 font-medium">
                             <ShareNetwork size={16} className="mr-2.5" />
                             Share Event & QR
                           </DropdownMenuItem>
@@ -360,7 +360,7 @@ const EventHeader = ({
               className="flex items-center justify-between sm:justify-end gap-2 sm:gap-3 overflow-x-auto no-scrollbar py-2 -my-2 px-1 -mx-1 w-full lg:w-auto shrink-0"
             >
               {!isSelectMode ? (
-                <motion.div layout className="flex items-center justify-between sm:justify-end gap-2 w-max lg:w-auto">
+                <motion.div layout className="flex items-center justify-between sm:justify-end gap-2 w-full lg:w-auto">
                   <AnimatePresence mode="popLayout">
                     <motion.div
                       key="gallery-controls"
@@ -457,8 +457,8 @@ const EventHeader = ({
                                   <DropdownMenuLabel className="text-[10px] uppercase tracking-wider text-neutral-400 dark:text-neutral-500 font-semibold px-2 pt-1.5 pb-1">
                                     Share
                                   </DropdownMenuLabel>
-                                  <DropdownMenuItem onClick={onShareClick} className="cursor-pointer py-2.5 px-2.5 rounded-lg text-rose-600 dark:text-rose-500 font-medium">
-                                    <ShareNetwork size={16} className="mr-2.5" />
+                                  <DropdownMenuItem onClick={onShareClick} className="cursor-pointer py-2.5 px-2.5 rounded-lg font-medium">
+                                    <ShareNetwork size={16} className="mr-2.5 text-neutral-500" />
                                     Share Event & QR
                                   </DropdownMenuItem>
                                   <DropdownMenuItem onClick={onCopyInviteCode} className="cursor-pointer py-2.5 px-2.5 rounded-lg">

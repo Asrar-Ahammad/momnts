@@ -7,7 +7,7 @@ import {
   DialogTitle,
 } from '../../../components/ui/dialog'
 import { Button } from '../../../components/ui/button'
-import { DownloadSimple, ShareNetwork, WhatsappLogo, TwitterLogo, TelegramLogo, FacebookLogo, LinkSimple } from '@phosphor-icons/react'
+import { DownloadSimple, ShareNetwork, LinkSimple } from '@phosphor-icons/react'
 import { toast } from 'sonner'
 import { EventData } from '../../../features/events/services/events.api'
 
@@ -60,7 +60,7 @@ const ShareEventModal = ({ open, onOpenChange, event }: ShareEventModalProps) =>
         ctx.fillStyle = 'white'
         ctx.fillRect(0, 0, canvas.width, canvas.height)
         ctx.drawImage(img, 20, 20)
-        
+
         const pngFile = canvas.toDataURL('image/png')
         const downloadLink = document.createElement('a')
         downloadLink.download = `momnts-event-${event.invite_code}-qr.png`
@@ -126,34 +126,6 @@ const ShareEventModal = ({ open, onOpenChange, event }: ShareEventModalProps) =>
     }
   }
 
-  // Social Links
-  const socialLinks = [
-    {
-      name: 'WhatsApp',
-      icon: <WhatsappLogo size={24} weight="fill" />,
-      color: 'bg-[#25D366] hover:bg-[#20bd5a] text-white',
-      url: `https://api.whatsapp.com/send?text=${encodeURIComponent(shareText + ' ' + inviteUrl)}`
-    },
-    {
-      name: 'Twitter',
-      icon: <TwitterLogo size={24} weight="fill" />,
-      color: 'bg-black hover:bg-neutral-800 text-white',
-      url: `https://twitter.com/intent/tweet?text=${encodeURIComponent(shareText)}&url=${encodeURIComponent(inviteUrl)}`
-    },
-    {
-      name: 'Telegram',
-      icon: <TelegramLogo size={24} weight="fill" />,
-      color: 'bg-[#0088cc] hover:bg-[#007ab8] text-white',
-      url: `https://t.me/share/url?url=${encodeURIComponent(inviteUrl)}&text=${encodeURIComponent(shareText)}`
-    },
-    {
-      name: 'Facebook',
-      icon: <FacebookLogo size={24} weight="fill" />,
-      color: 'bg-[#1877F2] hover:bg-[#166fe5] text-white',
-      url: `https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent(inviteUrl)}`
-    }
-  ]
-
   // Check if native sharing is available for the UI
   const canNativeShare = !!navigator.share
 
@@ -165,7 +137,7 @@ const ShareEventModal = ({ open, onOpenChange, event }: ShareEventModalProps) =>
         </DialogHeader>
 
         <div className="flex flex-col items-center space-y-8">
-          
+
           {/* QR Code Section */}
           <div className="flex flex-col items-center space-y-4">
             <div className="bg-white p-4 rounded-3xl shadow-lg ring-1 ring-black/5 dark:ring-white/10 relative group">
@@ -178,9 +150,9 @@ const ShareEventModal = ({ open, onOpenChange, event }: ShareEventModalProps) =>
                 className="rounded-xl"
               />
             </div>
-            
+
             <div className="flex items-center gap-2">
-              <Button onClick={handleDownloadQR} variant="secondary" className="rounded-xl flex-1 px-6 shadow-sm">
+              <Button onClick={handleDownloadQR} variant="secondary" className="rounded-xl flex-1 px-6 bg-white dark:bg-black text-black dark:text-white">
                 <DownloadSimple size={18} className="mr-2" />
                 Save QR
               </Button>
@@ -197,15 +169,11 @@ const ShareEventModal = ({ open, onOpenChange, event }: ShareEventModalProps) =>
 
           {/* Share Links Section */}
           <div className="w-full space-y-4">
-            <h3 className="text-sm font-semibold text-neutral-500 text-center uppercase tracking-wider">
-              Share Link
-            </h3>
-
             {/* Native share button for mobile mostly */}
             {canNativeShare ? (
-              <Button onClick={handleNativeShare} className="w-full h-12 rounded-2xl bg-rose-500 hover:bg-rose-600 text-white shadow-md transition-all group">
+              <Button onClick={handleNativeShare} className="w-full h-12 rounded-2xl bg-white text-black dark:bg-black border border-black dark:border-white/40 dark:text-white hover:bg-black hover:text-white dark:hover:bg-white dark:hover:text-black transition-all group">
                 <ShareNetwork size={20} className="mr-2 group-hover:scale-110 transition-transform" weight="bold" />
-                <span className="font-semibold text-base">Share via...</span>
+                <span className="font-semibold text-base">Share Event Link</span>
               </Button>
             ) : (
               <Button onClick={handleCopyLink} variant="outline" className="w-full h-12 rounded-2xl border-neutral-200 dark:border-neutral-800 shadow-sm transition-all group">
@@ -213,22 +181,6 @@ const ShareEventModal = ({ open, onOpenChange, event }: ShareEventModalProps) =>
                 <span className="font-semibold text-base">Copy Link</span>
               </Button>
             )}
-
-            {/* Social Grid (More relevant on desktop or when native share is limited) */}
-            <div className="grid grid-cols-4 gap-3 pt-2">
-              {socialLinks.map((social) => (
-                <a
-                  key={social.name}
-                  href={social.url}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className={`flex flex-col items-center justify-center p-3 rounded-2xl transition-transform hover:scale-105 active:scale-95 ${social.color} shadow-sm`}
-                  title={`Share on ${social.name}`}
-                >
-                  {social.icon}
-                </a>
-              ))}
-            </div>
           </div>
 
         </div>
