@@ -22,6 +22,20 @@ export const usersApi = {
     return response.json()
   },
 
+  async deleteSelfie(): Promise<{ message: string }> {
+    const response = await apiFetch(`${API_URL}/api/users/selfie`, {
+      method: "DELETE",
+      headers: authHeaders(),
+    })
+
+    if (!response.ok) {
+      const error = await response.json()
+      throw new Error(error.message || "Failed to delete selfie")
+    }
+
+    return response.json()
+  },
+
   async updateProfile(name: string): Promise<{ message: string; name: string }> {
     const response = await apiFetch(`${API_URL}/api/users/profile`, {
       method: "PUT",

@@ -123,6 +123,49 @@ export async function updateSelfieController(req: AuthRequest, res: Response) {
 }
 
 /**
+ * Deletes the user's selfie and removes the embedding.
+ */
+export async function deleteSelfieController(req: AuthRequest, res: Response) {
+  try {
+    const userId = req.user?.id
+    if (!userId) {
+      return res.status(401).json({ message: "Unauthorized" })
+    }
+
+    const existingUser = await prisma.user.findUnique({
+      where: { id: userId },
+      select: { selfie_url: true }
+    })
+    
+    if (!existingUser?.selfie_url) {
+      return res.status(400).json({ message: "No selfie found to delete" })
+    }
+
+    // 1. Delete from R2
+    try {
+      await deleteFromR2(extractKeyFromUrl(existingUser.selfie_url))
+      console.log(`[DELETE_SELFIE] Deleted selfie from R2: ${existingUser.selfie_url}`)
+    } catch (err) {
+      console.error('[DELETE_SELFIE] Failed to delete selfie from R2:', err)
+      // Continue anyway to ensure DB is cleared
+    }
+
+    // 2. Clear from DB (using raw to nullify vector)
+    await prisma.$executeRaw`
+      UPDATE "User"
+      SET selfie_url = NULL,
+          selfie_embedding = NULL
+      WHERE id = ${userId}
+    `
+
+    return res.status(200).json({ message: "Selfie deleted successfully" })
+  } catch (error: any) {
+    console.error('Selfie delete error:', error)
+    return res.status(500).json({ message: error.message || "Internal server error" })
+  }
+}
+
+/**
  * Updates the user's profile (name).
  */
 export async function updateProfileController(req: AuthRequest, res: Response) {

@@ -27,7 +27,8 @@ import {
   X,
   UserCircle,
   Devices,
-  Check
+  Check,
+  Trash
 } from '@phosphor-icons/react'
 import {
   AlertDialog,
@@ -70,6 +71,7 @@ const Profile = () => {
   const [activeTab, setActiveTab] = useState('account')
 
   const [isLoggingOut, setIsLoggingOut] = useState(false)
+  const [isDeletingSelfie, setIsDeletingSelfie] = useState(false)
   const isLoggingOutRef = useRef(false)
   const isSendingOtpRef = useRef(false)
   const isUpdatingNameRef = useRef(false)
@@ -89,6 +91,23 @@ const Profile = () => {
       toast.error("Logout failed. Please try again.")
       isLoggingOutRef.current = false
       setIsLoggingOut(false)
+    }
+  }
+
+  const handleDeleteSelfie = async () => {
+    if (isDeletingSelfie) return
+    try {
+      setIsDeletingSelfie(true)
+      await usersApi.deleteSelfie()
+      if (user) {
+        setUser({ ...user, selfie_url: null })
+      }
+      toast.success("Selfie deleted successfully")
+    } catch (error: any) {
+      console.error("Failed to delete selfie:", error)
+      toast.error(error.message || "Failed to delete selfie")
+    } finally {
+      setIsDeletingSelfie(false)
     }
   }
 
@@ -289,7 +308,33 @@ const Profile = () => {
 
 
 
-          <div className="hidden md:flex pt-4 w-full items-center justify-start">
+          <div className="hidden md:flex pt-4 w-full flex-col items-center justify-start gap-3">
+            {user?.selfie_url && (
+              <AlertDialog>
+                <AlertDialogTrigger render={
+                  <Button variant="ghost" className="w-full text-red-500 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-500/10 rounded-2xl h-12 flex items-center justify-center gap-2">
+                    <Trash size={20} weight="bold" />
+                    Delete Selfie
+                  </Button>
+                } />
+                <AlertDialogContent className="rounded-3xl border-neutral-200 dark:border-neutral-800">
+                  <AlertDialogHeader>
+                    <AlertDialogTitle>Delete Selfie?</AlertDialogTitle>
+                    <AlertDialogDescription>
+                      Are you sure you want to delete your selfie? This will remove your face profile, and you will no longer be automatically matched in event photos until you upload a new one.
+                    </AlertDialogDescription>
+                  </AlertDialogHeader>
+                  <AlertDialogFooter>
+                    <AlertDialogCancel variant="outline" size="default" className="rounded-2xl border-neutral-200 dark:border-neutral-800">Cancel</AlertDialogCancel>
+                    <AlertDialogAction disabled={isDeletingSelfie} onClick={handleDeleteSelfie} className="bg-red-500 hover:bg-red-600 text-white rounded-2xl">
+                      {isDeletingSelfie ? <CircleNotch size={18} className="animate-spin mr-2" /> : null}
+                      {isDeletingSelfie ? 'Deleting...' : 'Delete'}
+                    </AlertDialogAction>
+                  </AlertDialogFooter>
+                </AlertDialogContent>
+              </AlertDialog>
+            )}
+
             <AlertDialog>
               <AlertDialogTrigger render={
                 <Button variant="ghost" className="w-full text-red-500 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-500/10 rounded-2xl h-12 flex items-center justify-center gap-2">
@@ -505,8 +550,34 @@ const Profile = () => {
             </div>
           )}
 
-          {/* Mobile Logout Button */}
-          <div className="md:hidden pt-4 flex justify-center">
+          {/* Mobile Action Buttons */}
+          <div className="md:hidden pt-4 flex flex-col justify-center gap-3">
+            {user?.selfie_url && (
+              <AlertDialog>
+                <AlertDialogTrigger render={
+                  <Button variant="ghost" className="w-full justify-center text-red-500 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-500/10 rounded-2xl h-14 border border-red-100 dark:border-red-900/30">
+                    <Trash size={22} weight="bold" className="mr-3" />
+                    Delete Selfie
+                  </Button>
+                } />
+                <AlertDialogContent className="rounded-3xl">
+                  <AlertDialogHeader>
+                    <AlertDialogTitle>Delete Selfie?</AlertDialogTitle>
+                    <AlertDialogDescription>
+                      Are you sure you want to delete your selfie? This will remove your face profile, and you will no longer be automatically matched in event photos until you upload a new one.
+                    </AlertDialogDescription>
+                  </AlertDialogHeader>
+                  <AlertDialogFooter>
+                    <AlertDialogCancel variant="outline" size="default" className="rounded-2xl">Cancel</AlertDialogCancel>
+                    <AlertDialogAction disabled={isDeletingSelfie} onClick={handleDeleteSelfie} className="bg-red-500 hover:bg-red-600 text-white rounded-2xl">
+                      {isDeletingSelfie ? <CircleNotch size={18} className="animate-spin mr-2" /> : null}
+                      {isDeletingSelfie ? 'Deleting...' : 'Delete'}
+                    </AlertDialogAction>
+                  </AlertDialogFooter>
+                </AlertDialogContent>
+              </AlertDialog>
+            )}
+
             <AlertDialog>
               <AlertDialogTrigger render={
                 <Button variant="ghost" className="w-full justify-center text-red-500 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-500/10 rounded-2xl h-14 border border-red-100 dark:border-red-900/30">
