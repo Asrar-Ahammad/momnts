@@ -60,3 +60,20 @@ export const useEventAttendees = (eventId: string | undefined) => {
     enabled: !!eventId,
   })
 }
+
+export const useJoinRequests = (eventId: string | undefined, isOrganizer: boolean, status?: string) => {
+  return useQuery({
+    queryKey: ["join-requests", eventId, status],
+    queryFn: () => eventsApi.getJoinRequests(eventId!, status),
+    enabled: !!eventId && isOrganizer,
+  })
+}
+
+export const usePendingRequestCount = (eventId: string | undefined, isOrganizer: boolean) => {
+  return useQuery({
+    queryKey: ["join-requests-count", eventId],
+    queryFn: () => eventsApi.getPendingRequestCount(eventId!),
+    enabled: !!eventId && isOrganizer,
+    refetchInterval: 30000,
+  })
+}

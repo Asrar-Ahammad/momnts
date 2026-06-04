@@ -8,6 +8,7 @@ import { Popover, PopoverContent, PopoverTrigger } from '../../../components/ui/
 import { Calendar } from '../../../components/ui/calendar'
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '../../../components/ui/dialog'
 import { CalendarIcon, X } from '@phosphor-icons/react'
+import { Switch } from '../../../components/ui/switch'
 import { eventsApi, EventData } from '../../../features/events/services/events.api'
 import { toast } from 'sonner'
 import { useWebHaptics } from 'web-haptics/react'
@@ -25,6 +26,7 @@ export const CreateEventModal = ({ open, onOpenChange, onEventCreated }: CreateE
   const [newEventDate, setNewEventDate] = useState<Date | undefined>()
   const [isDatePickerOpen, setIsDatePickerOpen] = useState(false)
   const [newEventUploadLimit, setNewEventUploadLimit] = useState(10)
+  const [isSecure, setIsSecure] = useState(true)
   const [creatingEvent, setCreatingEvent] = useState(false)
   const creatingEventRef = useRef(false)
   const haptic = useWebHaptics()
@@ -44,14 +46,13 @@ export const CreateEventModal = ({ open, onOpenChange, onEventCreated }: CreateE
         newEventName,
         newEventLocation,
         newEventDate.toISOString(),
-        newEventUploadLimit
+        newEventUploadLimit,
+        isSecure
       )
       toast.success('Event created successfully!')
       haptic.trigger("success")
+      resetForm()
       onOpenChange(false)
-      setNewEventName('')
-      setNewEventLocation('')
-      setNewEventDate(undefined)
       navigate(`/events/${createdEvent.id}`)
       // Refresh events
       const [myEvents, joinedEvents] = await Promise.all([
@@ -73,16 +74,28 @@ export const CreateEventModal = ({ open, onOpenChange, onEventCreated }: CreateE
     }
   }
 
-  const handleCancel = () => {
-    onOpenChange(false)
+  const resetForm = () => {
     setNewEventName('')
     setNewEventLocation('')
     setNewEventDate(undefined)
     setNewEventUploadLimit(10)
+    setIsSecure(true)
+  }
+
+  const handleOpenChange = (isOpen: boolean) => {
+    if (!isOpen) {
+      resetForm()
+    }
+    onOpenChange(isOpen)
+  }
+
+  const handleCancel = () => {
+    resetForm()
+    onOpenChange(false)
   }
 
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
+    <Dialog open={open} onOpenChange={handleOpenChange}>
       <DialogContent className="sm:max-w-[425px]">
         <DialogHeader>
           <DialogTitle className="text-4xl font-sirage">Create New Event</DialogTitle>
@@ -143,6 +156,19 @@ export const CreateEventModal = ({ open, onOpenChange, onEventCreated }: CreateE
                 const val = parseInt(e.target.value, 10);
                 setNewEventUploadLimit(isNaN(val) ? 0 : val);
               }}
+            />
+          </div>
+          <div className="flex items-center justify-between gap-2 border border-border rounded-lg p-3 mt-1">
+            <div className="flex flex-col gap-0.5">
+              <Label htmlFor="secure" className="text-sm font-semibold cursor-pointer">Secure Event</Label>
+              <span className="text-xs text-muted-foreground">
+                Attendees must be approved by organizer before joining.
+              </span>
+            </div>
+            <Switch
+              id="secure"
+              checked={isSecure}
+              onCheckedChange={setIsSecure}
             />
           </div>
         </div>

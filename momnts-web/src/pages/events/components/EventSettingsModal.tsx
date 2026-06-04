@@ -3,7 +3,7 @@ import { Button } from '../../../components/ui/button'
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '../../../components/ui/dialog'
 import { Input } from '../../../components/ui/input'
 import { Label } from '../../../components/ui/label'
-import { Trash, CalendarBlank, Broadcast } from '@phosphor-icons/react'
+import { Trash, CalendarBlank, Broadcast, LockKey } from '@phosphor-icons/react'
 import { format } from 'date-fns'
 import { cn } from '../../../lib/utils'
 import { Popover, PopoverContent, PopoverTrigger } from '../../../components/ui/popover'
@@ -19,8 +19,9 @@ interface EventSettingsModalProps {
     date: string
     location: string
     isActive: boolean
+    isSecure: boolean
   }
-  onSettingsFormChange: (form: { name: string; date: string; location: string; isActive: boolean }) => void
+  onSettingsFormChange: (form: { name: string; date: string; location: string; isActive: boolean; isSecure: boolean }) => void
   onSave: () => void
   saving: boolean
   onDelete: () => Promise<void>
@@ -140,6 +141,31 @@ const EventSettingsModal = ({
                 id="event-active"
                 checked={settingsForm.isActive}
                 onCheckedChange={(checked) => onSettingsFormChange({ ...settingsForm, isActive: checked })}
+                className="cursor-pointer"
+              />
+            </div>
+
+            <div className="flex items-center justify-between p-4 border border-neutral-100 dark:border-neutral-800 rounded-[20px] bg-neutral-50/50 dark:bg-neutral-900/50">
+              <div className="flex items-center space-x-3">
+                <div className={cn(
+                  "p-2.5 rounded-xl shadow-sm transition-colors",
+                  settingsForm.isSecure 
+                    ? "bg-amber-50 dark:bg-amber-500/10 text-amber-600 dark:text-amber-400" 
+                    : "bg-white dark:bg-neutral-800 text-neutral-400"
+                )}>
+                  <LockKey size={20} weight={settingsForm.isSecure ? "fill" : "regular"} />
+                </div>
+                <div>
+                  <Label htmlFor="event-secure" className="text-sm font-bold cursor-pointer">
+                    Secure Event
+                  </Label>
+                  <p className="text-[11px] text-neutral-500 font-medium">Require organizer approval to join</p>
+                </div>
+              </div>
+              <Switch
+                id="event-secure"
+                checked={settingsForm.isSecure}
+                onCheckedChange={(checked) => onSettingsFormChange({ ...settingsForm, isSecure: checked })}
                 className="cursor-pointer"
               />
             </div>

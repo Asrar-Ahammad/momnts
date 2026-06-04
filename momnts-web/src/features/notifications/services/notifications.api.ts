@@ -65,4 +65,15 @@ export const notificationsApi = {
       await handleError(response, "Failed to clear notifications");
     }
   },
+
+  async deleteNotification(notificationId: string): Promise<void> {
+    const response = await apiFetch(`${API_URL}/api/notifications/${notificationId}`, {
+      method: "DELETE",
+      headers: authHeaders(),
+    })
+
+    if (!response.ok) {
+      await handleError(response, "Failed to delete notification");
+    }
+  },
 }

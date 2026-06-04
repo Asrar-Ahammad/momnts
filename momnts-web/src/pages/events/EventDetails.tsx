@@ -12,7 +12,7 @@ import { authHeaders } from '../../lib/authHeaders'
 import { useEventSocket } from '../../hooks/useEventSocket'
 import EventHeader from './components/EventHeader'
 import { useQueryClient } from '@tanstack/react-query'
-import { useEventDetails, useEventPhotos, useMyPhotos, useEventAttendees } from '../../features/events/hooks/useEvents'
+import { useEventDetails, useEventPhotos, useMyPhotos, useEventAttendees, usePendingRequestCount } from '../../features/events/hooks/useEvents'
 import { MomntsSlideshow } from '../../components/MomntsSlideshow'
 import PhotoGrid from './components/PhotoGrid'
 import UploadModal, { FileUploadStatus } from './components/UploadModal'
@@ -42,6 +42,11 @@ const EventDetails = () => {
   const loading = eventLoading || photosLoading || myPhotosLoading
   const { data: attendees = [], isLoading: attendeesLoading } = useEventAttendees(eventId)
 
+  const isOrganizer = event?.user_role === 'ORGANIZER'
+  const isSecure = event?.is_secure || false
+  const { data: pendingRequestCount = 0 } = usePendingRequestCount(eventId, !!isOrganizer && isSecure)
+  const [attendeesModalTab, setAttendeesModalTab] = useState<'attendees' | 'requests'>('attendees')
+
   const [uploadModalOpen, setUploadModalOpen] = useState(false)
   const [uploading, setUploading] = useState(false)
   const [slideshowOpen, setSlideshowOpen] = useState(false)
@@ -53,7 +58,8 @@ const EventDetails = () => {
     name: '',
     date: '',
     location: '',
-    isActive: true
+    isActive: true,
+    isSecure: true
   })
   const [savingSettings, setSavingSettings] = useState(false)
   const uploadingRef = useRef(false)
@@ -260,7 +266,9 @@ const EventDetails = () => {
 
   // Handle URL view parameters (e.g., from notifications)
   useEffect(() => {
-    if (searchParams.get('view') === 'attendees') {
+    const view = searchParams.get('view')
+    if (view === 'attendees' || view === 'requests') {
+      setAttendeesModalTab(view === 'requests' ? 'requests' : 'attendees')
       setAttendeesModalOpen(true)
       // Clean up URL without removing other parameters in sync with React Router
       const newParams = new URLSearchParams(searchParams)
@@ -427,7 +435,8 @@ const EventDetails = () => {
         name: event.name,
         date: event.date,
         location: event.location,
-        isActive: event.is_active
+        isActive: event.is_active,
+        isSecure: event.is_secure
       })
       setSettingsModalOpen(true)
     }
@@ -444,7 +453,8 @@ const EventDetails = () => {
         settingsForm.name,
         settingsForm.date,
         settingsForm.location,
-        settingsForm.isActive
+        settingsForm.isActive,
+        settingsForm.isSecure
       )
       toast.success('Event updated successfully!')
       haptic.trigger("success")
@@ -633,7 +643,9 @@ const EventDetails = () => {
         }}
         selectedCount={selectedPhotoIds.size}
         onDownloadSelected={handleDownloadSelected}
+        pendingRequestCount={pendingRequestCount}
         onAttendeesClick={() => {
+          setAttendeesModalTab('attendees')
           setAttendeesModalOpen(true)
         }}
         userUploadCount={photos.filter(p => p.user_id === user?.id || p.user?.id === user?.id).length}
@@ -731,11 +743,14 @@ const EventDetails = () => {
           setAttendeesModalOpen(false)
           setActiveTab('all')
         }}
-        isOrganizer={event?.user_role === 'ORGANIZER'}
+        isOrganizer={isOrganizer}
         eventId={eventId}
+        isSecure={isSecure}
+        initialTab={attendeesModalTab}
         onRefreshAttendees={() => {
           queryClient.invalidateQueries({ queryKey: ['attendees', eventId] })
           queryClient.invalidateQueries({ queryKey: ['photos', eventId] })
+          queryClient.invalidateQueries({ queryKey: ['join-requests-count', eventId] })
         }}
       />
 
