@@ -130,7 +130,7 @@ const Register = () => {
 
     return (
         <>
-            <div className="register-main-view flex w-full min-h-screen">
+            <div className="register-main-view flex w-full min-h-dvh">
                 <div className="register-left flex flex-col items-center justify-start md:justify-center py-10 md:py-16 w-full md:w-1/2 auth-gradient-bg overflow-y-auto">
                     <div className="auth-blob" />
                     <form onSubmit={(e) => {
@@ -138,9 +138,9 @@ const Register = () => {
                         e.stopPropagation()
                         form.handleSubmit()
                     }}
-                        className="w-full flex items-center justify-center relative z-10"
+                        className="w-full flex items-center justify-center relative z-10 px-4"
                     >
-                        <FieldGroup className="w-2/3 md:w-1/2">
+                        <FieldGroup className="w-[85%] sm:w-2/3 md:w-1/2">
                             <div className="logo flex items-center justify-center gap-2">
                                 <span className="text-4xl font-bold font-logo select-none">Momnts</span>
                             </div>
@@ -328,7 +328,7 @@ const Register = () => {
                         </FieldGroup>
                     </form>
                 </div>
-                <div className="register-right md:w-1/2 hidden md:block h-screen sticky top-0">
+                <div className="register-right md:w-1/2 hidden md:block h-dvh sticky top-0">
                     <div className="register-right-content w-full h-full p-2 relative overflow-hidden rounded-xl">
                         <div className="absolute inset-0 rounded-xl overflow-hidden">
                             <GridDistortion

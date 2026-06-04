@@ -101,7 +101,7 @@ const PhotoCarousel = ({
 
   const handleCommentsScroll = useCallback((e: React.UIEvent<HTMLDivElement>) => {
     const { scrollTop, scrollHeight, clientHeight } = e.currentTarget
-    
+
     // Return early if content fits within container to prevent elastic scroll glitch
     if (scrollHeight <= clientHeight) return
 
@@ -253,9 +253,10 @@ const PhotoCarousel = ({
     }
   }, [initialIndex, open])
 
-  // Reset natural size when index changes manually
+  // Reset natural size and show loading spinner when index changes
   useEffect(() => {
     setNaturalSize(null)
+    setIsLoading(true)
   }, [currentIndex])
 
   const currentPhoto = photos[currentIndex]
@@ -266,13 +267,17 @@ const PhotoCarousel = ({
     setNaturalSize({ width: naturalWidth, height: naturalHeight })
   }
 
+  const handleImageError = () => {
+    setIsLoading(false)
+  }
+
   // Compute dialog size from photo aspect ratio to fill viewport
   const dialogStyle = useMemo(() => {
     if (photos.length === 0 || !currentPhoto) return { width: 0, height: 0, photoHeight: 0, commentsHeight: 0 }
 
     const viewportW = windowSize.width * 0.95
     // Adjust maximum photo height if comments are open
-    const commentsHeight = showComments 
+    const commentsHeight = showComments
       ? (isCommentsExpanded ? Math.min(windowSize.height * 0.65, 520) : Math.min(windowSize.height * 0.4, 320))
       : 0
     const viewportH = windowSize.height * 0.95 - commentsHeight
@@ -287,9 +292,9 @@ const PhotoCarousel = ({
       if (showComments && windowSize.width >= 768) {
         targetW = Math.min(viewportW, Math.max(targetW, 480))
       }
-      return { 
-        width: targetW, 
-        height: defaultPhotoH + commentsHeight, 
+      return {
+        width: targetW,
+        height: defaultPhotoH + commentsHeight,
         photoHeight: defaultPhotoH,
         commentsHeight
       }
@@ -325,9 +330,9 @@ const PhotoCarousel = ({
       targetW = Math.min(viewportW, Math.max(targetW, 480))
     }
 
-    return { 
-      width: targetW, 
-      height: targetH + commentsHeight, 
+    return {
+      width: targetW,
+      height: targetH + commentsHeight,
       photoHeight: targetH,
       commentsHeight
     }
@@ -351,11 +356,15 @@ const PhotoCarousel = ({
           style={{ width: dialogStyle.width, height: dialogStyle.height }}
           showCloseButton={false}
           onKeyDown={handleKeyDown}
+          onOpenAutoFocus={(e) => e.preventDefault()}
         >
+          {/* Hidden focus trap to prevent auto-focusing the first button and triggering its tooltip */}
+          <div tabIndex={0} className="sr-only" />
+
           {currentPhoto && (
             <div className="relative flex flex-col w-full h-full">
               {/* Photo Container */}
-              <div 
+              <div
                 style={{ width: dialogStyle.width, height: dialogStyle.photoHeight }}
                 className="relative flex items-center justify-center bg-black transition-[width,height] duration-300 ease-out"
               >
@@ -378,7 +387,7 @@ const PhotoCarousel = ({
                           <Heart size={20} weight={isFavourite?.(currentPhoto.id) ? "fill" : "bold"} className={isFavourite?.(currentPhoto.id) ? "text-rose-500" : ""} />
                         </Button>
                       </TooltipTrigger>
-                      <TooltipContent side="bottom" className="bg-neutral-900 border border-neutral-800 text-neutral-200">
+                      <TooltipContent side="bottom" className="hidden md:flex bg-neutral-900 border border-neutral-800 text-neutral-200">
                         {isFavourite?.(currentPhoto.id) ? "Remove from Favourites" : "Add to Favourites"}
                       </TooltipContent>
                     </Tooltip>
@@ -401,7 +410,7 @@ const PhotoCarousel = ({
                             <ChatCircle size={20} weight={showComments ? "fill" : "bold"} />
                           </Button>
                         </TooltipTrigger>
-                        <TooltipContent side="bottom" className="bg-neutral-900 border border-neutral-800 text-neutral-200">
+                        <TooltipContent side="bottom" className="hidden md:flex bg-neutral-900 border border-neutral-800 text-neutral-200">
                           {showComments ? "Hide Comments" : "Show Comments"}
                         </TooltipContent>
                       </Tooltip>
@@ -424,7 +433,7 @@ const PhotoCarousel = ({
                           <Trash size={20} weight="bold" />
                         </Button>
                       </TooltipTrigger>
-                      <TooltipContent side="bottom" className="bg-neutral-900 border border-neutral-800 text-neutral-200">
+                      <TooltipContent side="bottom" className="hidden md:flex bg-neutral-900 border border-neutral-800 text-neutral-200">
                         Delete Photo
                       </TooltipContent>
                     </Tooltip>
@@ -441,7 +450,7 @@ const PhotoCarousel = ({
                           <XIcon size={20} weight="bold" />
                         </Button>
                       </TooltipTrigger>
-                      <TooltipContent side="bottom" className="bg-neutral-900 border border-neutral-800 text-neutral-200 flex items-center gap-1.5">
+                      <TooltipContent side="bottom" className="hidden md:flex bg-neutral-900 border border-neutral-800 text-neutral-200 items-center gap-1.5">
                         <span>Close</span>
                         <Kbd>Esc</Kbd>
                       </TooltipContent>
@@ -462,7 +471,7 @@ const PhotoCarousel = ({
                         <CaretLeft size={28} weight="bold" />
                       </Button>
                     </TooltipTrigger>
-                    <TooltipContent side="right" className="bg-neutral-900 border border-neutral-800 text-neutral-200 flex items-center gap-1.5">
+                    <TooltipContent side="right" className="hidden md:flex bg-neutral-900 border border-neutral-800 text-neutral-200 items-center gap-1.5">
                       <span>Previous</span>
                       <Kbd>←</Kbd>
                     </TooltipContent>
@@ -479,7 +488,7 @@ const PhotoCarousel = ({
                         <CaretRight size={28} weight="bold" />
                       </Button>
                     </TooltipTrigger>
-                    <TooltipContent side="left" className="bg-neutral-900 border border-neutral-800 text-neutral-200 flex items-center gap-1.5">
+                    <TooltipContent side="left" className="hidden md:flex bg-neutral-900 border border-neutral-800 text-neutral-200 items-center gap-1.5">
                       <span>Next</span>
                       <Kbd>→</Kbd>
                     </TooltipContent>
@@ -492,15 +501,31 @@ const PhotoCarousel = ({
                     key={currentPhoto?.display_url}
                     src={currentPhoto?.display_url}
                     alt={`Photo ${currentIndex + 1}`}
-                    className="max-w-full max-h-full object-contain select-none"
-                    onLoadStart={() => setIsLoading(true)}
+                    className={cn(
+                      "max-w-full max-h-full object-contain select-none transition-opacity duration-300",
+                      isLoading ? "opacity-0" : "opacity-100"
+                    )}
                     onLoad={handleImageLoad}
+                    onError={handleImageError}
                   />
-                  {isLoading && (
-                    <div className="absolute inset-0 flex items-center justify-center bg-black/20">
-                      <div className="w-10 h-10 border-3 border-white/20 border-t-white rounded-full animate-spin" />
-                    </div>
-                  )}
+                  <AnimatePresence>
+                    {isLoading && (
+                      <motion.div
+                        initial={{ opacity: 0 }}
+                        animate={{ opacity: 1 }}
+                        exit={{ opacity: 0 }}
+                        transition={{ duration: 0.2 }}
+                        className="absolute inset-0 flex items-center justify-center"
+                      >
+                        <div className="flex flex-col items-center gap-3">
+                          <div className="relative">
+                            <div className="w-10 h-10 border-[3px] border-white/10 rounded-full" />
+                            <div className="absolute inset-0 w-10 h-10 border-[3px] border-transparent border-t-white rounded-full animate-spin" />
+                          </div>
+                        </div>
+                      </motion.div>
+                    )}
+                  </AnimatePresence>
                 </div>
 
                 {/* Footer Info Overlay */}
@@ -539,7 +564,7 @@ const PhotoCarousel = ({
               </div>
 
               {/* Comments Panel */}
-              <div 
+              <div
                 style={{ height: dialogStyle.commentsHeight }}
                 className={cn(
                   "w-full bg-neutral-950 border-t border-neutral-900 flex flex-col text-white transition-[height,opacity] duration-300 ease-out overflow-hidden rounded-b-3xl dark",
@@ -597,7 +622,7 @@ const PhotoCarousel = ({
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel onClick={() => haptic.trigger("light")}>Cancel</AlertDialogCancel>
-            <AlertDialogAction 
+            <AlertDialogAction
               onClick={() => { haptic.trigger("warning"); handleDelete() }}
               className="bg-red-600 hover:bg-red-700 text-white"
             >

@@ -65,17 +65,17 @@ const Login = () => {
 
     return (
         <>
-            <div className="register-main-view flex w-full h-screen">
-                <div className="register-left flex flex-col items-center justify-center md:w-1/2 w-full auth-gradient-bg">
+            <div className="register-main-view flex w-full min-h-dvh">
+                <div className="register-left flex flex-col items-center justify-center py-10 md:py-16 md:w-1/2 w-full auth-gradient-bg overflow-y-auto">
                     <div className="auth-blob" />
                     <form onSubmit={(e) => {
                         e.preventDefault()
                         e.stopPropagation()
                         form.handleSubmit()
                     }}
-                        className="w-full flex items-center justify-center relative z-10"
+                        className="w-full flex items-center justify-center relative z-10 px-4"
                     >
-                        <FieldGroup className="w-2/3 md:w-1/2">
+                        <FieldGroup className="w-[85%] sm:w-2/3 md:w-1/2">
                             <div className="logo flex items-center justify-center gap-2">
                                 <span className="text-4xl font-bold font-logo select-none">Momnts</span>
                             </div>

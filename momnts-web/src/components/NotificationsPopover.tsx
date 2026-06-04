@@ -257,7 +257,7 @@ const NotificationsPopover = () => {
                             toast.error("Failed to delete notification");
                           }
                         }}
-                        className="opacity-0 group-hover:opacity-100 group-focus-within:opacity-100 focus:opacity-100 p-1 text-neutral-400 hover:text-red-500 dark:hover:text-red-400 rounded-full hover:bg-neutral-100 dark:hover:bg-neutral-900 transition-all cursor-pointer"
+                        className="md:opacity-0 md:group-hover:opacity-100 md:group-focus-within:opacity-100 focus:opacity-100 p-1 text-neutral-400 hover:text-red-500 dark:hover:text-red-400 rounded-full hover:bg-neutral-100 dark:hover:bg-neutral-900 transition-all cursor-pointer"
                         title="Delete notification"
                       >
                         <Trash size={12} weight="bold" />
@@ -272,7 +272,7 @@ const NotificationsPopover = () => {
                   </p>
                 </div>
                 {!n.is_read && (
-                  <div className="absolute right-4 bottom-4 opacity-0 group-hover:opacity-100 transition-opacity">
+                  <div className="absolute right-4 bottom-4 md:opacity-0 md:group-hover:opacity-100 transition-opacity">
                     <div className="p-1 bg-blue-500 rounded-full text-white">
                       <Check size={10} weight="bold" />
                     </div>
