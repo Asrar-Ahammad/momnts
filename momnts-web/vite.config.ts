@@ -50,6 +50,7 @@ export default defineConfig({
         // Cache pages the user navigates to
         navigateFallback: 'index.html',
         navigateFallbackAllowlist: [/^(?!\/__).*/],
+        maximumFileSizeToCacheInBytes: 4000000,
 
         runtimeCaching: [
           // Cache API responses for events (stale-while-revalidate)
