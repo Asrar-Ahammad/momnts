@@ -206,11 +206,11 @@ const EventHeader = ({
     if (activeTab === 'favourites') {
       return (
         <Button
-          className={`${fullWidth ? 'flex-1 w-full' : ''} h-9 lg:h-10 px-4 lg:px-8 flex items-center justify-center gap-1.5 lg:gap-2 rounded-xl bg-rose-600 hover:bg-rose-700 text-white transition-colors text-xs lg:text-sm shrink-0 whitespace-nowrap`}
+          className={`${fullWidth ? 'flex-1 w-full' : ''} h-8 sm:h-9 lg:h-10 px-2.5 sm:px-4 lg:px-8 flex items-center justify-center gap-1 sm:gap-1.5 lg:gap-2 rounded-xl bg-rose-600 hover:bg-rose-700 text-white transition-colors text-[11px] sm:text-xs lg:text-sm shrink-0 whitespace-nowrap`}
           onClick={onDownloadFavourites}
           disabled={favouritesCount === 0}
         >
-          <DownloadSimple size={18} weight="bold" className="w-4 h-4 lg:w-[18px] lg:h-[18px]" />
+          <DownloadSimple size={18} weight="bold" className="w-3.5 h-3.5 sm:w-4 sm:h-4 lg:w-[18px] lg:h-[18px]" />
           <span className="hidden sm:inline">Download Favourites</span>
           <span className="inline sm:hidden">Download</span>
           {favouritesCount > 0 && (
@@ -229,10 +229,10 @@ const EventHeader = ({
           <TooltipTrigger asChild>
             <div className={fullWidth ? 'w-full' : ''}>
               <Button
-                className={`${fullWidth ? 'w-full' : ''} h-9 lg:h-10 px-4 lg:px-8 flex items-center justify-center gap-1.5 lg:gap-2 rounded-xl bg-neutral-200 dark:bg-neutral-800 text-neutral-400 cursor-not-allowed text-xs lg:text-sm shrink-0 whitespace-nowrap`}
+                className={`${fullWidth ? 'w-full' : ''} h-8 sm:h-9 lg:h-10 px-2.5 sm:px-4 lg:px-8 flex items-center justify-center gap-1 sm:gap-1.5 lg:gap-2 rounded-xl bg-neutral-200 dark:bg-neutral-800 text-neutral-400 cursor-not-allowed text-[11px] sm:text-xs lg:text-sm shrink-0 whitespace-nowrap`}
                 disabled
               >
-                <Upload size={18} weight="bold" className="w-4 h-4 lg:w-[18px] lg:h-[18px]" />
+                <Upload size={18} weight="bold" className="w-3.5 h-3.5 sm:w-4 sm:h-4 lg:w-[18px] lg:h-[18px]" />
                 <span className="hidden sm:inline">Upload Photos</span>
                 <span className="inline sm:hidden">Upload</span>
               </Button>
@@ -251,10 +251,10 @@ const EventHeader = ({
           <TooltipTrigger asChild>
             <div className={fullWidth ? 'w-full' : ''}>
               <Button
-                className={`${fullWidth ? 'w-full' : ''} h-9 lg:h-10 px-4 lg:px-8 flex items-center justify-center gap-1.5 lg:gap-2 rounded-xl bg-neutral-100 dark:bg-neutral-800 text-neutral-400 border border-neutral-200 dark:border-neutral-700 cursor-not-allowed text-xs lg:text-sm shrink-0 whitespace-nowrap`}
+                className={`${fullWidth ? 'w-full' : ''} h-8 sm:h-9 lg:h-10 px-2.5 sm:px-4 lg:px-8 flex items-center justify-center gap-1 sm:gap-1.5 lg:gap-2 rounded-xl bg-neutral-100 dark:bg-neutral-800 text-neutral-400 border border-neutral-200 dark:border-neutral-700 cursor-not-allowed text-[11px] sm:text-xs lg:text-sm shrink-0 whitespace-nowrap`}
                 disabled
               >
-                <Upload size={18} weight="bold" className="w-4 h-4 lg:w-[18px] lg:h-[18px]" />
+                <Upload size={18} weight="bold" className="w-3.5 h-3.5 sm:w-4 sm:h-4 lg:w-[18px] lg:h-[18px]" />
                 <span className="hidden sm:inline">Upload Limit Reached</span>
                 <span className="inline sm:hidden">Limit Reached</span>
               </Button>
@@ -269,10 +269,10 @@ const EventHeader = ({
 
     return (
       <Button
-        className={`${fullWidth ? 'w-full' : ''} h-9 lg:h-10 px-4 lg:px-8 flex items-center justify-center gap-1.5 lg:gap-2 rounded-xl bg-neutral-900 dark:bg-white text-white dark:text-neutral-900 hover:opacity-90 transition-opacity text-xs lg:text-sm font-semibold shrink-0 whitespace-nowrap`}
+        className={`${fullWidth ? 'w-full' : ''} h-8 sm:h-9 lg:h-10 px-2.5 sm:px-4 lg:px-8 flex items-center justify-center gap-1 sm:gap-1.5 lg:gap-2 rounded-xl bg-neutral-900 dark:bg-white text-white dark:text-neutral-900 hover:opacity-90 transition-opacity text-[11px] sm:text-xs lg:text-sm font-semibold shrink-0 whitespace-nowrap`}
         onClick={onUploadClick}
       >
-        <Upload size={18} weight="bold" className="w-4 h-4 lg:w-[18px] lg:h-[18px]" />
+        <Upload size={18} weight="bold" className="w-3.5 h-3.5 sm:w-4 sm:h-4 lg:w-[18px] lg:h-[18px]" />
         <span className="hidden sm:inline">Upload Photos</span>
         <span className="inline sm:hidden">Upload</span>
       </Button>
@@ -369,10 +369,10 @@ const EventHeader = ({
             {/* Right Action Section */}
             <motion.div
               layout
-              className="flex items-center justify-between sm:justify-end gap-2 sm:gap-3 overflow-x-auto no-scrollbar py-2 -my-2 px-1 -mx-1 w-full lg:w-auto shrink-0"
+              className="flex items-center justify-between sm:justify-end gap-1.5 sm:gap-3 overflow-x-auto no-scrollbar py-2 -my-2 px-1 -mx-1 w-full lg:w-auto shrink-0 pl-[38px] sm:pl-10 lg:pl-0"
             >
               {!isSelectMode ? (
-                <motion.div layout className="flex items-center justify-between sm:justify-end gap-2 w-full lg:w-auto">
+                <motion.div layout className="flex items-center justify-between sm:justify-end gap-1.5 sm:gap-2 w-full lg:w-auto">
                   <AnimatePresence mode="popLayout">
                     <motion.div
                       key="gallery-controls"
@@ -388,9 +388,9 @@ const EventHeader = ({
                           <DropdownMenuTrigger asChild>
                             <Button
                               variant="outline"
-                              className="h-10 w-10 flex items-center justify-center rounded-xl cursor-pointer"
+                              className="h-8 w-8 sm:h-9 sm:w-9 lg:h-10 lg:w-10 flex items-center justify-center rounded-xl cursor-pointer"
                             >
-                              <DotsThree size={20} weight="bold" />
+                              <DotsThree size={20} weight="bold" className="w-4 h-4 sm:w-[18px] sm:h-[18px] lg:w-5 lg:h-5" />
                             </Button>
                           </DropdownMenuTrigger>
                           <DropdownMenuContent align="end" className="w-64 rounded-2xl p-1.5">
@@ -641,10 +641,10 @@ const EventHeader = ({
                     {event && event._count.photos >= 5 && (
                       <Button
                         variant="outline"
-                        className="h-9 lg:h-10 px-3 lg:px-6 flex items-center justify-center gap-1.5 lg:gap-2 rounded-xl border-neutral-200 dark:border-neutral-800 hover:bg-neutral-100 dark:hover:bg-neutral-850 cursor-pointer text-xs lg:text-sm font-semibold transition-colors shrink-0 whitespace-nowrap"
+                        className="h-8 sm:h-9 lg:h-10 px-2.5 sm:px-3 lg:px-6 flex items-center justify-center gap-1 sm:gap-1.5 lg:gap-2 rounded-xl border-neutral-200 dark:border-neutral-800 hover:bg-neutral-100 dark:hover:bg-neutral-850 cursor-pointer text-[11px] sm:text-xs lg:text-sm font-semibold transition-colors shrink-0 whitespace-nowrap"
                         onClick={onMemoryLaneClick}
                       >
-                        <MusicNotes size={18} weight="bold" className="text-rose-500 w-4 h-4 lg:w-[18px] lg:h-[18px]" />
+                        <MusicNotes size={18} weight="bold" className="text-rose-500 w-3.5 h-3.5 sm:w-4 sm:h-4 lg:w-[18px] lg:h-[18px]" />
                         <span>Memory Lane</span>
                       </Button>
                     )}
