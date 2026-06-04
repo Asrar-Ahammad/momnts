@@ -79,6 +79,7 @@ const AttendeesModal = ({
   const [requestToReject, setRequestToReject] = useState<{ id: string, name: string } | null>(null)
   const [rejectionReason, setRejectionReason] = useState('')
   const [rejectingRequest, setRejectingRequest] = useState(false)
+  const [approvingById, setApprovingById] = useState<Record<string, boolean>>({})
 
   const { data: requests = [], refetch: refetchRequests, isLoading: loadingRequests } = useJoinRequests(
     eventId,
@@ -140,8 +141,9 @@ const AttendeesModal = ({
   }
 
   const handleApproveRequest = async (requestId: string, userName: string) => {
-    if (!eventId) return
+    if (!eventId || approvingById[requestId]) return
     try {
+      setApprovingById(prev => ({ ...prev, [requestId]: true }))
       await eventsApi.handleJoinRequest(eventId, requestId, 'approve')
       toast.success(`${userName}'s request has been approved`)
       refetchRequests()
@@ -150,6 +152,8 @@ const AttendeesModal = ({
       }
     } catch (error) {
       toast.error(error instanceof Error ? error.message : 'Failed to approve request')
+    } finally {
+      setApprovingById(prev => ({ ...prev, [requestId]: false }))
     }
   }
 
@@ -407,8 +411,9 @@ const AttendeesModal = ({
                             size="sm" 
                             className="h-8 text-xs text-green-600 border-green-200 hover:bg-green-50 hover:text-green-700 dark:border-green-900 dark:hover:bg-green-950/20" 
                             onClick={() => handleApproveRequest(request.id, request.user.name)}
+                            disabled={approvingById[request.id]}
                           >
-                            Approve
+                            {approvingById[request.id] ? 'Approving...' : 'Approve'}
                           </Button>
                           <Button 
                             variant="outline" 
@@ -442,7 +447,12 @@ const AttendeesModal = ({
       </Dialog>
 
       {/* Decline Reason Dialog */}
-      <Dialog open={!!requestToReject} onOpenChange={(open) => !open && setRequestToReject(null)}>
+      <Dialog open={!!requestToReject} onOpenChange={(open) => {
+        if (!open) {
+          setRequestToReject(null)
+          setRejectionReason('')
+        }
+      }}>
         <DialogContent className="sm:max-w-md">
           <DialogHeader>
             <DialogTitle className="text-xl text-red-600 flex items-center gap-2">

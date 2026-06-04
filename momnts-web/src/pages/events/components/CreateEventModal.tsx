@@ -51,10 +51,8 @@ export const CreateEventModal = ({ open, onOpenChange, onEventCreated }: CreateE
       )
       toast.success('Event created successfully!')
       haptic.trigger("success")
+      resetForm()
       onOpenChange(false)
-      setNewEventName('')
-      setNewEventLocation('')
-      setNewEventDate(undefined)
       navigate(`/events/${createdEvent.id}`)
       // Refresh events
       const [myEvents, joinedEvents] = await Promise.all([
@@ -76,8 +74,7 @@ export const CreateEventModal = ({ open, onOpenChange, onEventCreated }: CreateE
     }
   }
 
-  const handleCancel = () => {
-    onOpenChange(false)
+  const resetForm = () => {
     setNewEventName('')
     setNewEventLocation('')
     setNewEventDate(undefined)
@@ -85,8 +82,20 @@ export const CreateEventModal = ({ open, onOpenChange, onEventCreated }: CreateE
     setIsSecure(true)
   }
 
+  const handleOpenChange = (isOpen: boolean) => {
+    if (!isOpen) {
+      resetForm()
+    }
+    onOpenChange(isOpen)
+  }
+
+  const handleCancel = () => {
+    resetForm()
+    onOpenChange(false)
+  }
+
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
+    <Dialog open={open} onOpenChange={handleOpenChange}>
       <DialogContent className="sm:max-w-[425px]">
         <DialogHeader>
           <DialogTitle className="text-4xl font-sirage">Create New Event</DialogTitle>

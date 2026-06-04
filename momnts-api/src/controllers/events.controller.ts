@@ -1,6 +1,7 @@
 import type { Response } from "express";
 import { prisma } from "../lib/prisma.js";
 import type { AuthRequest } from "../middleware/auth.middleware.js";
+import { JoinRequestStatus } from "../generated/prisma/index.js";
 import crypto from 'crypto'
 import { matchingQueue } from "../lib/queue.js";
 import { presignStoredUrl, deleteFromR2, extractKeyFromUrl } from "../lib/r2.js";
@@ -98,7 +99,7 @@ async function createEventController(req: AuthRequest, res: Response) {
                 invite_code: invite_code,
                 user_id: req.user.id,
                 attendee_upload_limit: attendee_upload_limit_parsed,
-                is_secure: typeof isSecure === 'boolean' ? isSecure : true,
+                is_secure: typeof isSecure === 'boolean' ? isSecure : false,
             },
         });
         const eventAccess = await prisma.eventAccess.create({
@@ -303,22 +304,23 @@ async function joinEventController(req: AuthRequest, res: Response) {
         }
 
         if (event.is_secure) {
-            if (existingRequest) {
-                // Reset request to PENDING
-                await prisma.joinRequest.update({
-                    where: { id: existingRequest.id },
-                    data: { status: 'PENDING', rejection_reason: null }
-                });
-            } else {
-                // Create a new JoinRequest
-                await prisma.joinRequest.create({
-                    data: {
+            await prisma.joinRequest.upsert({
+                where: {
+                    event_id_user_id: {
                         event_id: event.id,
-                        user_id: req.user.id,
-                        status: 'PENDING'
+                        user_id: req.user.id
                     }
-                });
-            }
+                },
+                update: {
+                    status: 'PENDING',
+                    rejection_reason: null
+                },
+                create: {
+                    event_id: event.id,
+                    user_id: req.user.id,
+                    status: 'PENDING'
+                }
+            });
 
             // Send notification to the organizer
             try {
@@ -1030,7 +1032,16 @@ async function getJoinRequestsController(req: AuthRequest, res: Response) {
         }
 
         const eventId = req.params.eventId as string;
-        const status = typeof req.query.status === 'string' ? req.query.status : 'PENDING';
+
+        let status: JoinRequestStatus = 'PENDING';
+        const statusQuery = req.query.status;
+        if (statusQuery !== undefined) {
+            if (statusQuery === 'PENDING' || statusQuery === 'APPROVED' || statusQuery === 'REJECTED') {
+                status = statusQuery as JoinRequestStatus;
+            } else {
+                return res.status(400).json({ message: "Invalid status parameter. Must be one of: PENDING, APPROVED, REJECTED" });
+            }
+        }
 
         if (!eventId) {
             return res.status(400).json({ message: "Event ID is required" });
@@ -1050,7 +1061,7 @@ async function getJoinRequestsController(req: AuthRequest, res: Response) {
         const requests = await prisma.joinRequest.findMany({
             where: {
                 event_id: eventId,
-                status: status as any
+                status: status
             },
             include: {
                 user: {
@@ -1149,20 +1160,28 @@ async function handleJoinRequestController(req: AuthRequest, res: Response) {
         }
 
         if (action === 'approve') {
-            // Update request status
-            await prisma.joinRequest.update({
-                where: { id: requestId },
-                data: { status: 'APPROVED' }
-            });
-
-            // Create EventAccess
-            const eventAccess = await prisma.eventAccess.create({
-                data: {
-                    event_id: eventId,
-                    user_id: joinRequest.user_id,
-                    role: 'ATTENDEE'
-                }
-            });
+            const [_, eventAccess] = await prisma.$transaction([
+                prisma.joinRequest.update({
+                    where: { id: requestId },
+                    data: { status: 'APPROVED' }
+                }),
+                prisma.eventAccess.upsert({
+                    where: {
+                        event_id_user_id: {
+                            event_id: eventId,
+                            user_id: joinRequest.user_id
+                        }
+                    },
+                    update: {
+                        role: 'ATTENDEE'
+                    },
+                    create: {
+                        event_id: eventId,
+                        user_id: joinRequest.user_id,
+                        role: 'ATTENDEE'
+                    }
+                })
+            ]);
 
             // Send notification to the attendee
             try {

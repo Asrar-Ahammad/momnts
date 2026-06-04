@@ -86,6 +86,7 @@ interface EventHeaderProps {
   onLeaveEvent?: () => Promise<void>
   onDownloadFavourites?: () => void
   favouritesCount?: number
+  galleryColumns?: GalleryColumns
   onGalleryColumnsChange?: (cols: GalleryColumns) => void
   onMemoryLaneClick?: () => void
   onSelectAll?: () => void

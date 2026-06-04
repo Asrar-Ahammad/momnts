@@ -43,7 +43,7 @@ model Event {
   date                  DateTime
   invite_code           String   @unique
   is_active             Boolean  @default(true)
-  is_secure             Boolean  @default(true)
+  is_secure             Boolean  @default(false)
   attendee_upload_limit Int      @default(10)
   created_at            DateTime @default(now())
 

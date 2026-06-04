@@ -42,6 +42,8 @@ const NotificationsPopover = () => {
       const data = await notificationsApi.getNotifications()
       setNotifications(data)
       setUnreadCount(data.filter(n => !n.is_read).length)
+      // Seed shownNotificationsRef with existing notification IDs
+      data.forEach(n => shownNotificationsRef.current.add(n.id))
     } catch (error) {
       console.error('Failed to fetch notifications:', error)
     }
@@ -114,6 +116,7 @@ const NotificationsPopover = () => {
       haptic.trigger("success")
       setNotifications([])
       setUnreadCount(0)
+      shownNotificationsRef.current.clear()
     } catch (error) {
       haptic.trigger("error")
       console.error('Failed to clear notifications:', error)
@@ -182,11 +185,19 @@ const NotificationsPopover = () => {
             </div>
           ) : (
             notifications.map((n) => (
-              <button
+              <div
                 key={n.id}
+                role="button"
+                tabIndex={0}
                 onClick={() => handleNotificationClick(n)}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter' || e.key === ' ') {
+                    e.preventDefault();
+                    handleNotificationClick(n);
+                  }
+                }}
                 className={cn(
-                  "w-full px-4 py-4 flex gap-4 transition-all duration-300 relative group text-left border-b border-neutral-50 dark:border-neutral-900/50 last:border-none cursor-pointer",
+                  "w-full px-4 py-4 flex gap-4 transition-all duration-300 relative group text-left border-b border-neutral-50 dark:border-neutral-900/50 last:border-none cursor-pointer outline-none focus-visible:bg-neutral-100 dark:focus-visible:bg-neutral-900/50",
                   !n.is_read ? "bg-blue-50/30 dark:bg-blue-500/5" : "hover:bg-neutral-50 dark:hover:bg-neutral-900/50"
                 )}
               >
@@ -246,7 +257,7 @@ const NotificationsPopover = () => {
                             toast.error("Failed to delete notification");
                           }
                         }}
-                        className="opacity-0 group-hover:opacity-100 p-1 text-neutral-400 hover:text-red-500 dark:hover:text-red-400 rounded-full hover:bg-neutral-100 dark:hover:bg-neutral-900 transition-all cursor-pointer"
+                        className="opacity-0 group-hover:opacity-100 group-focus-within:opacity-100 focus:opacity-100 p-1 text-neutral-400 hover:text-red-500 dark:hover:text-red-400 rounded-full hover:bg-neutral-100 dark:hover:bg-neutral-900 transition-all cursor-pointer"
                         title="Delete notification"
                       >
                         <Trash size={12} weight="bold" />
@@ -267,7 +278,7 @@ const NotificationsPopover = () => {
                     </div>
                   </div>
                 )}
-              </button>
+              </div>
             ))
           )}
         </div>
