@@ -331,3 +331,32 @@ body.slideshow-active header {
 ::view-transition-new(root) {
   z-index: 9999;
 }
+
+/* html5-qrcode: hide default UI chrome, keep only the video feed */
+#qr-reader-container {
+  border: none !important;
+}
+
+#qr-reader-container video {
+  border-radius: 1rem;
+  object-fit: cover;
+}
+
+#qr-reader-container > div:first-child {
+  /* The video wrapper — let it fill */
+  border: none !important;
+  box-shadow: none !important;
+}
+
+/* Hide the built-in scan region border */
+#qr-shaded-region {
+  border: none !important;
+}
+
+/* Hide all default buttons and text injected by the library */
+#qr-reader-container__dashboard,
+#qr-reader-container__status_span,
+#qr-reader-container__header_message,
+#qr-reader-container img[alt="Info icon"] {
+  display: none !important;
+}
