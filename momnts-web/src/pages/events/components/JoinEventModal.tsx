@@ -40,7 +40,17 @@ export const JoinEventModal = ({ open, onOpenChange, onEventJoined, initialInvit
     try {
       joiningEventRef.current = true
       setJoiningEvent(true)
-      const event = await eventsApi.joinEvent(inviteCode)
+      const result = await eventsApi.joinEvent(inviteCode)
+      
+      if ('status' in result && result.status === 'PENDING') {
+        toast.info(result.message || 'Join request sent! Waiting for organizer approval.')
+        haptic.trigger("success")
+        onOpenChange(false)
+        setInviteCode('')
+        return
+      }
+
+      const event = result as EventData
       toast.success(`Successfully joined ${event.name}!`)
       haptic.trigger("success")
       onOpenChange(false)

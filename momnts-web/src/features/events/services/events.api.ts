@@ -17,6 +17,8 @@ export interface EventData {
     photos: number
     event_access: number
   }
+  is_secure: boolean
+  pending_request_count?: number
   user_role: string
   event_access?: {
     user: {
@@ -70,11 +72,11 @@ export const eventsApi = {
     }))
   },
 
-  async createEvent(name: string, location: string, date: string, attendeeUploadLimit: number): Promise<EventData> {
+  async createEvent(name: string, location: string, date: string, attendeeUploadLimit: number, isSecure?: boolean): Promise<EventData> {
     const response = await apiFetch(`${API_URL}/api/events/create`, {
       method: "POST",
       headers: jsonAuthHeaders(),
-      body: JSON.stringify({ name, location, date, attendeeUploadLimit }),
+      body: JSON.stringify({ name, location, date, attendeeUploadLimit, isSecure }),
     })
 
     if (!response.ok) {
@@ -86,7 +88,7 @@ export const eventsApi = {
     return { ...data.event, user_role: data.eventAccess?.role || 'ORGANIZER' }
   },
 
-  async joinEvent(inviteCode: string): Promise<EventData> {
+  async joinEvent(inviteCode: string): Promise<EventData | { status: "PENDING"; message: string }> {
     const response = await apiFetch(`${API_URL}/api/events/join`, {
       method: "POST",
       headers: jsonAuthHeaders(),
@@ -99,6 +101,9 @@ export const eventsApi = {
     }
 
     const data = await response.json()
+    if (response.status === 202) {
+      return { status: "PENDING", message: data.message }
+    }
     return { ...data.data.event, user_role: data.data.role }
   },
 
@@ -116,11 +121,11 @@ export const eventsApi = {
     return data.event
   },
 
-  async updateEvent(eventId: string, name: string, date: string, location: string, isActive: boolean): Promise<EventData> {
+  async updateEvent(eventId: string, name: string, date: string, location: string, isActive: boolean, isSecure?: boolean): Promise<EventData> {
     const response = await apiFetch(`${API_URL}/api/events/${eventId}`, {
       method: "PUT",
       headers: jsonAuthHeaders(),
-      body: JSON.stringify({ name, date, location, isActive }),
+      body: JSON.stringify({ name, date, location, isActive, isSecure }),
     })
 
     if (!response.ok) {
@@ -197,5 +202,50 @@ export const eventsApi = {
       const error = await response.json()
       throw new Error(error.message || "Failed to remove attendee")
     }
+  },
+
+  async getJoinRequests(eventId: string, status?: string): Promise<any[]> {
+    const url = new URL(`${API_URL}/api/events/${eventId}/requests`)
+    if (status) {
+      url.searchParams.append('status', status)
+    }
+    const response = await apiFetch(url.toString(), {
+      headers: authHeaders(),
+    })
+
+    if (!response.ok) {
+      const error = await response.json()
+      throw new Error(error.message || "Failed to fetch join requests")
+    }
+
+    const data = await response.json()
+    return data.data
+  },
+
+  async handleJoinRequest(eventId: string, requestId: string, action: "approve" | "reject", reason?: string): Promise<void> {
+    const response = await apiFetch(`${API_URL}/api/events/${eventId}/requests/${requestId}`, {
+      method: "PUT",
+      headers: jsonAuthHeaders(),
+      body: JSON.stringify({ action, reason }),
+    })
+
+    if (!response.ok) {
+      const error = await response.json()
+      throw new Error(error.message || "Failed to handle join request")
+    }
+  },
+
+  async getPendingRequestCount(eventId: string): Promise<number> {
+    const response = await apiFetch(`${API_URL}/api/events/${eventId}/requests/count`, {
+      headers: authHeaders(),
+    })
+
+    if (!response.ok) {
+      const error = await response.json()
+      throw new Error(error.message || "Failed to fetch pending requests count")
+    }
+
+    const data = await response.json()
+    return data.count
   },
 }

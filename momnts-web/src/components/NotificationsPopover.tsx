@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback, useRef } from 'react'
-import { Bell, UserPlus, Calendar, Info, Check } from '@phosphor-icons/react'
+import { Bell, UserPlus, Calendar, Info, Check, X, LockKey, Trash } from '@phosphor-icons/react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { formatDistanceToNow } from 'date-fns'
 import { useNavigate } from 'react-router'
@@ -11,6 +11,7 @@ import { useAuth } from '../features/auth/hooks/useAuth'
 import { useNotificationSocket } from '../hooks/useNotificationSocket'
 import { toast } from 'sonner'
 import { useWebHaptics } from 'web-haptics/react'
+import { useQueryClient } from '@tanstack/react-query'
 
 function avatarColor(name: string): string {
   let hash = 0
@@ -30,6 +31,7 @@ const NotificationsPopover = () => {
   const navigate = useNavigate()
   const { user } = useAuth()
   const haptic = useWebHaptics()
+  const queryClient = useQueryClient()
   const [notifications, setNotifications] = useState<NotificationData[]>([])
   const [unreadCount, setUnreadCount] = useState(0)
   const [popoverOpen, setPopoverOpen] = useState(false)
@@ -60,6 +62,19 @@ const NotificationsPopover = () => {
         setUnreadCount(prevCount => prevCount + 1)
       }
 
+      // Invalidate relevant queries globally on receiving notifications
+      queryClient.invalidateQueries({ queryKey: ["events"] })
+      if (notification.link) {
+        const match = notification.link.match(/\/events\/([^\/?#]+)/)
+        if (match && match[1]) {
+          const eventId = match[1]
+          queryClient.invalidateQueries({ queryKey: ["event", eventId] })
+          queryClient.invalidateQueries({ queryKey: ["attendees", eventId] })
+          queryClient.invalidateQueries({ queryKey: ["join-requests-count", eventId] })
+          queryClient.invalidateQueries({ queryKey: ["join-requests", eventId] })
+        }
+      }
+
       toast.info(notification.title, {
         description: notification.message,
         action: notification.link ? {
@@ -73,7 +88,7 @@ const NotificationsPopover = () => {
         if (isDuplicate) return prev
         return [notification, ...prev].slice(0, 20)
       })
-    }, [navigate])
+    }, [navigate, queryClient])
   })
 
   const handleNotificationClick = async (n: NotificationData) => {
@@ -109,6 +124,13 @@ const NotificationsPopover = () => {
     switch (type) {
       case 'EVENT_JOIN':
         return <UserPlus size={20} className="text-blue-500" />
+      case 'JOIN_REQUEST':
+        return <LockKey size={20} className="text-amber-500" />
+      case 'JOIN_APPROVED':
+        return <Check size={20} className="text-green-500" />
+      case 'JOIN_REJECTED':
+      case 'EVENT_REMOVE':
+        return <X size={20} className="text-red-500" />
       case 'EVENT_UPDATE':
         return <Calendar size={20} className="text-amber-500" />
       default:
@@ -178,9 +200,9 @@ const NotificationsPopover = () => {
                       alt="" 
                       className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500" 
                     />
-                  ) : n.type === 'EVENT_JOIN' ? (
+                  ) : n.type === 'EVENT_JOIN' || n.type === 'JOIN_REQUEST' || n.type === 'JOIN_APPROVED' ? (
                     (() => {
-                      const nameMatch = n.message.match(/^(.*?) has joined/i);
+                      const nameMatch = n.message.match(/^(.*?) has joined/i) || n.message.match(/^(.*?) has requested/i);
                       const name = nameMatch ? nameMatch[1] : '?';
                       return (
                         <div 
@@ -203,14 +225,33 @@ const NotificationsPopover = () => {
                     )}>
                       {n.title}
                     </p>
-                    <p className="text-[10px] font-medium text-neutral-400 dark:text-neutral-500 shrink-0 mt-0.5 uppercase tracking-tighter">
-                      {(() => {
-                        const date = new Date(n.created_at);
-                        return !isNaN(date.getTime()) 
-                          ? formatDistanceToNow(date, { addSuffix: true }) 
-                          : 'just now';
-                      })()}
-                    </p>
+                    <div className="flex items-center gap-1.5 shrink-0">
+                      <p className="text-[10px] font-medium text-neutral-400 dark:text-neutral-500 uppercase tracking-tighter mt-0.5">
+                        {(() => {
+                          const date = new Date(n.created_at);
+                          return !isNaN(date.getTime()) 
+                            ? formatDistanceToNow(date, { addSuffix: true }) 
+                            : 'just now';
+                        })()}
+                      </p>
+                      <button
+                        onClick={async (e) => {
+                          e.stopPropagation();
+                          haptic.trigger("light");
+                          try {
+                            await notificationsApi.deleteNotification(n.id);
+                            toast.success("Notification deleted");
+                            fetchNotifications();
+                          } catch (error) {
+                            toast.error("Failed to delete notification");
+                          }
+                        }}
+                        className="opacity-0 group-hover:opacity-100 p-1 text-neutral-400 hover:text-red-500 dark:hover:text-red-400 rounded-full hover:bg-neutral-100 dark:hover:bg-neutral-900 transition-all cursor-pointer"
+                        title="Delete notification"
+                      >
+                        <Trash size={12} weight="bold" />
+                      </button>
+                    </div>
                   </div>
                   <p className={cn(
                     "text-xs leading-relaxed line-clamp-2",

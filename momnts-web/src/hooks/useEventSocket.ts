@@ -1,5 +1,6 @@
 import { useEffect, useRef, useCallback } from 'react'
 import { io, Socket } from 'socket.io-client'
+import { useQueryClient } from '@tanstack/react-query'
 
 const SOCKET_URL = import.meta.env.VITE_SERVER_URL || 'http://localhost:3000'
 
@@ -30,6 +31,7 @@ interface UseEventSocketOptions {
   eventId: string | undefined
   onPhotoProcessed?: (data: PhotoProcessedEvent) => void
   onFaceMatched?: (data: FaceMatchedEvent) => void
+  onJoinRequestChange?: (data: any) => void
 }
 
 /**
@@ -41,12 +43,15 @@ export function useEventSocket({
   eventId,
   onPhotoProcessed,
   onFaceMatched,
+  onJoinRequestChange,
 }: UseEventSocketOptions) {
   const socketRef = useRef<Socket | null>(null)
+  const queryClient = useQueryClient()
 
   // Use refs for callbacks to avoid reconnecting on every render
   const onPhotoProcessedRef = useRef(onPhotoProcessed)
   const onFaceMatchedRef = useRef(onFaceMatched)
+  const onJoinRequestChangeRef = useRef(onJoinRequestChange)
 
   useEffect(() => {
     onPhotoProcessedRef.current = onPhotoProcessed
@@ -55,6 +60,10 @@ export function useEventSocket({
   useEffect(() => {
     onFaceMatchedRef.current = onFaceMatched
   }, [onFaceMatched])
+
+  useEffect(() => {
+    onJoinRequestChangeRef.current = onJoinRequestChange
+  }, [onJoinRequestChange])
 
   useEffect(() => {
     if (!eventId) return
@@ -82,6 +91,15 @@ export function useEventSocket({
       onFaceMatchedRef.current?.(data)
     })
 
+    socket.on('join-request:change', (data: any) => {
+      console.log('[WS] Join request changed:', data)
+      queryClient.invalidateQueries({ queryKey: ["join-requests-count", eventId] })
+      queryClient.invalidateQueries({ queryKey: ["join-requests", eventId] })
+      queryClient.invalidateQueries({ queryKey: ["attendees", eventId] })
+      queryClient.invalidateQueries({ queryKey: ["event", eventId] })
+      onJoinRequestChangeRef.current?.(data)
+    })
+
     socket.on('disconnect', () => {
       console.log('[WS] Disconnected')
     })
@@ -91,7 +109,7 @@ export function useEventSocket({
       socket.disconnect()
       socketRef.current = null
     }
-  }, [eventId])
+  }, [eventId, queryClient])
 
   return socketRef
 }

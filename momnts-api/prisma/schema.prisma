@@ -32,6 +32,7 @@ model User {
   notifications    Notification[]
   favourites       Favourite[]
   comments         Comment[]
+  join_requests    JoinRequest[]
 }
 
 model Event {
@@ -42,6 +43,7 @@ model Event {
   date                  DateTime
   invite_code           String   @unique
   is_active             Boolean  @default(true)
+  is_secure             Boolean  @default(true)
   attendee_upload_limit Int      @default(10)
   created_at            DateTime @default(now())
 
@@ -50,6 +52,7 @@ model Event {
   event_access  EventAccess[]
   photos        Photo[]
   face_profiles FaceProfile[]
+  join_requests JoinRequest[]
 }
 
 enum Role {
@@ -183,5 +186,27 @@ model Comment {
   user     User      @relation(fields: [user_id], references: [id], onDelete: Cascade)
   parent   Comment?  @relation("CommentReplies", fields: [parent_id], references: [id], onDelete: Cascade)
   replies  Comment[] @relation("CommentReplies")
+}
+
+enum JoinRequestStatus {
+  PENDING
+  APPROVED
+  REJECTED
+}
+
+model JoinRequest {
+  id               String            @id @default(uuid())
+  event_id         String
+  user_id          String
+  status           JoinRequestStatus @default(PENDING)
+  rejection_reason String?
+  created_at       DateTime          @default(now())
+  updated_at       DateTime          @updatedAt
+
+  event Event @relation(fields: [event_id], references: [id], onDelete: Cascade)
+  user  User  @relation(fields: [user_id], references: [id], onDelete: Cascade)
+
+  @@unique([event_id, user_id])
+  @@index([event_id, status])
 }
 

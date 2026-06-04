@@ -54,6 +54,8 @@ import {
   MusicNotes,
   DownloadSimpleIcon,
   ShareNetwork,
+  Lock,
+  Globe,
 } from '@phosphor-icons/react'
 import { EventData } from '../../../features/events/services/events.api'
 import { toast } from 'sonner'
@@ -89,6 +91,7 @@ interface EventHeaderProps {
   onSelectAll?: () => void
   isAllSelected?: boolean
   onShareClick?: () => void
+  pendingRequestCount?: number
 }
 
 const EventHeader = ({
@@ -113,6 +116,7 @@ const EventHeader = ({
   favouritesCount = 0,
   galleryColumns = 1,
   onGalleryColumnsChange,
+  pendingRequestCount = 0,
   onMemoryLaneClick,
   onSelectAll,
   isAllSelected = false,
@@ -296,8 +300,15 @@ const EventHeader = ({
               </Tooltip>
 
               <div className="flex-1 min-w-0">
-                <h1 className="text-2xl sm:text-3xl lg:text-4xl font-bold font-sirage capitalize mb-1 sm:mb-2 truncate">
-                  {event?.name || 'Loading...'}
+                <h1 className="text-2xl sm:text-3xl lg:text-4xl font-bold font-sirage capitalize mb-1 sm:mb-2 flex items-center gap-2 truncate">
+                  <span className="truncate">{event?.name || 'Loading...'}</span>
+                  {event && (
+                    event.is_secure ? (
+                      <Lock size={22} weight="fill" className="text-amber-500 shrink-0" />
+                    ) : (
+                      <Globe size={22} className="text-neutral-400 dark:text-neutral-500 shrink-0" />
+                    )
+                  )}
                 </h1>
 
                 <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-[12px] sm:text-sm text-neutral-500">
@@ -492,9 +503,16 @@ const EventHeader = ({
                                   <DropdownMenuLabel className="text-[10px] uppercase tracking-wider text-neutral-400 dark:text-neutral-500 font-semibold px-2 pt-1.5 pb-1">
                                     Event
                                   </DropdownMenuLabel>
-                                  <DropdownMenuItem onClick={onAttendeesClick} className="cursor-pointer py-2.5 px-2.5 rounded-lg">
-                                    <Users size={16} className="mr-2.5 text-neutral-500" />
-                                    Attendees
+                                  <DropdownMenuItem onClick={onAttendeesClick} className="cursor-pointer py-2.5 px-2.5 rounded-lg flex items-center justify-between">
+                                    <div className="flex items-center">
+                                      <Users size={16} className="mr-2.5 text-neutral-500" />
+                                      <span>Attendees</span>
+                                    </div>
+                                    {pendingRequestCount > 0 && (
+                                      <span className="flex items-center justify-center bg-amber-500 text-white text-[10px] font-bold h-4 min-w-[16px] px-1.5 rounded-full">
+                                        {pendingRequestCount > 9 ? "9+" : pendingRequestCount}
+                                      </span>
+                                    )}
                                   </DropdownMenuItem>
                                   <DropdownMenuItem onClick={onSettingsClick} className="cursor-pointer py-2.5 px-2.5 rounded-lg">
                                     <Gear size={16} className="mr-2.5 text-neutral-500" />
@@ -572,6 +590,11 @@ const EventHeader = ({
                           >
                             <Users size={18} weight="bold" className="w-4 h-4 lg:w-[18px] lg:h-[18px]" />
                             <span className="hidden sm:inline">Attendees</span>
+                            {pendingRequestCount > 0 && (
+                              <span className="flex items-center justify-center bg-amber-500 text-white text-[10px] font-bold h-4 min-w-[16px] px-1.5 rounded-full ml-1">
+                                {pendingRequestCount > 9 ? "9+" : pendingRequestCount}
+                              </span>
+                            )}
                           </Button>
                         </TooltipTrigger>
                         <TooltipContent>View Attendees</TooltipContent>

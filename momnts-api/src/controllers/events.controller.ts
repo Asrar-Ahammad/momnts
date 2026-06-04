@@ -67,7 +67,7 @@ async function generateUniqueInviteCode(): Promise<string> {
 
 async function createEventController(req: AuthRequest, res: Response) {
     try {
-        const { name, date, location, attendeeUploadLimit, attendee_upload_limit } = req.body;
+        const { name, date, location, attendeeUploadLimit, attendee_upload_limit, isSecure } = req.body;
 
         if (!name || !date || !location) {
             return res.status(400).json({
@@ -98,6 +98,7 @@ async function createEventController(req: AuthRequest, res: Response) {
                 invite_code: invite_code,
                 user_id: req.user.id,
                 attendee_upload_limit: attendee_upload_limit_parsed,
+                is_secure: typeof isSecure === 'boolean' ? isSecure : true,
             },
         });
         const eventAccess = await prisma.eventAccess.create({
@@ -194,10 +195,22 @@ async function getEventDetailsController(req: AuthRequest, res: Response) {
             return res.status(404).json({ message: "Event not found" })
         }
         const signedEvent = await presignEventData(event);
+        
+        let pendingRequestCount = 0;
+        if (eventAccess.role === 'ORGANIZER') {
+            pendingRequestCount = await prisma.joinRequest.count({
+                where: {
+                    event_id: eventId,
+                    status: 'PENDING'
+                }
+            });
+        }
+
         return res.status(200).json({
             event: {
                 ...signedEvent,
                 user_role: eventAccess.role,
+                pending_request_count: pendingRequestCount,
                 attendee_upload_limit: eventAccess.upload_limit !== null && eventAccess.upload_limit !== undefined
                     ? eventAccess.upload_limit
                     : event.attendee_upload_limit
@@ -262,6 +275,82 @@ async function joinEventController(req: AuthRequest, res: Response) {
             return res.status(400).json({ message: 'You are already a member of this event' })
         }
 
+        // Check if there is an existing request
+        const existingRequest = await prisma.joinRequest.findUnique({
+            where: {
+                event_id_user_id: {
+                    event_id: event.id,
+                    user_id: req.user.id
+                }
+            }
+        });
+
+        if (existingRequest) {
+            if (existingRequest.status === 'PENDING') {
+                return res.status(400).json({ message: 'You have a pending request to join this event' });
+            }
+            if (existingRequest.status === 'REJECTED') {
+                const cooldownHours = 48;
+                const cooldownMs = cooldownHours * 60 * 60 * 1000;
+                const timeSinceRejection = Date.now() - new Date(existingRequest.updated_at).getTime();
+                if (timeSinceRejection < cooldownMs) {
+                    const hoursRemaining = Math.ceil((cooldownMs - timeSinceRejection) / (1000 * 60 * 60));
+                    return res.status(400).json({ 
+                        message: `Your request was rejected or you were removed. You can request/join again in ${hoursRemaining} hours.` 
+                    });
+                }
+            }
+        }
+
+        if (event.is_secure) {
+            if (existingRequest) {
+                // Reset request to PENDING
+                await prisma.joinRequest.update({
+                    where: { id: existingRequest.id },
+                    data: { status: 'PENDING', rejection_reason: null }
+                });
+            } else {
+                // Create a new JoinRequest
+                await prisma.joinRequest.create({
+                    data: {
+                        event_id: event.id,
+                        user_id: req.user.id,
+                        status: 'PENDING'
+                    }
+                });
+            }
+
+            // Send notification to the organizer
+            try {
+                const user = await prisma.user.findUnique({
+                    where: { id: req.user.id },
+                    select: { name: true, selfie_url: true }
+                });
+
+                const notification = await prisma.notification.create({
+                    data: {
+                        user_id: event.user_id,
+                        title: "Join Request",
+                        message: `${user?.name || 'Someone'} has requested to join ${event.name}`,
+                        type: "JOIN_REQUEST",
+                        link: `/events/${event.id}?view=requests`,
+                        image_url: user?.selfie_url || null
+                    }
+                });
+
+                const io = getIO();
+                io.to(`user:${event.user_id}`).emit('notification:new', notification);
+                io.to(`event:${event.id}`).emit('join-request:change', { eventId: event.id, userId: req.user.id, status: 'PENDING' });
+            } catch (err) {
+                console.error('[Notification/Socket] Failed to send join request notification:', err);
+            }
+
+            return res.status(202).json({
+                message: 'Join request sent successfully',
+                status: 'PENDING'
+            });
+        }
+
         const eventAccess = await prisma.eventAccess.create({
             data: {
                 event_id: event.id,
@@ -276,7 +365,23 @@ async function joinEventController(req: AuthRequest, res: Response) {
                     }
                 }
             }
-        })
+        });
+
+        // Ensure any JoinRequest is updated to APPROVED for consistency
+        await prisma.joinRequest.upsert({
+            where: {
+                event_id_user_id: {
+                    event_id: event.id,
+                    user_id: req.user.id
+                }
+            },
+            update: { status: 'APPROVED' },
+            create: {
+                event_id: event.id,
+                user_id: req.user.id,
+                status: 'APPROVED'
+            }
+        });
 
         // Create notification for the organizer (Non-blocking)
         try {
@@ -420,7 +525,7 @@ async function updateEventDetailsController(req: AuthRequest, res: Response) {
         }
 
         const eventId = req.params.eventId as string
-        const { name, date, location, isActive } = req.body
+        const { name, date, location, isActive, isSecure } = req.body
 
         const event = await prisma.event.findFirst({
             where: { id: eventId, user_id: req.user.id }
@@ -437,6 +542,7 @@ async function updateEventDetailsController(req: AuthRequest, res: Response) {
                 ...(date && { date: new Date(date) }),
                 ...(location && { location }),
                 ...(isActive !== undefined && { is_active: isActive }),
+                ...(isSecure !== undefined && { is_secure: isSecure }),
             }
         })
 
@@ -557,9 +663,13 @@ async function getEventsController(req: AuthRequest, res: Response) {
         // Add user_role as ORGANIZER since these are the user's own events
         const eventsWithRole = await Promise.all(events.map(async event => {
             const signedEvent = await presignEventData(event);
+            const pendingRequestCount = await prisma.joinRequest.count({
+                where: { event_id: event.id, status: 'PENDING' }
+            });
             return {
                 ...signedEvent,
-                user_role: "ORGANIZER"
+                user_role: "ORGANIZER",
+                pending_request_count: pendingRequestCount
             };
         }));
 
@@ -718,6 +828,11 @@ async function leaveEventController(req: AuthRequest, res: Response) {
             where: { event_id_user_id: { event_id: eventId, user_id: userId } },
         });
 
+        // 6. Delete JoinRequest record
+        await prisma.joinRequest.deleteMany({
+            where: { event_id: eventId, user_id: userId }
+        });
+
         return res.status(200).json({ message: "Left event successfully" });
 
     } catch (error) {
@@ -806,8 +921,13 @@ async function removeAttendeeController(req: AuthRequest, res: Response) {
         const targetAccess = await prisma.eventAccess.findUnique({
             where: {
                 event_id_user_id: { event_id: eventId, user_id: attendeeId }
+            },
+            include: {
+                event: {
+                    select: { name: true }
+                }
             }
-        });
+        }) as any;
 
         if (!targetAccess) {
             return res.status(404).json({ message: "Attendee is not part of this event" });
@@ -850,8 +970,328 @@ async function removeAttendeeController(req: AuthRequest, res: Response) {
             where: { event_id_user_id: { event_id: eventId, user_id: attendeeId } },
         });
 
+        // 6. Set JoinRequest status to REJECTED so they cannot request again for 48 hours
+        await prisma.joinRequest.upsert({
+            where: {
+                event_id_user_id: { event_id: eventId, user_id: attendeeId }
+            },
+            update: {
+                status: 'REJECTED',
+                rejection_reason: 'Removed by organizer',
+                updated_at: new Date()
+            },
+            create: {
+                event_id: eventId,
+                user_id: attendeeId,
+                status: 'REJECTED',
+                rejection_reason: 'Removed by organizer'
+            }
+        });
+
+        // 7. Send notification to the removed attendee
+        try {
+            const notification = await prisma.notification.create({
+                data: {
+                    user_id: attendeeId,
+                    title: "Removed from Event",
+                    message: `You have been removed from the event: ${targetAccess.event.name}`,
+                    type: "EVENT_REMOVE",
+                    link: `/events`,
+                    image_url: null
+                }
+            });
+
+            // Emit real-time notification via Socket.IO
+            const io = getIO();
+            io.to(`user:${attendeeId}`).emit('notification:new', notification);
+            io.to(`event:${eventId}`).emit('join-request:change', { eventId, userId: attendeeId, status: 'REJECTED', action: 'remove' });
+        } catch (err) {
+            console.error('[Notification/Socket] Failed to send removal notification:', err);
+        }
+
         return res.status(200).json({ message: "Attendee removed successfully" });
 
+    } catch (error) {
+        const message = error instanceof Error ? error.message : "Internal server error";
+        return res.status(500).json({ message });
+    }
+}
+
+/**
+ * @name getJoinRequestsController
+ * @description Gets all join requests for an event
+ * @route GET /events/:eventId/requests
+ * @access Private (Organizer only)
+ */
+async function getJoinRequestsController(req: AuthRequest, res: Response) {
+    try {
+        if (!req.user?.id) {
+            return res.status(401).json({ message: "User not authenticated" });
+        }
+
+        const eventId = req.params.eventId as string;
+        const status = typeof req.query.status === 'string' ? req.query.status : 'PENDING';
+
+        if (!eventId) {
+            return res.status(400).json({ message: "Event ID is required" });
+        }
+
+        // Verify organizer access
+        const access = await prisma.eventAccess.findUnique({
+            where: {
+                event_id_user_id: { event_id: eventId, user_id: req.user.id }
+            }
+        });
+
+        if (!access || access.role !== 'ORGANIZER') {
+            return res.status(403).json({ message: "Only the organizer can view join requests" });
+        }
+
+        const requests = await prisma.joinRequest.findMany({
+            where: {
+                event_id: eventId,
+                status: status as any
+            },
+            include: {
+                user: {
+                    select: {
+                        id: true,
+                        name: true,
+                        email: true,
+                        selfie_url: true,
+                        created_at: true
+                    }
+                }
+            },
+            orderBy: {
+                created_at: 'desc'
+            }
+        });
+
+        // Presign selfies for the requests
+        const requestsWithPresigned = await Promise.all(requests.map(async (r) => {
+            if (r.user?.selfie_url) {
+                return {
+                    ...r,
+                    user: {
+                        ...r.user,
+                        selfie_url: await presignStoredUrl(r.user.selfie_url, 86400)
+                    }
+                };
+            }
+            return r;
+        }));
+
+        return res.status(200).json({
+            message: "Join requests retrieved successfully",
+            data: requestsWithPresigned
+        });
+    } catch (error) {
+        const message = error instanceof Error ? error.message : "Internal server error";
+        return res.status(500).json({ message });
+    }
+}
+
+/**
+ * @name handleJoinRequestController
+ * @description Approves or rejects a join request
+ * @route PUT /events/:eventId/requests/:requestId
+ * @access Private (Organizer only)
+ */
+async function handleJoinRequestController(req: AuthRequest, res: Response) {
+    try {
+        if (!req.user?.id) {
+            return res.status(401).json({ message: "User not authenticated" });
+        }
+
+        const eventId = req.params.eventId as string;
+        const requestId = req.params.requestId as string;
+        const { action, reason } = req.body;
+
+        if (!eventId || !requestId) {
+            return res.status(400).json({ message: "Event ID and Request ID are required" });
+        }
+
+        if (action !== 'approve' && action !== 'reject') {
+            return res.status(400).json({ message: "Invalid action. Use 'approve' or 'reject'." });
+        }
+
+        // Verify organizer access
+        const access = await prisma.eventAccess.findUnique({
+            where: {
+                event_id_user_id: { event_id: eventId, user_id: req.user.id }
+            }
+        });
+
+        if (!access || access.role !== 'ORGANIZER') {
+            return res.status(403).json({ message: "Only the organizer can handle join requests" });
+        }
+
+        // Get the join request
+        const joinRequest = await prisma.joinRequest.findUnique({
+            where: { id: requestId },
+            include: {
+                event: {
+                    select: { name: true, user_id: true }
+                },
+                user: {
+                    select: { name: true, selfie_url: true }
+                }
+            }
+        }) as any;
+
+        if (!joinRequest || joinRequest.event_id !== eventId) {
+            return res.status(404).json({ message: "Join request not found" });
+        }
+
+        if (joinRequest.status !== 'PENDING') {
+            return res.status(400).json({ message: `Request is already ${joinRequest.status}` });
+        }
+
+        if (action === 'approve') {
+            // Update request status
+            await prisma.joinRequest.update({
+                where: { id: requestId },
+                data: { status: 'APPROVED' }
+            });
+
+            // Create EventAccess
+            const eventAccess = await prisma.eventAccess.create({
+                data: {
+                    event_id: eventId,
+                    user_id: joinRequest.user_id,
+                    role: 'ATTENDEE'
+                }
+            });
+
+            // Send notification to the attendee
+            try {
+                const notification = await prisma.notification.create({
+                    data: {
+                        user_id: joinRequest.user_id,
+                        title: "Request Approved",
+                        message: `Your request to join ${joinRequest.event.name} has been approved`,
+                        type: "JOIN_APPROVED",
+                        link: `/events/${eventId}`,
+                        image_url: joinRequest.user.selfie_url
+                    }
+                });
+
+                const io = getIO();
+                io.to(`user:${joinRequest.user_id}`).emit('notification:new', notification);
+            } catch (err) {
+                console.error('[Notification/Socket] Failed to send approval notification:', err);
+            }
+
+            // Enqueue face-matching job if user has a selfie
+            const users = await prisma.$queryRaw<{ selfie_url: string | null }[]>`
+                SELECT selfie_url FROM "User" 
+                WHERE id = ${joinRequest.user_id}::text AND selfie_embedding IS NOT NULL
+            `;
+            if (users.length > 0 && users[0]?.selfie_url) {
+                const presignedSelfieUrlForMatch = await presignStoredUrl(users[0].selfie_url, 1800);
+                await matchingQueue.add(
+                    'match-user',
+                    {
+                        userId: joinRequest.user_id,
+                        eventId: eventId,
+                        selfieUrl: presignedSelfieUrlForMatch,
+                    },
+                    {
+                        jobId: `match-${eventId}-${joinRequest.user_id}-${Date.now()}`
+                    }
+                );
+            }
+
+            const io = getIO();
+            io.to(`user:${req.user.id}`).emit('join_request:handled', { eventId, requestId, action });
+            io.to(`event:${eventId}`).emit('join-request:change', { eventId, requestId, action, status: 'APPROVED', userId: joinRequest.user_id });
+
+            return res.status(200).json({
+                message: "Join request approved successfully",
+                data: eventAccess
+            });
+
+        } else {
+            // Action is reject
+            await prisma.joinRequest.update({
+                where: { id: requestId },
+                data: {
+                    status: 'REJECTED',
+                    rejection_reason: reason || null
+                }
+            });
+
+            // Send notification to the attendee
+            try {
+                const notification = await prisma.notification.create({
+                    data: {
+                        user_id: joinRequest.user_id,
+                        title: "Request Declined",
+                        message: `Your request to join ${joinRequest.event.name} was declined${reason ? `: ${reason}` : ''}`,
+                        type: "JOIN_REJECTED",
+                        link: `/events`,
+                        image_url: null
+                    }
+                });
+
+                const io = getIO();
+                io.to(`user:${joinRequest.user_id}`).emit('notification:new', notification);
+            } catch (err) {
+                console.error('[Notification/Socket] Failed to send rejection notification:', err);
+            }
+
+            const io = getIO();
+            io.to(`user:${req.user.id}`).emit('join_request:handled', { eventId, requestId, action });
+            io.to(`event:${eventId}`).emit('join-request:change', { eventId, requestId, action, status: 'REJECTED', userId: joinRequest.user_id });
+
+            return res.status(200).json({
+                message: "Join request rejected successfully"
+            });
+        }
+    } catch (error) {
+        const message = error instanceof Error ? error.message : "Internal server error";
+        return res.status(500).json({ message });
+    }
+}
+
+/**
+ * @name getPendingRequestCountController
+ * @description Gets count of pending join requests for an event
+ * @route GET /events/:eventId/requests/count
+ * @access Private (Organizer only)
+ */
+async function getPendingRequestCountController(req: AuthRequest, res: Response) {
+    try {
+        if (!req.user?.id) {
+            return res.status(401).json({ message: "User not authenticated" });
+        }
+
+        const eventId = req.params.eventId as string;
+
+        if (!eventId) {
+            return res.status(400).json({ message: "Event ID is required" });
+        }
+
+        // Verify organizer access
+        const access = await prisma.eventAccess.findUnique({
+            where: {
+                event_id_user_id: { event_id: eventId, user_id: req.user.id }
+            }
+        });
+
+        if (!access || access.role !== 'ORGANIZER') {
+            return res.status(403).json({ message: "Only the organizer can view request count" });
+        }
+
+        const count = await prisma.joinRequest.count({
+            where: {
+                event_id: eventId,
+                status: 'PENDING'
+            }
+        });
+
+        return res.status(200).json({ count });
     } catch (error) {
         const message = error instanceof Error ? error.message : "Internal server error";
         return res.status(500).json({ message });
@@ -870,5 +1310,8 @@ export {
     generateUniqueInviteCode,
     leaveEventController,
     updateAttendeeLimitController,
-    removeAttendeeController
+    removeAttendeeController,
+    getJoinRequestsController,
+    handleJoinRequestController,
+    getPendingRequestCountController
 };

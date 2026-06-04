@@ -104,8 +104,42 @@ async function clearNotificationsController(req: AuthRequest, res: Response) {
     }
 }
 
+/**
+ * @name deleteNotificationController
+ * @description Deletes a specific notification for the authenticated user
+ * @access Private
+ */
+async function deleteNotificationController(req: AuthRequest, res: Response) {
+    try {
+        if (!req.user?.id) {
+            return res.status(401).json({ message: "User not authenticated" });
+        }
+
+        const notificationId = req.params.notificationId;
+        if (typeof notificationId !== 'string') return res.status(400).json({ error: 'Invalid param' })
+
+        await prisma.notification.delete({
+            where: {
+                id: notificationId,
+                user_id: req.user.id
+            }
+        });
+
+        return res.status(200).json({
+            message: "Notification deleted",
+        });
+    } catch (error) {
+        if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === 'P2025') {
+            return res.status(404).json({ message: "Notification not found or not owned by user" });
+        }
+        console.error("[deleteNotificationController] Error:", error);
+        return res.status(500).json({ message: "Internal server error" });
+    }
+}
+
 export {
     getNotificationsController,
     markAsReadController,
-    clearNotificationsController
+    clearNotificationsController,
+    deleteNotificationController
 };
