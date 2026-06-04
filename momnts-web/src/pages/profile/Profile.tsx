@@ -28,7 +28,8 @@ import {
   UserCircle,
   Devices,
   Check,
-  Trash
+  Trash,
+  SmileyXEyesIcon
 } from '@phosphor-icons/react'
 import {
   AlertDialog,
@@ -321,8 +322,8 @@ const Profile = () => {
             {user?.selfie_url && (
               <AlertDialog>
                 <AlertDialogTrigger render={
-                  <Button variant="ghost" className="w-full text-red-500 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-500/10 rounded-2xl h-12 flex items-center justify-center gap-2">
-                    <Trash size={20} weight="bold" />
+                  <Button variant="ghost" className="w-full text-orange-500 hover:text-orange-600 hover:bg-orange-50 dark:hover:bg-orange-500/10 rounded-2xl h-12 flex items-center justify-center gap-2">
+                    <SmileyXEyesIcon size={20} weight="bold" />
                     Delete Selfie
                   </Button>
                 } />
@@ -564,8 +565,8 @@ const Profile = () => {
             {user?.selfie_url && (
               <AlertDialog>
                 <AlertDialogTrigger render={
-                  <Button variant="ghost" className="w-full justify-center text-red-500 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-500/10 rounded-2xl h-14 border border-red-100 dark:border-red-900/30">
-                    <Trash size={22} weight="bold" className="mr-3" />
+                  <Button variant="ghost" className="w-full justify-center text-orange-500 rounded-2xl h-14 border border-red-100 dark:border-red-900/30">
+                    <SmileyXEyesIcon size={36} weight="bold" className="mr-3" />
                     Delete Selfie
                   </Button>
                 } />
