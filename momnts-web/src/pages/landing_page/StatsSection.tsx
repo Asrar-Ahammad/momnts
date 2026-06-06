@@ -5,10 +5,10 @@ import { ScrollTrigger } from 'gsap/ScrollTrigger'
 gsap.registerPlugin(ScrollTrigger)
 
 const stats = [
-  { value: '10K+', label: 'Photos Sorted' },
-  { value: '500+', label: 'Events Hosted' },
-  { value: '99%', label: 'Face Match Rate' },
-  { value: '<2s', label: 'Per Photo, Done' },
+  { value: '<2.0s', label: 'Processing Latency' },
+  { value: '99.2%', label: 'Recognition Precision' },
+  { value: '512-D', label: 'Vector Dimension' },
+  { value: '100%', label: 'Tenant Isolation' },
 ]
 
 const StatsSection = () => {
@@ -19,7 +19,7 @@ const StatsSection = () => {
     if (!containerRef.current) return
 
     gsap.fromTo(containerRef.current,
-      { opacity: 0, y: 40 },
+      { opacity: 0, y: 30 },
       {
         opacity: 1, y: 0, duration: 0.8, ease: 'power3.out',
         scrollTrigger: { trigger: containerRef.current, start: 'top 85%', toggleActions: 'play none none none' }
@@ -32,10 +32,10 @@ const StatsSection = () => {
       if (!valueEl) return
 
       gsap.fromTo(valueEl,
-        { opacity: 0, scale: 0.5 },
+        { opacity: 0, scale: 0.8, y: 10 },
         {
-          opacity: 1, scale: 1, duration: 0.6, delay: i * 0.1,
-          ease: 'back.out(1.7)',
+          opacity: 1, scale: 1, y: 0, duration: 0.6, delay: i * 0.1,
+          ease: 'back.out(1.5)',
           scrollTrigger: { trigger: stat, start: 'top 90%', toggleActions: 'play none none none' }
         }
       )

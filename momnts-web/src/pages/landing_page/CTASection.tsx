@@ -41,17 +41,16 @@ const CTASection = () => {
   }, [])
 
   return (
-    <section ref={sectionRef} className="lp-cta-section">
+    <section ref={sectionRef} id="cta" className="lp-cta-section">
       <h2 ref={titleRef} className="lp-cta-title" style={{ opacity: 0 }}>
-        Stop losing photos.<br />Start reliving them.
+        Automated photo routing.<br />Zero tagging.
       </h2>
       <p ref={descRef} className="lp-cta-desc" style={{ opacity: 0 }}>
-        Your next event deserves better than a messy group chat.
-        Give it a Momnts gallery and make everyone\u2019s day.
+        Deploy your first event space. Let our computer vision models construct custom highlight reels for your attendees.
       </p>
       <div ref={btnRef} style={{ opacity: 0 }}>
         <Link to="/register" className="lp-btn lp-btn--primary">
-          Create your first event
+          Create event space
           <ArrowRight size={18} weight="bold" />
         </Link>
       </div>
