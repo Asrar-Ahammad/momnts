@@ -7,11 +7,13 @@ import NotificationsPopover from '../components/NotificationsPopover'
 import { useAuth } from '../features/auth/hooks/useAuth'
 import { useState, useEffect } from 'react';
 import { Badge } from '../components/ui/badge'
+import { useWebHaptics } from 'web-haptics/react'
 
 const DashboardLayout = () => {
   const navigate = useNavigate()
   const location = useLocation()
   const { user } = useAuth()
+  const haptic = useWebHaptics()
   const [prevPath, setPrevPath] = useState(location.pathname)
   const [direction, setDirection] = useState(0)
   const [isSlideshowOpen, setIsSlideshowOpen] = useState(false)
@@ -232,7 +234,10 @@ const DashboardLayout = () => {
           {navItems.map((item) => (
             <button
               key={item.title}
-              onClick={() => navigate(item.path)}
+              onClick={() => {
+                haptic.trigger("selection")
+                navigate(item.path)
+              }}
               className={cn(
                 "relative flex flex-col items-center justify-center py-2 flex-1 rounded-2xl transition-all duration-300",
                 item.active ? "text-neutral-900 dark:text-white" : "text-neutral-400 dark:text-neutral-500 hover:text-neutral-600 dark:hover:text-neutral-400"

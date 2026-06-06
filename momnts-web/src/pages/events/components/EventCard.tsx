@@ -29,6 +29,8 @@ const getThemeForEvent = (eventId: string) => {
   return gradientThemes[Math.abs(hash) % gradientThemes.length]
 }
 
+const coverPhotoCache = new Map<string, string>();
+
 export const EventCard = ({ event }: EventCardProps) => {
   const navigate = useNavigate()
   const theme = getThemeForEvent(event.id)
@@ -42,26 +44,39 @@ export const EventCard = ({ event }: EventCardProps) => {
     }
   }
 
+  const cachedCover = coverPhotoCache.get(event.id);
   const initialCover = (event as any).cover_url || (event as any).photos?.[0]?.thumb_url || (event as any).photos?.[0]?.url || (event as any).cover_image;
-  const [coverPhoto, setCoverPhoto] = React.useState<string | null>(initialCover || null);
+  const [coverPhoto, setCoverPhoto] = React.useState<string | null>(cachedCover || initialCover || null);
 
   React.useEffect(() => {
     let mounted = true;
-    if (!initialCover) {
-      photosApi.getEventPhotos(event.id)
-        .then(photos => {
-          if (!mounted) return;
-          if (photos && photos.length > 0) {
-            const photo = photos.find(p => p.is_visible) || photos[0];
-            setCoverPhoto(photo.thumb_url || photo.display_url || photo.original_url);
-          }
-        })
-        .catch((err) => {
-          console.error("Failed to fetch photos for event", event.id, err);
-        });
+    if (coverPhoto) {
+      if (!coverPhotoCache.has(event.id)) {
+        coverPhotoCache.set(event.id, coverPhoto);
+      }
+      return;
     }
+
+    photosApi.getEventPhotos(event.id)
+      .then(photos => {
+        if (!mounted) return;
+        if (photos && photos.length > 0) {
+          const photo = photos.find(p => p.is_visible) || photos[0];
+          const url = photo.thumb_url || photo.display_url || photo.original_url;
+          
+          // Preload image
+          const img = new Image();
+          img.src = url;
+
+          setCoverPhoto(url);
+          coverPhotoCache.set(event.id, url);
+        }
+      })
+      .catch((err) => {
+        console.error("Failed to fetch photos for event", event.id, err);
+      });
     return () => { mounted = false; };
-  }, [event.id, initialCover]);
+  }, [event.id, initialCover, coverPhoto]);
   return (
     <motion.div
       whileHover={{ y: -8 }}

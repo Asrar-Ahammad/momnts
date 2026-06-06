@@ -230,7 +230,7 @@ const EventHeader = ({
       return (
         <Button
           className={`${fullWidth ? 'flex-1 w-full' : ''} h-8 sm:h-9 lg:h-10 px-2.5 sm:px-4 lg:px-8 flex items-center justify-center gap-1 sm:gap-1.5 lg:gap-2 rounded-xl bg-rose-600 hover:bg-rose-700 text-white transition-colors text-[11px] sm:text-xs lg:text-sm shrink-0 whitespace-nowrap`}
-          onClick={onDownloadFavourites}
+          onClick={() => { haptic.trigger("light"); onDownloadFavourites?.(); }}
           disabled={favouritesCount === 0}
         >
           <DownloadSimple size={18} weight="bold" className="w-3.5 h-3.5 sm:w-4 sm:h-4 lg:w-[18px] lg:h-[18px]" />
@@ -293,7 +293,7 @@ const EventHeader = ({
     return (
       <Button
         className={`${fullWidth ? 'w-full' : ''} h-8 sm:h-9 lg:h-10 px-2.5 sm:px-4 lg:px-8 flex items-center justify-center gap-1 sm:gap-1.5 lg:gap-2 rounded-xl bg-neutral-900 dark:bg-white text-white dark:text-neutral-900 hover:opacity-90 transition-opacity text-[11px] sm:text-xs lg:text-sm font-semibold shrink-0 whitespace-nowrap`}
-        onClick={onUploadClick}
+        onClick={() => { haptic.trigger("light"); onUploadClick(); }}
       >
         <Upload size={18} weight="bold" className="w-3.5 h-3.5 sm:w-4 sm:h-4 lg:w-[18px] lg:h-[18px]" />
         <span className="hidden sm:inline">Upload Photos</span>
@@ -313,7 +313,7 @@ const EventHeader = ({
             <div className="flex items-center gap-3 sm:gap-4 flex-1 min-w-[200px]">
               <Tooltip>
                 <TooltipTrigger delay={0} asChild>
-                  <Button className="cursor-pointer shrink-0" variant="ghost" size="icon" onClick={onBack}>
+                  <Button className="cursor-pointer shrink-0" variant="ghost" size="icon" onClick={() => { haptic.trigger("light"); onBack(); }}>
                     <ArrowLeft size={20} weight="bold" />
                   </Button>
                 </TooltipTrigger>
@@ -351,6 +351,7 @@ const EventHeader = ({
                         <DropdownMenuTrigger asChild>
                           <Badge
                             variant="outline"
+                            onClick={() => haptic.trigger("light")}
                             className="cursor-pointer hover:bg-neutral-100 dark:hover:bg-neutral-800 h-7 px-2.5 text-xs flex items-center gap-1.5 border-neutral-200 dark:border-neutral-700 text-neutral-600 dark:text-neutral-300"
                           >
                             <ShareNetwork size={14} />
@@ -358,17 +359,18 @@ const EventHeader = ({
                           </Badge>
                         </DropdownMenuTrigger>
                         <DropdownMenuContent align="start" className="w-48 rounded-2xl p-1.5">
-                          <DropdownMenuItem onClick={onShareClick} className="cursor-pointer py-2 text-neutral-600 dark:text-neutral-400 font-medium">
+                          <DropdownMenuItem onClick={() => { haptic.trigger("light"); onShareClick?.(); }} className="cursor-pointer py-2 text-neutral-600 dark:text-neutral-400 font-medium">
                             <ShareNetwork size={16} className="mr-2.5" />
                             Share Event & QR
                           </DropdownMenuItem>
                           <DropdownMenuSeparator className="my-1" />
-                          <DropdownMenuItem onClick={onCopyInviteCode} className="cursor-pointer py-2 text-neutral-600 dark:text-neutral-400">
+                          <DropdownMenuItem onClick={() => { haptic.trigger("success"); onCopyInviteCode(); }} className="cursor-pointer py-2 text-neutral-600 dark:text-neutral-400">
                             <CopySimpleIcon size={16} className="mr-2.5" />
                             Copy Code
                             <span className="ml-auto font-mono text-[10px] text-neutral-400">{event?.invite_code}</span>
                           </DropdownMenuItem>
                           <DropdownMenuItem onClick={async () => {
+                            haptic.trigger("success")
                             const url = `${window.location.origin}/events?joinCode=${event?.invite_code}`
                             try {
                               await navigator.clipboard.writeText(url)
@@ -410,6 +412,7 @@ const EventHeader = ({
                           <DropdownMenuTrigger asChild>
                             <Button
                               variant="outline"
+                              onClick={() => haptic.trigger("light")}
                               className="h-8 w-8 sm:h-9 sm:w-9 lg:h-10 lg:w-10 flex items-center justify-center rounded-xl cursor-pointer"
                             >
                               <DotsThree size={20} weight="bold" className="w-4 h-4 sm:w-[18px] sm:h-[18px] lg:w-5 lg:h-5" />
@@ -424,7 +427,7 @@ const EventHeader = ({
                                   Gallery
                                 </DropdownMenuLabel>
                                 <DropdownMenuItem
-                                  onClick={onToggleSort}
+                                  onClick={() => { haptic.trigger("light"); onToggleSort(); }}
                                   className="cursor-pointer py-2.5 px-2.5 rounded-lg"
                                 >
                                   {sortOrder === 'desc'
@@ -439,7 +442,7 @@ const EventHeader = ({
 
                                 {showGalleryActions && (isOrganizer || event?.allow_downloads) && (
                                   <DropdownMenuItem
-                                    onClick={onToggleSelectMode}
+                                    onClick={() => { haptic.trigger("light"); onToggleSelectMode(); }}
                                     className="cursor-pointer py-2.5 px-2.5 rounded-lg"
                                   >
                                     <DownloadSimpleIcon size={16} className="mr-2.5 text-neutral-500" />
@@ -459,6 +462,7 @@ const EventHeader = ({
                                           onClick={(e) => {
                                             e.preventDefault()
                                             e.stopPropagation()
+                                            haptic.trigger("selection")
                                             onGalleryColumnsChange?.(col)
                                           }}
                                           className={`relative flex items-center justify-center w-8 h-7 rounded-md transition-all duration-200 cursor-pointer ${galleryColumns === col
@@ -492,11 +496,11 @@ const EventHeader = ({
                                   <DropdownMenuLabel className="text-[10px] uppercase tracking-wider text-neutral-400 dark:text-neutral-500 font-semibold px-2 pt-1.5 pb-1">
                                     Share
                                   </DropdownMenuLabel>
-                                  <DropdownMenuItem onClick={onShareClick} className="cursor-pointer py-2.5 px-2.5 rounded-lg font-medium">
+                                  <DropdownMenuItem onClick={() => { haptic.trigger("light"); onShareClick?.(); }} className="cursor-pointer py-2.5 px-2.5 rounded-lg font-medium">
                                     <ShareNetwork size={16} className="mr-2.5 text-neutral-500" />
                                     Share Event & QR
                                   </DropdownMenuItem>
-                                  <DropdownMenuItem onClick={onCopyInviteCode} className="cursor-pointer py-2.5 px-2.5 rounded-lg">
+                                  <DropdownMenuItem onClick={() => { haptic.trigger("success"); onCopyInviteCode(); }} className="cursor-pointer py-2.5 px-2.5 rounded-lg">
                                     <CopySimpleIcon size={16} className="mr-2.5 text-neutral-500" />
                                     Copy Invite Code
                                     <span className="ml-auto font-mono text-[11px] text-neutral-400 dark:text-neutral-500">
@@ -504,6 +508,7 @@ const EventHeader = ({
                                     </span>
                                   </DropdownMenuItem>
                                   <DropdownMenuItem onClick={async () => {
+                                    haptic.trigger("success")
                                     const url = `${window.location.origin}/events?joinCode=${event?.invite_code}`
                                     try {
                                       await navigator.clipboard.writeText(url)
@@ -527,7 +532,7 @@ const EventHeader = ({
                                   <DropdownMenuLabel className="text-[10px] uppercase tracking-wider text-neutral-400 dark:text-neutral-500 font-semibold px-2 pt-1.5 pb-1">
                                     Event
                                   </DropdownMenuLabel>
-                                  <DropdownMenuItem onClick={onAttendeesClick} className="cursor-pointer py-2.5 px-2.5 rounded-lg flex items-center justify-between">
+                                  <DropdownMenuItem onClick={() => { haptic.trigger("light"); onAttendeesClick(); }} className="cursor-pointer py-2.5 px-2.5 rounded-lg flex items-center justify-between">
                                     <div className="flex items-center">
                                       <Users size={16} className="mr-2.5 text-neutral-500" />
                                       <span>Attendees</span>
@@ -538,7 +543,7 @@ const EventHeader = ({
                                       </span>
                                     )}
                                   </DropdownMenuItem>
-                                  <DropdownMenuItem onClick={onSettingsClick} className="cursor-pointer py-2.5 px-2.5 rounded-lg">
+                                  <DropdownMenuItem onClick={() => { haptic.trigger("light"); onSettingsClick(); }} className="cursor-pointer py-2.5 px-2.5 rounded-lg">
                                     <Gear size={16} className="mr-2.5 text-neutral-500" />
                                     Settings
                                   </DropdownMenuItem>
@@ -552,7 +557,7 @@ const EventHeader = ({
                                 {showGalleryActions && <DropdownMenuSeparator />}
                                 <DropdownMenuGroup>
                                   <DropdownMenuItem
-                                    onClick={() => setShowLeaveConfirm(true)}
+                                    onClick={() => { haptic.trigger("warning"); setShowLeaveConfirm(true); }}
                                     variant="destructive"
                                     className="cursor-pointer py-2.5 px-2.5 rounded-lg"
                                   >
@@ -574,7 +579,7 @@ const EventHeader = ({
                               <Button
                                 variant="outline"
                                 className="h-9 lg:h-10 w-9 sm:w-auto sm:px-3 lg:px-4 flex items-center justify-center gap-1.5 lg:gap-2 rounded-xl text-xs lg:text-sm shrink-0 whitespace-nowrap"
-                                onClick={onToggleSort}
+                                onClick={() => { haptic.trigger("light"); onToggleSort(); }}
                               >
                                 {sortOrder === 'desc' ? <SortDescending size={18} weight="bold" className="w-4 h-4 lg:w-[18px] lg:h-[18px]" /> : <SortAscending size={18} weight="bold" className="w-4 h-4 lg:w-[18px] lg:h-[18px]" />}
                                 <span className="hidden sm:inline">Sort</span>
@@ -589,7 +594,7 @@ const EventHeader = ({
                                 <Button
                                   variant="outline"
                                   className="h-9 lg:h-10 w-9 sm:w-auto sm:px-3 lg:px-4 flex items-center justify-center gap-1.5 lg:gap-2 rounded-xl text-xs lg:text-sm shrink-0 whitespace-nowrap"
-                                  onClick={onToggleSelectMode}
+                                  onClick={() => { haptic.trigger("light"); onToggleSelectMode(); }}
                                 >
                                   <DownloadSimpleIcon size={18} weight="bold" className="w-4 h-4 lg:w-[18px] lg:h-[18px]" />
                                   <span className="hidden sm:inline">Download</span>
@@ -612,7 +617,7 @@ const EventHeader = ({
                           <Button
                             variant="outline"
                             className="h-9 lg:h-10 w-9 sm:w-auto sm:px-3 lg:px-4 flex items-center justify-center gap-1.5 lg:gap-2 rounded-xl text-xs lg:text-sm shrink-0 whitespace-nowrap"
-                            onClick={onAttendeesClick}
+                            onClick={() => { haptic.trigger("light"); onAttendeesClick(); }}
                           >
                             <Users size={18} weight="bold" className="w-4 h-4 lg:w-[18px] lg:h-[18px]" />
                             <span className="hidden sm:inline">Attendees</span>
@@ -631,7 +636,7 @@ const EventHeader = ({
                           <Button
                             variant="outline"
                             className="h-9 lg:h-10 w-9 sm:w-auto sm:px-3 lg:px-4 flex items-center justify-center gap-1.5 lg:gap-2 rounded-xl text-xs lg:text-sm shrink-0 whitespace-nowrap"
-                            onClick={onSettingsClick}
+                            onClick={() => { haptic.trigger("light"); onSettingsClick(); }}
                           >
                             <Gear size={18} weight="bold" className="w-4 h-4 lg:w-[18px] lg:h-[18px]" />
                             <span className="hidden sm:inline">Settings</span>
@@ -650,7 +655,7 @@ const EventHeader = ({
                           <Button
                             variant="outline"
                             className="h-10 w-10 sm:w-auto sm:px-4 flex items-center justify-center gap-2 rounded-xl text-red-500 border-red-200 hover:bg-red-50 hover:text-red-600 dark:border-red-900 dark:hover:bg-red-950 shrink-0 whitespace-nowrap"
-                            onClick={() => setShowLeaveConfirm(true)}
+                            onClick={() => { haptic.trigger("warning"); setShowLeaveConfirm(true); }}
                           >
                             <SignOut size={18} weight="bold" />
                             <span className="hidden sm:inline">Leave</span>
@@ -667,7 +672,7 @@ const EventHeader = ({
                       <Button
                         variant="outline"
                         className="h-8 sm:h-9 lg:h-10 px-2.5 sm:px-3 lg:px-6 flex items-center justify-center gap-1 sm:gap-1.5 lg:gap-2 rounded-xl border-neutral-200 dark:border-neutral-800 hover:bg-neutral-100 dark:hover:bg-neutral-850 cursor-pointer text-[11px] sm:text-xs lg:text-sm font-semibold transition-colors shrink-0 whitespace-nowrap"
-                        onClick={onMemoryLaneClick}
+                        onClick={() => { haptic.trigger("light"); onMemoryLaneClick?.(); }}
                       >
                         <MusicNotes size={18} weight="bold" className="text-rose-500 w-3.5 h-3.5 sm:w-4 sm:h-4 lg:w-[18px] lg:h-[18px]" />
                         <span>Memory Lane</span>
@@ -687,7 +692,7 @@ const EventHeader = ({
                     {onSelectAll && (
                       <Button
                         variant="outline"
-                        onClick={onSelectAll}
+                        onClick={() => { haptic.trigger("light"); onSelectAll(); }}
                         className="h-10 px-3 sm:px-4 flex items-center justify-center rounded-xl"
                       >
                         <span className="hidden sm:inline">{isAllSelected ? "Deselect All" : "Select All"}</span>
@@ -696,7 +701,7 @@ const EventHeader = ({
                     )}
 
                     <Button
-                      onClick={onDownloadSelected}
+                      onClick={() => { haptic.trigger("light"); onDownloadSelected(); }}
                       disabled={selectedCount === 0}
                       className="flex items-center justify-center gap-2 h-10 px-4 sm:px-6 rounded-xl"
                     >
@@ -707,7 +712,7 @@ const EventHeader = ({
 
                     <Button
                       variant="ghost"
-                      onClick={onToggleSelectMode}
+                      onClick={() => { haptic.trigger("light"); onToggleSelectMode(); }}
                       className="h-10 w-10 sm:w-auto sm:px-4 flex items-center justify-center gap-2 rounded-xl"
                     >
                       <X size={18} weight="bold" />

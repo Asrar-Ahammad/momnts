@@ -207,7 +207,10 @@ const EventSettingsModal = ({
                     <Switch
                       id="event-active"
                       checked={settingsForm.isActive}
-                      onCheckedChange={(checked) => onSettingsFormChange({ ...settingsForm, isActive: checked })}
+                      onCheckedChange={(checked) => {
+                        haptic.trigger("light")
+                        onSettingsFormChange({ ...settingsForm, isActive: checked })
+                      }}
                       className="cursor-pointer"
                     />
                   </div>
@@ -236,7 +239,10 @@ const EventSettingsModal = ({
                     <Switch
                       id="event-secure"
                       checked={settingsForm.isSecure}
-                      onCheckedChange={(checked) => onSettingsFormChange({ ...settingsForm, isSecure: checked })}
+                      onCheckedChange={(checked) => {
+                        haptic.trigger("light")
+                        onSettingsFormChange({ ...settingsForm, isSecure: checked })
+                      }}
                       className="cursor-pointer"
                     />
                   </div>
@@ -261,7 +267,10 @@ const EventSettingsModal = ({
                     <Switch
                       id="event-downloads"
                       checked={settingsForm.allowDownloads}
-                      onCheckedChange={(checked) => onSettingsFormChange({ ...settingsForm, allowDownloads: checked })}
+                      onCheckedChange={(checked) => {
+                        haptic.trigger("light")
+                        onSettingsFormChange({ ...settingsForm, allowDownloads: checked })
+                      }}
                       className="cursor-pointer"
                     />
                   </div>
