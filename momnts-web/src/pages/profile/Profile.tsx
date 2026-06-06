@@ -29,8 +29,10 @@ import {
   Devices,
   Check,
   Trash,
-  SmileyXEyesIcon
+  SmileyXEyesIcon,
+  Gear
 } from '@phosphor-icons/react'
+import { Switch } from '../../components/ui/switch'
 import {
   AlertDialog,
   AlertDialogAction,
@@ -73,6 +75,17 @@ const Profile = () => {
   const [isUpdatingName, setIsUpdatingName] = useState(false)
 
   const [activeTab, setActiveTab] = useState('account')
+  const [hapticsEnabled, setHapticsEnabled] = useState(() => {
+    return localStorage.getItem('momnts_haptics_enabled') !== 'false'
+  })
+
+  const handleHapticsToggle = (checked: boolean) => {
+    setHapticsEnabled(checked)
+    localStorage.setItem('momnts_haptics_enabled', String(checked))
+    if (checked) {
+      haptic.trigger("success")
+    }
+  }
 
   const [isLoggingOut, setIsLoggingOut] = useState(false)
   const [isDeletingSelfie, setIsDeletingSelfie] = useState(false)
@@ -396,6 +409,17 @@ const Profile = () => {
                 <Devices size={20} weight="fill" className="mr-2" />
                 Devices
               </TabsTrigger>
+              <TabsTrigger value="settings" className="relative rounded-xl flex-1 text-base z-10 data-active:bg-transparent data-active:shadow-none transition-colors duration-200 md:hidden">
+                {activeTab === 'settings' && (
+                  <motion.div 
+                    layoutId="profile-tab-pill" 
+                    className="absolute inset-0 bg-white dark:bg-neutral-800 rounded-xl shadow-sm -z-10" 
+                    transition={{ type: "spring", stiffness: 400, damping: 30 }}
+                  />
+                )}
+                <Gear size={20} weight="fill" className="mr-2" />
+                Settings
+              </TabsTrigger>
             </TabsList>
 
             <TabsContent value="account" className="mt-0 focus-visible:outline-none focus-visible:ring-0">
@@ -622,6 +646,45 @@ const Profile = () => {
                 transition={{ duration: 0.3 }}
               >
                 <DevicesTab />
+              </motion.div>
+            </TabsContent>
+
+            <TabsContent value="settings" className="mt-0 focus-visible:outline-none focus-visible:ring-0 md:hidden">
+              <motion.div
+                initial={{ opacity: 0, y: 10 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ duration: 0.3 }}
+              >
+                <div className="bg-white dark:bg-neutral-900 border border-neutral-100 dark:border-neutral-800 rounded-[32px] p-6 sm:p-8 shadow-sm">
+                  <div className="mb-8">
+                    <h3 className="text-xl font-bold select-none text-neutral-900 dark:text-neutral-100 mb-2">
+                      App Settings
+                    </h3>
+                    <p className="text-sm text-neutral-500 dark:text-neutral-400">
+                      Customize your experience on Momnts.
+                    </p>
+                  </div>
+
+                  <div className="flex items-center justify-between p-4 border border-neutral-100 dark:border-neutral-800 rounded-2xl bg-neutral-50/30 dark:bg-neutral-900/10">
+                    <div className="flex items-center space-x-3">
+                      <div className="p-2 rounded-xl bg-neutral-100 dark:bg-neutral-850 text-neutral-500">
+                        <Gear size={18} weight="bold" />
+                      </div>
+                      <div>
+                        <label htmlFor="haptics-toggle" className="text-xs font-bold cursor-pointer text-neutral-900 dark:text-neutral-100">
+                          Haptic Feedback
+                        </label>
+                        <p className="text-[10px] text-neutral-400 dark:text-neutral-500 font-medium">Enable physical vibration feedback for actions</p>
+                      </div>
+                    </div>
+                    <Switch
+                      id="haptics-toggle"
+                      checked={hapticsEnabled}
+                      onCheckedChange={handleHapticsToggle}
+                      className="cursor-pointer"
+                    />
+                  </div>
+                </div>
               </motion.div>
             </TabsContent>
           </Tabs>

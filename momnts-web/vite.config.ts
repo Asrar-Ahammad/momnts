@@ -149,6 +149,7 @@ export default defineConfig({
   resolve: {
     alias: {
       "@": path.resolve(__dirname, "./src"),
+      "web-haptics/react": path.resolve(__dirname, "./src/lib/web-haptics-wrapper.tsx"),
     },
   },
   build: {

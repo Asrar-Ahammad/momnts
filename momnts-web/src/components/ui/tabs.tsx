@@ -53,7 +53,16 @@ function TabsList({
   )
 }
 
-function TabsTrigger({ className, ...props }: TabsPrimitive.Tab.Props) {
+import { useWebHaptics } from "web-haptics/react"
+
+function TabsTrigger({ className, onClick, ...props }: TabsPrimitive.Tab.Props) {
+  const haptic = useWebHaptics()
+
+  const handleClick = (e: React.MouseEvent<HTMLButtonElement>) => {
+    haptic.trigger("selection")
+    onClick?.(e)
+  }
+
   return (
     <TabsPrimitive.Tab
       data-slot="tabs-trigger"
@@ -65,6 +74,7 @@ function TabsTrigger({ className, ...props }: TabsPrimitive.Tab.Props) {
         "cursor-pointer",
         className
       )}
+      onClick={handleClick}
       {...props}
     />
   )

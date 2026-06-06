@@ -42,8 +42,10 @@ import { toast } from 'sonner'
 import { EventCard, CreateEventModal, JoinEventModal, EventListItem } from './components'
 import { useEvents } from '../../features/events/hooks/useEvents'
 import { useQueryClient } from '@tanstack/react-query'
+import { useWebHaptics } from 'web-haptics/react'
 
 const Events = () => {
+  const haptic = useWebHaptics()
   const [searchQuery, setSearchQuery] = useState('')
   const [dateRange, setDateRange] = useState<{ from?: Date; to?: Date }>({})
   const [isCalendarOpen, setIsCalendarOpen] = useState(false)
@@ -206,11 +208,11 @@ const Events = () => {
       <div className="flex flex-col md:flex-row items-start justify-between gap-2 px-6">
         <h1 className="text-6xl font-bold font-sirage select-none">Events</h1>
         <div className="flex items-center gap-3">
-          <Button variant="outline" className="cursor-pointer px-4 rounded-full group flex items-center justify-center gap-2" onClick={() => setCreateModalOpen(true)}>
+          <Button variant="outline" className="cursor-pointer px-4 rounded-full group flex items-center justify-center gap-2" onClick={() => { haptic.trigger("light"); setCreateModalOpen(true); }}>
             <PlusIcon size={16} weight="bold" className="" />
             Create Event
           </Button>
-          <Button className="cursor-pointer rounded-full px-4 bg-black dark:bg-white dark:hover:bg-white/80 group flex items-center justify-center gap-2" onClick={() => setJoinModalOpen(true)}>
+          <Button className="cursor-pointer rounded-full px-4 bg-black dark:bg-white dark:hover:bg-white/80 group flex items-center justify-center gap-2" onClick={() => { haptic.trigger("light"); setJoinModalOpen(true); }}>
             <Ticket size={16} weight="fill" className="" />
             Join Event
           </Button>
@@ -239,7 +241,7 @@ const Events = () => {
         <div className="md:hidden">
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
-              <Button variant="outline" size="sm" className="flex items-center gap-1.5 cursor-pointer">
+              <Button variant="outline" size="sm" onClick={() => haptic.trigger("light")} className="flex items-center gap-1.5 cursor-pointer">
                 <Faders size={16} weight="bold" />
                 <span>Filters</span>
                 {(searchQuery || dateRange.from || dateRange.to || sortOrder !== 'desc' || roleFilter !== 'ALL') && (
@@ -334,14 +336,14 @@ const Events = () => {
           <Button
             variant="outline"
             size="sm"
-            onClick={() => setSortOrder(sortOrder === 'asc' ? 'desc' : 'asc')}
+            onClick={() => { haptic.trigger("light"); setSortOrder(sortOrder === 'asc' ? 'desc' : 'asc'); }}
             className="flex items-center gap-2 cursor-pointer"
           >
             <ArrowsDownUpIcon size={16} weight="bold" />
             Sort by Date
           </Button>
 
-          <Popover open={isCalendarOpen} onOpenChange={setIsCalendarOpen}>
+          <Popover open={isCalendarOpen} onOpenChange={(open) => { haptic.trigger("light"); setIsCalendarOpen(open); }}>
             <PopoverTrigger>
               <Button variant="outline" size="sm" className="flex items-center gap-2 cursor-pointer">
                 <CalendarIcon size={16} weight="bold" />
@@ -366,7 +368,7 @@ const Events = () => {
             </PopoverContent>
           </Popover>
 
-          <Popover open={isRoleFilterOpen} onOpenChange={setIsRoleFilterOpen}>
+          <Popover open={isRoleFilterOpen} onOpenChange={(open) => { haptic.trigger("light"); setIsRoleFilterOpen(open); }}>
             <PopoverTrigger>
               <Button variant="outline" size="sm" className="flex items-center gap-2 cursor-pointer">
                 {getRoleFilterIcon()}
@@ -420,7 +422,7 @@ const Events = () => {
             <Button
               variant="ghost"
               size="sm"
-              onClick={handleResetFilters}
+              onClick={() => { haptic.trigger("light"); handleResetFilters(); }}
               className="flex items-center gap-2 text-neutral-500 hover:text-neutral-700 cursor-pointer"
             >
               <Faders size={16} weight="bold" />
@@ -429,7 +431,7 @@ const Events = () => {
           )}
         </div>
 
-        <Tabs value={viewMode} onValueChange={(v) => setViewMode(v as 'grid' | 'list')} className="ml-auto">
+        <Tabs value={viewMode} onValueChange={(v) => { haptic.trigger("selection"); setViewMode(v as 'grid' | 'list'); }} className="ml-auto">
           <TabsList className="rounded-full h-10 bg-white dark:bg-black border">
             <TabsTrigger value="grid" className="rounded-full px-4 h-8 data-active:bg-white/20 dark:data-active:bg-neutral-900 data-active:shadow-md flex items-center justify-center">
               <SquaresFour size={18} weight={viewMode === 'grid' ? "fill" : "regular"} className="lg:mr-2" />

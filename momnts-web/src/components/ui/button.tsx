@@ -40,16 +40,28 @@ const buttonVariants = cva(
   }
 )
 
+import { useWebHaptics } from "web-haptics/react"
+
 function Button({
   className,
   variant = "default",
   size = "default",
+  onClick,
   ...props
 }: ButtonPrimitive.Props & VariantProps<typeof buttonVariants>) {
+  const haptic = useWebHaptics()
+
+  const handleClick = (e: React.MouseEvent<HTMLButtonElement>) => {
+    const hapticType = variant === "destructive" ? "warning" : "light"
+    haptic.trigger(hapticType)
+    onClick?.(e)
+  }
+
   return (
     <ButtonPrimitive
       data-slot="button"
       className={cn(buttonVariants({ variant, size, className }),"cursor-pointer rounded-full")}
+      onClick={handleClick}
       {...props}
     />
   )
