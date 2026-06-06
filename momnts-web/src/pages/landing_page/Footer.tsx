@@ -1,7 +1,7 @@
 import {
-  GithubLogo,
-  TwitterLogo,
-  EnvelopeSimple,
+  GithubLogoIcon,
+  TwitterLogoIcon,
+  EnvelopeSimpleIcon,
 } from '@phosphor-icons/react'
 
 const Footer = () => {
@@ -14,29 +14,29 @@ const Footer = () => {
         </span>
         <div className="lp-footer-links">
           <a
-            href="https://github.com"
+            href="https://github.com/Asrar-Ahammad"
             target="_blank"
             rel="noopener noreferrer"
             className="lp-footer-link"
             aria-label="GitHub"
           >
-            <GithubLogo size={20} weight="fill" />
+            <GithubLogoIcon size={20} weight="fill" />
           </a>
           <a
-            href="https://twitter.com"
+            href="https://x.com/asrar_ahammad"
             target="_blank"
             rel="noopener noreferrer"
             className="lp-footer-link"
             aria-label="Twitter"
           >
-            <TwitterLogo size={20} weight="fill" />
+            <TwitterLogoIcon size={20} weight="fill" />
           </a>
           <a
-            href="mailto:hello@momnts.app"
+            href="mailto:asrarahammadshaik@gmail.com"
             className="lp-footer-link"
             aria-label="Email"
           >
-            <EnvelopeSimple size={20} weight="fill" />
+            <EnvelopeSimpleIcon size={20} weight="fill" />
           </a>
         </div>
       </div>

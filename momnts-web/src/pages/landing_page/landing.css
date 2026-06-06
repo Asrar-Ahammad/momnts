@@ -147,6 +147,15 @@ html.light .landing-root {
   }
 }
 
+@media (max-width: 480px) {
+  .lp-navbar {
+    padding: 10px 12px;
+  }
+  .lp-logo {
+    font-size: 1.35rem;
+  }
+}
+
 .lp-navbar.scrolled {
   background: var(--lp-navbar-scrolled-bg);
   border-color: var(--lp-navbar-scrolled-border);
@@ -176,6 +185,12 @@ html.light .landing-root {
   gap: 8px;
 }
 
+@media (max-width: 480px) {
+  .lp-nav-actions {
+    gap: 2px;
+  }
+}
+
 .lp-nav-link {
   padding: 8px 16px;
   font-size: 0.875rem;
@@ -184,6 +199,14 @@ html.light .landing-root {
   text-decoration: none;
   border-radius: var(--lp-radius-pill);
   transition: all 0.2s;
+  white-space: nowrap;
+}
+
+@media (max-width: 480px) {
+  .lp-nav-link {
+    padding: 6px 8px;
+    font-size: 0.8rem;
+  }
 }
 
 .lp-nav-link:hover {
@@ -203,6 +226,15 @@ html.light .landing-root {
   display: inline-flex;
   align-items: center;
   gap: 6px;
+  white-space: nowrap;
+}
+
+@media (max-width: 480px) {
+  .lp-nav-btn {
+    padding: 6px 12px;
+    gap: 4px;
+    font-size: 0.8rem;
+  }
 }
 
 .lp-nav-btn--primary {

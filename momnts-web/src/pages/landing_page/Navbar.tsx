@@ -101,7 +101,7 @@ const Navbar = ({ showProgress = false }: NavbarProps = {}) => {
             {resolvedTheme === 'dark' ? <Sun size={18} /> : <Moon size={18} />}
           </button>
           <Link to="/login" className="lp-nav-link lp-nav-item">Log in</Link>
-          <Link to="/register" className="lp-nav-btn lp-nav-btn--primary lp-nav-item">
+          <Link to="/register" className="lp-nav-btn lp-nav-btn--primary lp-nav-item whitespace-nowrap">
             Get Started
             <ArrowRight size={16} weight="bold" />
           </Link>
