@@ -1,6 +1,8 @@
 import type { Response } from "express";
 import { prisma } from "../lib/prisma.js";
 import type { AuthRequest } from "../middleware/auth.middleware.js";
+import type { PlanRequest } from "../middleware/plan.middleware.js";
+import { PLAN_LIMITS } from "../lib/plan-limits.js";
 import { JoinRequestStatus } from "../generated/prisma/index.js";
 import crypto from 'crypto'
 import { matchingQueue } from "../lib/queue.js";
@@ -66,7 +68,7 @@ async function generateUniqueInviteCode(): Promise<string> {
 }
 
 
-async function createEventController(req: AuthRequest, res: Response) {
+async function createEventController(req: PlanRequest, res: Response) {
     try {
         const { name, date, location, attendeeUploadLimit, attendee_upload_limit, isSecure, allowDownloads } = req.body;
 
@@ -76,15 +78,48 @@ async function createEventController(req: AuthRequest, res: Response) {
             });
         }
 
+        if (!req.user?.id) {
+            return res.status(401).json({ message: "User not authenticated" });
+        }
+
+        // --- Plan limit: max events (only organizer-created events count) ---
+        const limits = req.planLimits || PLAN_LIMITS.FREE;
+        const plan = req.plan || 'FREE';
+
+        if (limits.maxEvents !== Infinity) {
+            const eventsCreated = await prisma.eventAccess.count({
+                where: { user_id: req.user.id, role: 'ORGANIZER' }
+            });
+            if (eventsCreated >= limits.maxEvents) {
+                return res.status(403).json({
+                    message: `You've reached your ${limits.maxEvents} event limit on the ${plan} plan. Upgrade to Pro for unlimited events.`,
+                    code: 'PLAN_LIMIT_EVENTS',
+                    limit: limits.maxEvents,
+                    current: eventsCreated,
+                });
+            }
+        }
+
+        // --- Plan limit: secure events ---
+        if (isSecure && limits.maxSecureEvents !== Infinity) {
+            const secureEventsCount = await prisma.event.count({
+                where: { user_id: req.user.id, is_secure: true }
+            });
+            if (secureEventsCount >= limits.maxSecureEvents) {
+                return res.status(403).json({
+                    message: `You've reached your secure event limit (${limits.maxSecureEvents}) on the ${plan} plan. Upgrade to Pro for unlimited secure events.`,
+                    code: 'PLAN_LIMIT_SECURE_EVENTS',
+                    limit: limits.maxSecureEvents,
+                    current: secureEventsCount,
+                });
+            }
+        }
+
         const invite_code = await generateUniqueInviteCode();
 
         const eventDate = new Date(date);
         if (isNaN(eventDate.getTime())) {
             return res.status(400).json({ message: "Invalid date format" });
-        }
-
-        if (!req.user?.id) {
-            return res.status(401).json({ message: "User not authenticated" });
         }
 
         const rawLimit = attendeeUploadLimit !== undefined ? attendeeUploadLimit : attendee_upload_limit;
@@ -232,7 +267,7 @@ async function getEventDetailsController(req: AuthRequest, res: Response) {
  * @access Private
  */
 
-async function joinEventController(req: AuthRequest, res: Response) {
+async function joinEventController(req: PlanRequest, res: Response) {
     try {
         if (!req.user?.id) {
             return res.status(401).json({ message: 'User not authenticated' })
@@ -261,6 +296,24 @@ async function joinEventController(req: AuthRequest, res: Response) {
         // Organizer can't join their own event
         if (event.user_id === req.user.id) {
             return res.status(400).json({ message: 'You are the organizer of this event' })
+        }
+
+        // --- Plan limit: max attendees per event (check organizer's plan) ---
+        const organizerSub = await prisma.subscription.findUnique({
+            where: { user_id: event.user_id }
+        });
+        const organizerPlan = (organizerSub?.is_active && organizerSub?.plan === 'PRO') ? 'PRO' : 'FREE';
+        const organizerLimits = PLAN_LIMITS[organizerPlan];
+        const currentAttendeeCount = await prisma.eventAccess.count({
+            where: { event_id: event.id }
+        });
+        if (currentAttendeeCount >= organizerLimits.maxAttendeesPerEvent) {
+            return res.status(403).json({
+                message: `This event has reached its maximum of ${organizerLimits.maxAttendeesPerEvent} attendees.`,
+                code: 'PLAN_LIMIT_ATTENDEES',
+                limit: organizerLimits.maxAttendeesPerEvent,
+                current: currentAttendeeCount,
+            });
         }
 
         // Check if already a member
@@ -521,7 +574,7 @@ async function getJoinedEventsController(req: AuthRequest, res: Response) {
  * @route PUT /events/:eventId
  * @access Private
  */
-async function updateEventDetailsController(req: AuthRequest, res: Response) {
+async function updateEventDetailsController(req: PlanRequest, res: Response) {
     try {
         if (!req.user?.id) {
             return res.status(401).json({ message: 'User not authenticated' })
@@ -536,6 +589,32 @@ async function updateEventDetailsController(req: AuthRequest, res: Response) {
 
         if (!event) {
             return res.status(404).json({ message: 'Event not found' })
+        }
+
+        const limits = req.planLimits || PLAN_LIMITS.FREE;
+        const plan = req.plan || 'FREE';
+
+        // --- Plan limit: invite code regeneration ---
+        if (regenerateInviteCode && !limits.canRegenerateInviteCode) {
+            return res.status(403).json({
+                message: 'Invite code regeneration is a Pro feature. Upgrade to unlock it.',
+                code: 'PLAN_LIMIT_INVITE_REGEN',
+            });
+        }
+
+        // --- Plan limit: secure events (only check if toggling ON) ---
+        if (isSecure === true && !event.is_secure && limits.maxSecureEvents !== Infinity) {
+            const secureEventsCount = await prisma.event.count({
+                where: { user_id: req.user.id, is_secure: true }
+            });
+            if (secureEventsCount >= limits.maxSecureEvents) {
+                return res.status(403).json({
+                    message: `You've reached your secure event limit (${limits.maxSecureEvents}) on the ${plan} plan. Upgrade to Pro for unlimited secure events.`,
+                    code: 'PLAN_LIMIT_SECURE_EVENTS',
+                    limit: limits.maxSecureEvents,
+                    current: secureEventsCount,
+                });
+            }
         }
 
         let inviteCode: string | undefined = undefined

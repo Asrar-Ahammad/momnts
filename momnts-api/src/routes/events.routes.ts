@@ -17,11 +17,12 @@ import {
     getPendingRequestCountController
 } from "../controllers/events.controller";
 import { authenticate } from "../middleware/auth.middleware";
+import { attachPlan } from "../middleware/plan.middleware";
 
 const eventsRouter = Router();
 
 // Create event
-eventsRouter.post("/create", authenticate, createEventController);
+eventsRouter.post("/create", authenticate, attachPlan, createEventController);
 
 // Get events
 eventsRouter.get("/my-events", authenticate, getEventsController);
@@ -30,13 +31,13 @@ eventsRouter.get("/my-events", authenticate, getEventsController);
 eventsRouter.get("/joined", authenticate, getJoinedEventsController);
 
 // Join event
-eventsRouter.post("/join", authenticate, joinEventController);
+eventsRouter.post("/join", authenticate, attachPlan, joinEventController);
 
 // Get event details
 eventsRouter.get("/:eventId", authenticate, getEventDetailsController);
 
 // Update event details
-eventsRouter.put("/:eventId", authenticate, updateEventDetailsController);
+eventsRouter.put("/:eventId", authenticate, attachPlan, updateEventDetailsController);
 
 // Delete event
 eventsRouter.delete("/:eventId", authenticate, deleteEventController)

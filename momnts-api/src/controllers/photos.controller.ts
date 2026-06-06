@@ -1,5 +1,7 @@
 import type { Response } from 'express'
 import type { AuthRequest } from '../middleware/auth.middleware.js'
+import type { PlanRequest } from '../middleware/plan.middleware.js'
+import { PLAN_LIMITS } from '../lib/plan-limits.js'
 import { prisma } from '../lib/prisma.js'
 import { uploadToR2, deleteFromR2, extractKeyFromUrl, presignPhotos, presignPhoto, presignStoredUrl } from '../lib/r2.js'
 import { photoQueue } from '../lib/queue.js'
@@ -14,7 +16,7 @@ import sharp from 'sharp'
  * @route POST /photos/:eventId/upload
  * @access Private
  */
-export async function uploadPhotoController(req: AuthRequest, res: Response) {
+export async function uploadPhotoController(req: PlanRequest, res: Response) {
     try {
         if (!req.user?.id) {
             return res.status(401).json({ message: 'User not authenticated' })
@@ -42,7 +44,14 @@ export async function uploadPhotoController(req: AuthRequest, res: Response) {
             return res.status(403).json({ message: 'You do not have access to this event' })
         }
 
-        // Enforce upload limit for attendees
+        // Look up organizer's plan for this event to get plan-aware limits
+        const organizerSub = await prisma.subscription.findUnique({
+            where: { user_id: eventAccess.event.user_id }
+        });
+        const organizerPlan = (organizerSub?.is_active && organizerSub?.plan === 'PRO') ? 'PRO' : 'FREE';
+        const organizerLimits = PLAN_LIMITS[organizerPlan];
+
+        // Enforce upload limit for both organizers and attendees
         const userId = req.user.id
         const result = await prisma.$transaction(async (tx: any) => {
             const current = await tx.eventAccess.findUnique({
@@ -60,14 +69,19 @@ export async function uploadPhotoController(req: AuthRequest, res: Response) {
                 where: { event_id: eventId, user_id: userId }
             })
 
-            if (current.role === 'ATTENDEE') {
-                const limit = current.upload_limit ?? eventAccess.event.attendee_upload_limit
-                if (actualCount + files.length > limit) {
-                    return { success: false, current: actualCount, limit, role: current.role }
-                }
+            let limit: number;
+            if (current.role === 'ORGANIZER') {
+                limit = organizerLimits.maxOrganizerUploadsPerEvent;
+            } else {
+                // Attendee: use per-user override, or organizer's plan attendee limit
+                limit = current.upload_limit ?? organizerLimits.maxAttendeeUploadsPerEvent;
             }
 
-            return { success: true, newCount: actualCount + files.length, role: current.role }
+            if (actualCount + files.length > limit) {
+                return { success: false, current: actualCount, limit, role: current.role }
+            }
+
+            return { success: true, newCount: actualCount + files.length, role: current.role, limit }
         })
 
         if (!result.success) {
@@ -84,6 +98,7 @@ export async function uploadPhotoController(req: AuthRequest, res: Response) {
 
         ;(eventAccess as any).newUploadCount = result.newCount
         ;(eventAccess as any).role = result.role
+        ;(eventAccess as any).effectiveLimit = result.limit
 
         // Validate each file is a valid image
         for (const file of files) {
@@ -162,19 +177,11 @@ export async function uploadPhotoController(req: AuthRequest, res: Response) {
             photos: uploadedPhotos,
         }
 
-        if (userRole === 'ATTENDEE') {
-            const limit = eventAccess.upload_limit ?? eventAccess.event.attendee_upload_limit
-            response.quota = {
-                used: newCount,
-                limit: limit,
-                remaining: limit - newCount,
-            }
-        } else {
-            response.quota = {
-                used: newCount,
-                limit: null,
-                remaining: null,
-            }
+        const effectiveLimit = (eventAccess as any).effectiveLimit
+        response.quota = {
+            used: newCount,
+            limit: effectiveLimit,
+            remaining: effectiveLimit - newCount,
         }
 
         return res.status(201).json(response)

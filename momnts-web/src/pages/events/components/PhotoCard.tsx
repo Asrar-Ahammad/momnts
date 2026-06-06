@@ -20,7 +20,7 @@ interface PhotoCardProps {
   isSelectMode?: boolean
   isSelected?: boolean
   canDelete?: boolean
-  onDelete?: () => void
+  onDelete?: () => Promise<void> | void
   isFavourite?: boolean
   onToggleFavourite?: () => void
 }
@@ -48,6 +48,7 @@ const PhotoCard = ({
   const [imageLoaded, setImageLoaded] = useState(isAlreadyLoaded)
   const [imageError, setImageError] = useState(false)
   const [isInView, setIsInView] = useState(isAlreadyLoaded)
+  const [isDeleting, setIsDeleting] = useState(false)
   const cardRef = useRef<HTMLDivElement>(null)
   const imgRef = useRef<HTMLImageElement>(null)
 
@@ -226,12 +227,26 @@ const PhotoCard = ({
                   </AlertDialogDescription>
                 </AlertDialogHeader>
                 <AlertDialogFooter>
-                  <AlertDialogCancel>Cancel</AlertDialogCancel>
+                  <AlertDialogCancel disabled={isDeleting}>Cancel</AlertDialogCancel>
                   <AlertDialogAction
-                    onClick={() => onDelete?.()}
-                    className="bg-red-600 hover:bg-red-700 text-white"
+                    onClick={async (e) => {
+                      e.preventDefault()
+                      if (isDeleting) return
+                      setIsDeleting(true)
+                      try {
+                        await onDelete?.()
+                      } finally {
+                        setIsDeleting(false)
+                      }
+                    }}
+                    className="bg-red-600 hover:bg-red-700 text-white min-w-[80px]"
+                    disabled={isDeleting}
                   >
-                    Delete
+                    {isDeleting ? (
+                      <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                    ) : (
+                      "Delete"
+                    )}
                   </AlertDialogAction>
                 </AlertDialogFooter>
               </AlertDialogContent>

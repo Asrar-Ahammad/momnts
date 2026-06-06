@@ -20,6 +20,7 @@ import { galleryRouter } from "./src/routes/gallery.routes.js";
 import { notificationsRouter } from "./src/routes/notifications.routes.js";
 import { connectionsRouter } from "./src/routes/connections.routes.js";
 import { commentsRouter } from "./src/routes/comments.routes.js";
+import { subscriptionRouter } from "./src/routes/subscription.routes.js";
 import { initSocketIO } from "./src/lib/socket.js";
 
 const app = express()
@@ -48,6 +49,7 @@ app.use('/api/onboarding', onboardingRouter)
 app.use('/api/users', usersRouter)
 app.use('/api/notifications', notificationsRouter)
 app.use('/api/events/:eventId/connections', connectionsRouter)
+app.use('/api/subscription', subscriptionRouter)
 
 const PORT = process.env.PORT || process.env.APP_PORT || 3000
 

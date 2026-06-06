@@ -65,6 +65,7 @@ const EventDetails = () => {
   const [savingSettings, setSavingSettings] = useState(false)
   const uploadingRef = useRef(false)
   const savingSettingsRef = useRef(false)
+  const uploadAbortControllerRef = useRef<AbortController | null>(null)
   const lastInvalidatedPhotoIdRef = useRef<string | null>(null)
   const [carouselOpen, setCarouselOpen] = useState(false)
   const [highlightCommentId, setHighlightCommentId] = useState<string | undefined>(undefined)
@@ -399,6 +400,9 @@ const EventDetails = () => {
       setUploading(true)
       // Initialize all files as 'uploading'
       setFileStatuses(selectedFiles.map(() => 'uploading'))
+      
+      const abortController = new AbortController()
+      uploadAbortControllerRef.current = abortController
 
       await photosApi.uploadPhotos(
         eventId,
@@ -418,7 +422,8 @@ const EventDetails = () => {
             newStatuses[fileIndex] = 'error'
             return newStatuses
           })
-        }
+        },
+        abortController.signal
       )
 
       toast.success(`${selectedFiles.length} photo(s) uploaded successfully!`)
@@ -434,13 +439,32 @@ const EventDetails = () => {
       queryClient.invalidateQueries({ queryKey: ['my-photos', eventId] })
       queryClient.invalidateQueries({ queryKey: ['event', eventId] })
     } catch (error) {
-      console.error('Failed to upload photos:', error)
-      toast.error(error instanceof Error ? error.message : 'Failed to upload photos')
-      haptic.trigger("error")
+      if (error instanceof Error && error.message === 'Upload cancelled') {
+        toast.info('Upload cancelled.')
+      } else if (error instanceof Error && error.message.toLowerCase().includes('limit')) {
+        toast.error(error.message)
+        haptic.trigger("error")
+        setUploadModalOpen(false)
+        navigate('/pricing')
+      } else {
+        console.error('Failed to upload photos:', error)
+        toast.error(error instanceof Error ? error.message : 'Failed to upload photos')
+        haptic.trigger("error")
+      }
     } finally {
       uploadingRef.current = false
       setUploading(false)
+      uploadAbortControllerRef.current = null
     }
+  }
+
+  const handleCancelUpload = () => {
+    if (uploadAbortControllerRef.current) {
+      uploadAbortControllerRef.current.abort()
+    }
+    setUploadModalOpen(false)
+    setSelectedFiles([])
+    setFileStatuses([])
   }
 
   const handleCopyInviteCode = () => {
@@ -779,6 +803,7 @@ const EventDetails = () => {
           setFileStatuses(prev => prev.filter((_, i) => i !== index))
         }}
         onUpload={handleUpload}
+        onCancelUpload={handleCancelUpload}
         uploading={uploading}
         fileStatuses={fileStatuses}
       />

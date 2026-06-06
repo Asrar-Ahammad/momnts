@@ -66,7 +66,13 @@ export const CreateEventModal = ({ open, onOpenChange, onEventCreated }: CreateE
       onEventCreated(uniqueEvents)
     } catch (error) {
       console.error('Failed to create event:', error)
-      toast.error(error instanceof Error ? error.message : 'Failed to create event')
+      if (error instanceof Error && error.message.toLowerCase().includes('limit')) {
+        toast.error(error.message)
+        onOpenChange(false)
+        navigate('/pricing')
+      } else {
+        toast.error(error instanceof Error ? error.message : 'Failed to create event')
+      }
       haptic.trigger("error")
     } finally {
       creatingEventRef.current = false

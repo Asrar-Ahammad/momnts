@@ -1,5 +1,5 @@
 import { Outlet, useNavigate, useLocation, Link } from 'react-router';
-import { House, Ticket, User, UserCircleDashed } from "@phosphor-icons/react"
+import { House, Ticket, User, UserCircleDashed, Lightning } from "@phosphor-icons/react"
 import { motion, AnimatePresence } from 'framer-motion'
 import { cn } from '../lib/utils'
 import { ThemeToggle } from '../components/theme-toggle'
@@ -8,12 +8,14 @@ import { useAuth } from '../features/auth/hooks/useAuth'
 import { useState, useEffect } from 'react';
 import { Badge } from '../components/ui/badge'
 import { useWebHaptics } from 'web-haptics/react'
+import { useSubscription } from '../features/subscription/hooks/useSubscription'
 
 const DashboardLayout = () => {
   const navigate = useNavigate()
   const location = useLocation()
   const { user } = useAuth()
   const haptic = useWebHaptics()
+  const { isPro } = useSubscription()
   const [prevPath, setPrevPath] = useState(location.pathname)
   const [direction, setDirection] = useState(0)
   const [isSlideshowOpen, setIsSlideshowOpen] = useState(false)
@@ -130,6 +132,22 @@ const DashboardLayout = () => {
               Momnts
             </Link>
             <Badge variant="secondary" className='ml-2 select-none text-neutral-600 dark:text-neutral-300'>v 1.0</Badge>
+            <Link
+              to="/pricing"
+              className={`ml-1.5 select-none px-2.5 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider transition-all ${
+                isPro
+                  ? 'bg-violet-50 text-violet-600 dark:bg-violet-500/10 dark:text-violet-400 hover:bg-violet-100 dark:hover:bg-violet-500/20'
+                  : 'bg-neutral-100 text-neutral-500 dark:bg-neutral-800 dark:text-neutral-400 hover:bg-neutral-200 dark:hover:bg-neutral-700'
+              }`}
+            >
+              {isPro ? (
+                <span className="flex items-center gap-0.5">
+                  <Lightning size={12} weight="fill" /> Pro
+                </span>
+              ) : (
+                'Free'
+              )}
+            </Link>
           </div>
 
           {/* Center: Desktop Navigation */}

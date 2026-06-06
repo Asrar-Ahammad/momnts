@@ -3,13 +3,15 @@ import { Button } from '../../../components/ui/button'
 import { Dialog, DialogContent, DialogDescription, DialogTitle, DialogHeader } from '../../../components/ui/dialog'
 import { Input } from '../../../components/ui/input'
 import { Label } from '../../../components/ui/label'
-import { Trash, CalendarBlank, Broadcast, LockKey, DownloadSimple, Sliders, Shield, Warning } from '@phosphor-icons/react'
+import { Trash, CalendarBlank, Broadcast, LockKey, DownloadSimple, Sliders, Shield, Warning, Lightning } from '@phosphor-icons/react'
 import { format } from 'date-fns'
 import { cn } from '../../../lib/utils'
 import { Popover, PopoverContent, PopoverTrigger } from '../../../components/ui/popover'
 import { Calendar } from '../../../components/ui/calendar'
 import { Switch } from '../../../components/ui/switch'
 import { useWebHaptics } from 'web-haptics/react'
+import { useSubscription } from '../../../features/subscription/hooks/useSubscription'
+import { useNavigate } from 'react-router'
 
 interface EventSettingsModalProps {
   open: boolean
@@ -48,6 +50,8 @@ const EventSettingsModal = ({
   const [regeneratingCode, setRegeneratingCode] = useState(false)
   const deletingRef = useRef(false)
   const haptic = useWebHaptics()
+  const { isPro } = useSubscription()
+  const navigate = useNavigate()
 
   useEffect(() => {
     if (open) {
