@@ -82,7 +82,6 @@ html.lenis, html.lenis body {
   font-family: var(--lp-font-sans);
   background: var(--lp-bg);
   color: var(--lp-text);
-  overflow-x: clip;
 }
 
 html.light .landing-root {
@@ -129,8 +128,8 @@ html.light .landing-root {
   z-index: 100;
   padding: 12px 24px;
   background: var(--lp-navbar-bg);
-  backdrop-filter: blur(20px) saturate(180%);
-  -webkit-backdrop-filter: blur(20px) saturate(180%);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
   border-bottom: 1px solid var(--lp-navbar-border);
   box-shadow: var(--lp-navbar-shadow);
   transition: all 0.4s cubic-bezier(0.16, 1, 0.3, 1);
