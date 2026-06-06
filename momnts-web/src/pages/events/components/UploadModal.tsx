@@ -1,7 +1,17 @@
 import { Button } from '../../../components/ui/button'
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '../../../components/ui/dialog'
-import { CloudArrowUp, X as XIcon, Check, Spinner } from '@phosphor-icons/react'
+import { CloudArrowUp, X as XIcon, Check, Spinner, Warning } from '@phosphor-icons/react'
 import { useState } from 'react'
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '../../../components/ui/alert-dialog'
 
 export type FileUploadStatus = 'pending' | 'uploading' | 'completed' | 'error'
 
@@ -14,6 +24,7 @@ interface UploadModalProps {
   onUpload: () => void
   uploading: boolean
   fileStatuses: FileUploadStatus[]
+  onCancelUpload?: () => void
 }
 
 const UploadModal = ({
@@ -24,9 +35,11 @@ const UploadModal = ({
   onRemoveFile,
   onUpload,
   uploading,
-  fileStatuses
+  fileStatuses,
+  onCancelUpload
 }: UploadModalProps) => {
   const [isDragOver, setIsDragOver] = useState(false)
+  const [showCancelConfirm, setShowCancelConfirm] = useState(false)
 
   const handleDragOver = (e: React.DragEvent) => {
     e.preventDefault()
@@ -58,8 +71,16 @@ const UploadModal = ({
       onFileSelect(syntheticEvent)
     }
   }
+  const handleDialogOpenChange = (newOpen: boolean) => {
+    if (!newOpen && uploading) {
+      setShowCancelConfirm(true)
+    } else {
+      onOpenChange(newOpen)
+    }
+  }
+
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
+    <Dialog open={open} onOpenChange={handleDialogOpenChange}>
       <DialogContent className="sm:max-w-md">
         <DialogHeader>
           <DialogTitle className="text-4xl font-sirage">Upload Photos</DialogTitle>
@@ -152,7 +173,11 @@ const UploadModal = ({
 
         <div className="flex gap-2 justify-end">
           <Button variant="outline" onClick={() => {
-            onOpenChange(false)
+            if (uploading) {
+              setShowCancelConfirm(true)
+            } else {
+              onOpenChange(false)
+            }
           }}>
             Cancel
           </Button>
@@ -164,6 +189,39 @@ const UploadModal = ({
           </Button>
         </div>
       </DialogContent>
+
+      <AlertDialog open={showCancelConfirm} onOpenChange={setShowCancelConfirm}>
+        <AlertDialogContent className="sm:max-w-sm rounded-3xl">
+          <AlertDialogHeader>
+            <AlertDialogTitle className="text-xl text-red-600 flex items-center gap-2">
+              <Warning size={24} weight="fill" />
+              Cancel Upload?
+            </AlertDialogTitle>
+            <AlertDialogDescription className="pt-2">
+              Are you sure you want to stop uploading? Photos that have already completed will be saved, but the remaining ones will be cancelled.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+
+          <div className="flex gap-2 justify-end pt-4">
+            <AlertDialogCancel className="rounded-full mt-0">
+              Continue Upload
+            </AlertDialogCancel>
+            <AlertDialogAction
+              className="rounded-full bg-red-600 hover:bg-red-700 text-white border-0"
+              onClick={() => {
+                setShowCancelConfirm(false)
+                if (onCancelUpload) {
+                  onCancelUpload()
+                } else {
+                  onOpenChange(false)
+                }
+              }}
+            >
+              Stop Uploading
+            </AlertDialogAction>
+          </div>
+        </AlertDialogContent>
+      </AlertDialog>
     </Dialog>
   )
 }

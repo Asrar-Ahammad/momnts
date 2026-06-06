@@ -82,7 +82,8 @@ export const photosApi = {
     eventId: string,
     files: File[],
     onFileComplete?: (fileIndex: number, photo: PhotoData) => void,
-    onFileError?: (fileIndex: number, error: Error) => void
+    onFileError?: (fileIndex: number, error: Error) => void,
+    signal?: AbortSignal
   ): Promise<UploadResponse> {
     const results: PhotoData[] = []
     const errors: Array<{ index: number; error: Error }> = []
@@ -99,24 +100,26 @@ export const photosApi = {
         formData.append('photos', file)
       })
 
+      const controller = new AbortController()
+      const timeoutId = setTimeout(() => controller.abort(), TIMEOUT_MS)
+      const onAbort = () => controller.abort()
+      
+      if (signal) {
+        signal.addEventListener('abort', onAbort)
+      }
+
       try {
-        // Use AbortController for timeout
-        const controller = new AbortController()
-        const timeoutId = setTimeout(() => controller.abort(), TIMEOUT_MS)
-
         const response = await apiFetch(`${API_URL}/api/photos/${eventId}/upload`, {
-          method: 'POST',
-          body: formData,
-          headers: authHeaders(),
-          signal: controller.signal,
-        })
+            method: 'POST',
+            body: formData,
+            headers: authHeaders(),
+            signal: controller.signal,
+          })
 
-        clearTimeout(timeoutId)
-
-        if (!response.ok) {
-          const errorData = await response.json()
-          throw new Error(errorData.message || 'Failed to upload photos')
-        }
+          if (!response.ok) {
+            const errorData = await response.json()
+            throw new Error(errorData.message || 'Failed to upload photos')
+          }
 
         const data = await response.json()
         const uploadedPhotos = data.photos || []
@@ -131,19 +134,29 @@ export const photosApi = {
         let err: Error
         if (error instanceof Error) {
           if (error.name === 'AbortError') {
-            err = new Error('Upload timeout - please try with fewer photos')
+            err = signal?.aborted 
+              ? new Error('Upload cancelled') 
+              : new Error('Upload timeout - please try with fewer photos')
           } else {
             err = error
           }
         } else {
           err = new Error('Failed to upload photos')
         }
+        
         // Mark all files in batch as error
         batchFiles.forEach((_, idx) => {
           errors.push({ index: startIndex + idx, error: err })
           onFileError?.(startIndex + idx, err)
         })
+        
+        if (signal?.aborted) throw err
         return []
+      } finally {
+        clearTimeout(timeoutId)
+        if (signal) {
+          signal.removeEventListener('abort', onAbort)
+        }
       }
     }
 
@@ -151,6 +164,7 @@ export const photosApi = {
     const uploadBatches = async () => {
       const batchResults: PhotoData[] = []
       for (let i = 0; i < compressedFiles.length; i += BATCH_SIZE) {
+        if (signal?.aborted) throw new Error('Upload cancelled')
         const batch = compressedFiles.slice(i, i + BATCH_SIZE)
         const batchPhotos = await uploadBatch(batch, i)
         batchResults.push(...batchPhotos)

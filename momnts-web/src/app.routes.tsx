@@ -12,6 +12,7 @@ import Profile from './pages/profile/Profile'
 import LandingPage from './pages/landing_page/LandingPage'
 import PrivacyPolicy from './pages/legal/PrivacyPolicy'
 import TermsAndConditions from './pages/legal/TermsAndConditions'
+import Pricing from './pages/pricing/Pricing'
 
 const AuthLayout = () => (
   <AuthProvider>
@@ -43,6 +44,10 @@ export const router = createBrowserRouter([
       {
         path: "/terms",
         element: <TermsAndConditions />,
+      },
+      {
+        path: "/pricing",
+        element: <Pricing />,
       },
 
       {

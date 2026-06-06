@@ -28,9 +28,9 @@ import {
   UserCircle,
   Devices,
   Check,
-  Trash,
   SmileyXEyesIcon,
-  Gear
+  Gear,
+  Lightning
 } from '@phosphor-icons/react'
 import { Switch } from '../../components/ui/switch'
 import {
@@ -48,11 +48,13 @@ import { toast } from 'sonner'
 import { authApi } from '../../features/auth/services/auth.api'
 import { ChangePasswordModal } from './components/ChangePasswordModal'
 import { useWebHaptics } from 'web-haptics/react'
+import { useSubscription } from '../../features/subscription/hooks/useSubscription'
 
 const Profile = () => {
   const { user, setUser, logout } = useAuth()
   const navigate = useNavigate()
   const haptic = useWebHaptics()
+  const { plan, isPro } = useSubscription()
   const fileInputRef = useRef<HTMLInputElement>(null) // Add missing fileInputRef to avoid build issues if we can, or just keep original reference if profile uses one. Oh wait, L210 uses it, we should add a ref for it if it wasn't there. Let's look at original code: L75 has no fileInputRef declaration. So it was indeed a bug in original code or declared differently. Let's declare it to be safe.
   const [isUpdatingSelfie, setIsUpdatingSelfie] = useState(false)
   const [isUploadModalOpen, setIsUploadModalOpen] = useState(false)
@@ -486,6 +488,22 @@ const Profile = () => {
                         aria-label="Edit name"
                       >
                         <PencilSimple size={14} weight="bold" />
+                      </button>
+                      <button
+                        onClick={() => navigate('/pricing')}
+                        className={`ml-auto px-3 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider transition-all cursor-pointer ${
+                          isPro
+                            ? 'bg-violet-50 text-violet-600 dark:bg-violet-500/10 dark:text-violet-400 hover:bg-violet-100 dark:hover:bg-violet-500/20'
+                            : 'bg-neutral-100 text-neutral-500 dark:bg-neutral-800 dark:text-neutral-400 hover:bg-neutral-200 dark:hover:bg-neutral-700'
+                        }`}
+                      >
+                        {isPro ? (
+                          <span className="flex items-center gap-1">
+                            <Lightning size={12} weight="fill" /> Pro
+                          </span>
+                        ) : (
+                          'Free'
+                        )}
                       </button>
                     </div>
                   )}

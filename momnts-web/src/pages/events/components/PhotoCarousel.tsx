@@ -26,7 +26,7 @@ interface PhotoCarouselProps {
   onOpenChange: (open: boolean) => void
   photos: PhotoData[]
   initialIndex: number
-  onDelete?: (photoId: string) => void
+  onDelete?: (photoId: string) => Promise<void> | void
   currentUserId?: string
   userRole?: string
   isEventActive?: boolean
@@ -61,6 +61,7 @@ const PhotoCarousel = ({
   const [currentIndex, setCurrentIndex] = useState(initialIndex)
   const [isLoading, setIsLoading] = useState(false)
   const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false)
+  const [isDeleting, setIsDeleting] = useState(false)
   const [showComments, setShowComments] = useState(false)
   const [showKeyHint, setShowKeyHint] = useState(false)
   const [isCommentsExpanded, setIsCommentsExpanded] = useState(false)
@@ -340,10 +341,16 @@ const PhotoCarousel = ({
 
   const canDelete = userRole === 'ORGANIZER' || (isEventActive && currentUserId === currentPhoto?.user_id)
 
-  const handleDelete = () => {
-    onDelete?.(currentPhoto.id)
-    setDeleteConfirmOpen(false)
-    onOpenChange(false)
+  const handleDelete = async () => {
+    if (isDeleting) return
+    try {
+      setIsDeleting(true)
+      await onDelete?.(currentPhoto.id)
+      setDeleteConfirmOpen(false)
+      onOpenChange(false)
+    } finally {
+      setIsDeleting(false)
+    }
   }
 
   const { data: commentsData } = useComments(open ? (currentPhoto?.id || '') : '')
@@ -621,12 +628,21 @@ const PhotoCarousel = ({
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel onClick={() => haptic.trigger("light")}>Cancel</AlertDialogCancel>
+            <AlertDialogCancel onClick={() => haptic.trigger("light")} disabled={isDeleting}>Cancel</AlertDialogCancel>
             <AlertDialogAction
-              onClick={() => { haptic.trigger("warning"); handleDelete() }}
-              className="bg-red-600 hover:bg-red-700 text-white"
+              onClick={async (e) => { 
+                e.preventDefault()
+                haptic.trigger("warning")
+                await handleDelete() 
+              }}
+              className="bg-red-600 hover:bg-red-700 text-white min-w-[80px]"
+              disabled={isDeleting}
             >
-              Delete
+              {isDeleting ? (
+                <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+              ) : (
+                "Delete"
+              )}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>

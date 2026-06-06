@@ -1,5 +1,8 @@
 import type { Response } from 'express'
 import type { AuthRequest } from '../middleware/auth.middleware.js'
+import type { PlanRequest } from '../middleware/plan.middleware.js'
+import { PLAN_LIMITS } from '../lib/plan-limits.js'
+import { getEffectivePlan } from '../middleware/plan.middleware.js'
 import { prisma } from '../lib/prisma.js'
 import { uploadToR2, deleteFromR2, extractKeyFromUrl, presignPhotos, presignPhoto, presignStoredUrl } from '../lib/r2.js'
 import { photoQueue } from '../lib/queue.js'
@@ -14,7 +17,7 @@ import sharp from 'sharp'
  * @route POST /photos/:eventId/upload
  * @access Private
  */
-export async function uploadPhotoController(req: AuthRequest, res: Response) {
+export async function uploadPhotoController(req: PlanRequest, res: Response) {
     try {
         if (!req.user?.id) {
             return res.status(401).json({ message: 'User not authenticated' })
@@ -42,7 +45,34 @@ export async function uploadPhotoController(req: AuthRequest, res: Response) {
             return res.status(403).json({ message: 'You do not have access to this event' })
         }
 
-        // Enforce upload limit for attendees
+        // Look up organizer's plan for this event to get plan-aware limits
+        const organizerPlan = await getEffectivePlan(eventAccess.event.user_id);
+        const organizerLimits = PLAN_LIMITS[organizerPlan];
+
+        // Validate each file is a valid image and gather metadata first
+        const fileData: Array<{ file: Express.Multer.File, photoId: string, tempKey: string, width: number | null, height: number | null }> = []
+        for (const file of files) {
+            try {
+                const metadata = await sharp(file.path).metadata()
+                const photoId = crypto.randomUUID()
+                const ext = file.originalname.split('.').pop()?.toLowerCase() || 'jpg'
+                const tempKey = `temp/${eventId}/${photoId}/raw.${ext}`
+                fileData.push({
+                    file,
+                    photoId,
+                    tempKey,
+                    width: metadata.width || null,
+                    height: metadata.height || null
+                })
+            } catch (error) {
+                try { if (fs.existsSync(file.path)) fs.unlinkSync(file.path) } catch {}
+                return res.status(400).json({
+                    message: `Invalid image file: ${file.originalname}. Only JPEG, PNG, WebP and HEIC images are allowed.`,
+                })
+            }
+        }
+
+        // Enforce upload limit for both organizers and attendees
         const userId = req.user.id
         const result = await prisma.$transaction(async (tx: any) => {
             const current = await tx.eventAccess.findUnique({
@@ -52,22 +82,57 @@ export async function uploadPhotoController(req: AuthRequest, res: Response) {
                         user_id: userId,
                     }
                 },
-                select: { role: true, upload_limit: true }
+                select: { role: true, upload_limit: true, upload_count: true }
             })
             if (!current) throw new Error('Event access not found')
 
-            const actualCount = await tx.photo.count({
-                where: { event_id: eventId, user_id: userId }
-            })
+            const actualCount = current.upload_count
 
-            if (current.role === 'ATTENDEE') {
-                const limit = current.upload_limit ?? eventAccess.event.attendee_upload_limit
-                if (actualCount + files.length > limit) {
-                    return { success: false, current: actualCount, limit, role: current.role }
-                }
+            let limit: number;
+            if (current.role === 'ORGANIZER') {
+                limit = organizerLimits.maxOrganizerUploadsPerEvent;
+            } else {
+                const planLimit = organizerLimits.maxAttendeeUploadsPerEvent;
+                const eventLimit = eventAccess.event.attendee_upload_limit ?? planLimit;
+                limit = current.upload_limit ?? Math.min(eventLimit, planLimit);
             }
 
-            return { success: true, newCount: actualCount + files.length, role: current.role }
+            if (actualCount + files.length > limit) {
+                return { success: false, current: actualCount, limit, role: current.role }
+            }
+
+            // Create DB records atomically
+            const photos = await Promise.all(fileData.map(data => 
+                tx.photo.create({
+                    data: {
+                        id: data.photoId,
+                        event_id: eventId,
+                        user_id: userId,
+                        thumb_url: data.tempKey,
+                        display_url: data.tempKey,
+                        original_url: data.tempKey,
+                        width: data.width,
+                        height: data.height,
+                        processed: false,
+                        is_visible: true,
+                    }
+                })
+            ))
+
+            // Increment quota atomically
+            await tx.eventAccess.update({
+                where: {
+                    event_id_user_id: {
+                        event_id: eventId,
+                        user_id: userId,
+                    }
+                },
+                data: {
+                    upload_count: { increment: files.length }
+                }
+            })
+
+            return { success: true, newCount: actualCount + files.length, role: current.role, limit, photos }
         })
 
         if (!result.success) {
@@ -84,64 +149,29 @@ export async function uploadPhotoController(req: AuthRequest, res: Response) {
 
         ;(eventAccess as any).newUploadCount = result.newCount
         ;(eventAccess as any).role = result.role
+        ;(eventAccess as any).effectiveLimit = result.limit
 
-        // Validate each file is a valid image
-        for (const file of files) {
-            try {
-                await sharp(file.path).metadata()
-            } catch (error) {
-                try { if (fs.existsSync(file.path)) fs.unlinkSync(file.path) } catch {}
-                return res.status(400).json({
-                    message: `Invalid image file: ${file.originalname}. Only JPEG, PNG, WebP and HEIC images are allowed.`,
-                })
-            }
-        }
-
-        // Upload raw files to R2 temp location → DB record → queue worker
-        // No image processing here — that happens async in the worker
+        // Upload raw files to R2 temp location → queue worker
         const uploadedPhotos: any[] = []
 
         try {
-            const uploadPromises = files.map(async (file) => {
-                const photoId = crypto.randomUUID()
-                const ext = file.originalname.split('.').pop()?.toLowerCase() || 'jpg'
-                const tempKey = `temp/${eventId}/${photoId}/raw.${ext}`
-
+            const uploadPromises = fileData.map(async (data, index) => {
                 // Read from disk and upload raw to R2
-                const fileBuffer = fs.readFileSync(file.path)
-                const contentType = file.mimetype || 'image/jpeg'
+                const fileBuffer = fs.readFileSync(data.file.path)
+                const contentType = data.file.mimetype || 'image/jpeg'
 
-                await uploadToR2(tempKey, fileBuffer, contentType)
-
-                // Get dimensions
-                const metadata = await sharp(file.path).metadata()
-
-                // Create DB record — worker will replace keys with processed variant keys
-                const photo = await prisma.photo.create({
-                    data: {
-                        id: photoId,
-                        event_id: eventId,
-                        user_id: req.user!.id,
-                        thumb_url: tempKey,
-                        display_url: tempKey,
-                        original_url: tempKey,
-                        width: metadata.width || null,
-                        height: metadata.height || null,
-                        processed: false,
-                        is_visible: true,
-                    }
-                })
+                await uploadToR2(data.tempKey, fileBuffer, contentType)
 
                 // Queue background processing
                 await photoQueue.add('process-photo', {
-                    photoId: photo.id,
+                    photoId: data.photoId,
                     eventId: eventId,
-                    tempKey: tempKey,
+                    tempKey: data.tempKey,
                 }, {
                     priority: 1,
                 })
 
-                return photo
+                return result.photos![index]
             })
 
             const photos = await Promise.all(uploadPromises)
@@ -162,19 +192,11 @@ export async function uploadPhotoController(req: AuthRequest, res: Response) {
             photos: uploadedPhotos,
         }
 
-        if (userRole === 'ATTENDEE') {
-            const limit = eventAccess.upload_limit ?? eventAccess.event.attendee_upload_limit
-            response.quota = {
-                used: newCount,
-                limit: limit,
-                remaining: limit - newCount,
-            }
-        } else {
-            response.quota = {
-                used: newCount,
-                limit: null,
-                remaining: null,
-            }
+        const effectiveLimit = (eventAccess as any).effectiveLimit
+        response.quota = {
+            used: newCount,
+            limit: effectiveLimit,
+            remaining: effectiveLimit - newCount,
         }
 
         return res.status(201).json(response)

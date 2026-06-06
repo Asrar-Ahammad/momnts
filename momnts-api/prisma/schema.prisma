@@ -33,6 +33,7 @@ model User {
   favourites       Favourite[]
   comments         Comment[]
   join_requests    JoinRequest[]
+  subscription     Subscription?
 }
 
 model Event {
@@ -59,6 +60,11 @@ model Event {
 enum Role {
   ORGANIZER
   ATTENDEE
+}
+
+enum Plan {
+  FREE
+  PRO
 }
 
 model EventAccess {
@@ -209,5 +215,16 @@ model JoinRequest {
 
   @@unique([event_id, user_id])
   @@index([event_id, status])
+}
+
+model Subscription {
+  id         String    @id @default(uuid())
+  user_id    String    @unique
+  plan       Plan      @default(FREE)
+  started_at DateTime  @default(now())
+  expires_at DateTime?
+  is_active  Boolean   @default(true)
+
+  user User @relation(fields: [user_id], references: [id], onDelete: Cascade)
 }
 

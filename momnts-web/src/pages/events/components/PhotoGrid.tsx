@@ -13,7 +13,7 @@ interface PhotoGridProps {
   activeTab: string
   event: { user_id?: string } | null
   onPhotoClick: (index: number) => void
-  onDelete: (photoId: string) => void
+  onDelete: (photoId: string) => Promise<void> | void
   isSelectMode: boolean
   selectedPhotoIds: Set<string>
   onToggleSelect: (photoId: string) => void
