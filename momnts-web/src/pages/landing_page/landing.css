@@ -134,13 +134,17 @@ html.light .landing-root {
   border-bottom: 1px solid var(--lp-navbar-border);
   box-shadow: var(--lp-navbar-shadow);
   transition: all 0.4s cubic-bezier(0.16, 1, 0.3, 1);
+  transform: translate3d(0, 0, 0);
+  -webkit-transform: translate3d(0, 0, 0);
+  will-change: transform, backdrop-filter;
 }
 
 @media (min-width: 768px) {
   .lp-navbar {
     top: 20px;
     left: 50%;
-    transform: translateX(-50%);
+    transform: translateX(-50%) translate3d(0, 0, 0);
+    -webkit-transform: translateX(-50%) translate3d(0, 0, 0);
     width: calc(100% - 48px);
     max-width: 1000px;
     border-radius: var(--lp-radius-pill);
