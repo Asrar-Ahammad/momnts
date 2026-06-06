@@ -79,7 +79,7 @@ const AttendeesModal = ({
   const [requestToReject, setRequestToReject] = useState<{ id: string, name: string } | null>(null)
   const [rejectionReason, setRejectionReason] = useState('')
   const [rejectingRequest, setRejectingRequest] = useState(false)
-  const [approvingById, setApprovingById] = useState<Record<string, boolean>>({})
+  const [processingRequestIds, setProcessingRequestIds] = useState<Record<string, 'approving' | 'rejecting'>>({})
 
   const { data: requests = [], refetch: refetchRequests, isLoading: loadingRequests } = useJoinRequests(
     eventId,
@@ -141,19 +141,23 @@ const AttendeesModal = ({
   }
 
   const handleApproveRequest = async (requestId: string, userName: string) => {
-    if (!eventId || approvingById[requestId]) return
+    if (!eventId || processingRequestIds[requestId]) return
     try {
-      setApprovingById(prev => ({ ...prev, [requestId]: true }))
+      setProcessingRequestIds(prev => ({ ...prev, [requestId]: 'approving' }))
       await eventsApi.handleJoinRequest(eventId, requestId, 'approve')
       toast.success(`${userName}'s request has been approved`)
-      refetchRequests()
+      await refetchRequests()
       if (onRefreshAttendees) {
         onRefreshAttendees()
       }
     } catch (error) {
       toast.error(error instanceof Error ? error.message : 'Failed to approve request')
     } finally {
-      setApprovingById(prev => ({ ...prev, [requestId]: false }))
+      setProcessingRequestIds(prev => {
+        const next = { ...prev }
+        delete next[requestId]
+        return next
+      })
     }
   }
 
@@ -411,17 +415,18 @@ const AttendeesModal = ({
                             size="sm" 
                             className="h-8 text-xs text-green-600 border-green-200 hover:bg-green-50 hover:text-green-700 dark:border-green-900 dark:hover:bg-green-950/20" 
                             onClick={() => handleApproveRequest(request.id, request.user.name)}
-                            disabled={approvingById[request.id]}
+                            disabled={!!processingRequestIds[request.id]}
                           >
-                            {approvingById[request.id] ? 'Approving...' : 'Approve'}
+                            {processingRequestIds[request.id] === 'approving' ? 'Approving...' : 'Approve'}
                           </Button>
                           <Button 
                             variant="outline" 
                             size="sm" 
                             className="h-8 text-xs text-red-600 border-red-200 hover:bg-red-50 hover:text-red-700 dark:border-red-900 dark:hover:bg-red-950/20" 
                             onClick={() => setRequestToReject({ id: request.id, name: request.user.name })}
+                            disabled={!!processingRequestIds[request.id]}
                           >
-                            Reject
+                            {processingRequestIds[request.id] === 'rejecting' ? 'Declining...' : 'Reject'}
                           </Button>
                         </>
                       ) : (
@@ -486,17 +491,25 @@ const AttendeesModal = ({
               disabled={rejectingRequest}
               onClick={async () => {
                 if (!eventId || !requestToReject) return
+                const targetRequestId = requestToReject.id
+                const targetUserName = requestToReject.name
                 try {
                   setRejectingRequest(true)
-                  await eventsApi.handleJoinRequest(eventId, requestToReject.id, 'reject', rejectionReason)
-                  toast.success(`Request from ${requestToReject.name} declined`)
+                  setProcessingRequestIds(prev => ({ ...prev, [targetRequestId]: 'rejecting' }))
                   setRequestToReject(null)
                   setRejectionReason('')
-                  refetchRequests()
+                  await eventsApi.handleJoinRequest(eventId, targetRequestId, 'reject', rejectionReason)
+                  toast.success(`Request from ${targetUserName} declined`)
+                  await refetchRequests()
                 } catch (error) {
                   toast.error(error instanceof Error ? error.message : 'Failed to decline request')
                 } finally {
                   setRejectingRequest(false)
+                  setProcessingRequestIds(prev => {
+                    const next = { ...prev }
+                    delete next[targetRequestId]
+                    return next
+                  })
                 }
               }}
             >

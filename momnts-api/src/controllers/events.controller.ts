@@ -68,7 +68,7 @@ async function generateUniqueInviteCode(): Promise<string> {
 
 async function createEventController(req: AuthRequest, res: Response) {
     try {
-        const { name, date, location, attendeeUploadLimit, attendee_upload_limit, isSecure } = req.body;
+        const { name, date, location, attendeeUploadLimit, attendee_upload_limit, isSecure, allowDownloads } = req.body;
 
         if (!name || !date || !location) {
             return res.status(400).json({
@@ -100,6 +100,7 @@ async function createEventController(req: AuthRequest, res: Response) {
                 user_id: req.user.id,
                 attendee_upload_limit: attendee_upload_limit_parsed,
                 is_secure: typeof isSecure === 'boolean' ? isSecure : false,
+                allow_downloads: typeof allowDownloads === 'boolean' ? allowDownloads : true,
             },
         });
         const eventAccess = await prisma.eventAccess.create({
@@ -527,7 +528,7 @@ async function updateEventDetailsController(req: AuthRequest, res: Response) {
         }
 
         const eventId = req.params.eventId as string
-        const { name, date, location, isActive, isSecure } = req.body
+        const { name, date, location, isActive, isSecure, allowDownloads, regenerateInviteCode } = req.body
 
         const event = await prisma.event.findFirst({
             where: { id: eventId, user_id: req.user.id }
@@ -535,6 +536,11 @@ async function updateEventDetailsController(req: AuthRequest, res: Response) {
 
         if (!event) {
             return res.status(404).json({ message: 'Event not found' })
+        }
+
+        let inviteCode: string | undefined = undefined
+        if (regenerateInviteCode) {
+            inviteCode = await generateUniqueInviteCode()
         }
 
         const updated = await prisma.event.update({
@@ -545,6 +551,8 @@ async function updateEventDetailsController(req: AuthRequest, res: Response) {
                 ...(location && { location }),
                 ...(isActive !== undefined && { is_active: isActive }),
                 ...(isSecure !== undefined && { is_secure: isSecure }),
+                ...(allowDownloads !== undefined && { allow_downloads: allowDownloads }),
+                ...(inviteCode !== undefined && { invite_code: inviteCode }),
             }
         })
 

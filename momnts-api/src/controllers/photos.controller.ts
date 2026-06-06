@@ -441,11 +441,17 @@ export async function downloadPhotoController(req: AuthRequest, res: Response) {
                     event_id: eventId,
                     user_id: req.user.id,
                 }
-            }
+            },
+            include: { event: true }
         })
 
         if (!eventAccess) {
             return res.status(403).json({ message: 'You do not have access to this event' })
+        }
+
+        // Enforce allow_downloads for attendees
+        if (eventAccess.role === 'ATTENDEE' && !eventAccess.event.allow_downloads) {
+            return res.status(403).json({ message: 'Downloading photos is disabled for attendees of this event' })
         }
 
         const photo = await prisma.photo.findUnique({

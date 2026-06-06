@@ -65,7 +65,7 @@ const UploadModal = ({
           <DialogTitle className="text-4xl font-sirage">Upload Photos</DialogTitle>
           <DialogDescription>
             Select photos to upload to this event. Face detection will run automatically.
-            (Select 10 photos in one upload)
+            (Select up to 50 photos in one upload)
           </DialogDescription>
         </DialogHeader>
 
@@ -80,11 +80,10 @@ const UploadModal = ({
           />
           <label htmlFor="photo-upload">
             <div
-              className={`border-2 border-dashed rounded-xl p-8 text-center cursor-pointer transition-colors ${
-                isDragOver
+              className={`border-2 border-dashed rounded-xl p-8 text-center cursor-pointer transition-colors ${isDragOver
                   ? 'border-primary bg-primary/5 dark:bg-primary/10'
                   : 'border-neutral-300 dark:border-neutral-700 hover:bg-neutral-50 dark:hover:bg-neutral-800'
-              }`}
+                }`}
               onDragOver={handleDragOver}
               onDragLeave={handleDragLeave}
               onDrop={handleDrop}
@@ -143,7 +142,7 @@ const UploadModal = ({
               <span>{selectedFiles.length > 0 ? Math.round((fileStatuses.filter(s => s === 'completed').length / selectedFiles.length) * 100) : 0}%</span>
             </div>
             <div className="w-full bg-neutral-100 dark:bg-neutral-800 rounded-full h-2 overflow-hidden">
-              <div 
+              <div
                 className="bg-neutral-900 dark:bg-white h-full rounded-full transition-all duration-300"
                 style={{ width: `${selectedFiles.length > 0 ? (fileStatuses.filter(s => s === 'completed').length / selectedFiles.length) * 100 : 0}%` }}
               />

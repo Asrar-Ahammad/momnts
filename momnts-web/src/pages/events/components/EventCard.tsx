@@ -128,12 +128,12 @@ export const EventCard = ({ event }: EventCardProps) => {
       </div>
 
       {/* Gradient Overlay at the bottom */}
-      <div className="absolute bottom-0 inset-x-0 h-2/3 z-10 pointer-events-none bg-gradient-to-t from-black to-transparent" />
+      <div className="absolute bottom-0 inset-x-0 h-2/3 z-10 pointer-events-none bg-linear-to-t from-black to-transparent" />
 
       {/* Bottom Content Area */}
       <div className="absolute bottom-0 inset-x-0 z-20 p-3.5 sm:p-6">
         <div className="mb-2 sm:mb-4 flex flex-col sm:flex-row sm:justify-between items-start sm:items-end gap-1.5 sm:gap-4">
-            <h2 className="text-base sm:text-4xl font-black text-white tracking-tight leading-tight capitalize line-clamp-1 sm:line-clamp-2 drop-shadow-lg group-hover:text-white transition-colors flex-1 pb-0.5 w-full sm:w-auto">
+            <h2 className="text-sm sm:text-xl font-black text-white tracking-tight leading-tight capitalize line-clamp-1 sm:line-clamp-2 drop-shadow-lg group-hover:text-white transition-colors flex-1 pb-0.5 w-full sm:w-auto">
               {event.name}
             </h2>
             

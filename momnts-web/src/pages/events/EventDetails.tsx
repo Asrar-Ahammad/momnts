@@ -59,7 +59,8 @@ const EventDetails = () => {
     date: '',
     location: '',
     isActive: true,
-    isSecure: true
+    isSecure: true,
+    allowDownloads: true
   })
   const [savingSettings, setSavingSettings] = useState(false)
   const uploadingRef = useRef(false)
@@ -94,13 +95,13 @@ const EventDetails = () => {
         prev?.map((p) =>
           p.id === data.photoId
             ? {
-                ...p,
-                processed: true,
-                thumb_url: data.photo.thumb_url,
-                display_url: data.photo.display_url,
-                original_url: data.photo.original_url,
-                _count: { photo_faces: data.totalFaces },
-              }
+              ...p,
+              processed: true,
+              thumb_url: data.photo.thumb_url,
+              display_url: data.photo.display_url,
+              original_url: data.photo.original_url,
+              _count: { photo_faces: data.totalFaces },
+            }
             : p
         )
       )
@@ -113,13 +114,13 @@ const EventDetails = () => {
           data: prev.data.map((p) =>
             p.id === data.photoId
               ? {
-                  ...p,
-                  processed: true,
-                  thumb_url: data.photo.thumb_url,
-                  display_url: data.photo.display_url,
-                  original_url: data.photo.original_url,
-                  _count: { photo_faces: data.totalFaces },
-                }
+                ...p,
+                processed: true,
+                thumb_url: data.photo.thumb_url,
+                display_url: data.photo.display_url,
+                original_url: data.photo.original_url,
+                _count: { photo_faces: data.totalFaces },
+              }
               : p
           )
         }
@@ -276,6 +277,18 @@ const EventDetails = () => {
       setSearchParams(newParams, { replace: true })
     }
   }, [searchParams, setSearchParams])
+
+  // Disable right-click to prevent photo downloads via context menu
+  useEffect(() => {
+    const handleContextMenu = (e: MouseEvent) => {
+      e.preventDefault()
+    }
+    document.addEventListener('contextmenu', handleContextMenu)
+    return () => {
+      document.removeEventListener('contextmenu', handleContextMenu)
+    }
+  }, [])
+
   const sourcePhotos =
     activeTab === 'your-photos'
       ? myPhotos
@@ -346,6 +359,11 @@ const EventDetails = () => {
   const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = Array.from(e.target.files || [])
     if (files.length > 0) {
+      if (selectedFiles.length + files.length > 50) {
+        toast.error("You can select a maximum of 50 photos per upload.")
+        haptic.trigger("warning")
+        return
+      }
       setSelectedFiles(prev => [...prev, ...files])
       setFileStatuses(prev => [...prev, ...files.map((): FileUploadStatus => 'pending')])
       haptic.trigger("light")
@@ -354,6 +372,12 @@ const EventDetails = () => {
 
   const handleUpload = async () => {
     if (!eventId || selectedFiles.length === 0 || uploadingRef.current) return
+
+    if (selectedFiles.length > 50) {
+      toast.error("A maximum of 50 photos can be uploaded at a time.")
+      haptic.trigger("warning")
+      return
+    }
 
     if (event?.user_role === 'ATTENDEE') {
       const limit = event.attendee_upload_limit
@@ -436,7 +460,8 @@ const EventDetails = () => {
         date: event.date,
         location: event.location,
         isActive: event.is_active,
-        isSecure: event.is_secure
+        isSecure: event.is_secure,
+        allowDownloads: event.allow_downloads
       })
       setSettingsModalOpen(true)
     }
@@ -454,7 +479,8 @@ const EventDetails = () => {
         settingsForm.date,
         settingsForm.location,
         settingsForm.isActive,
-        settingsForm.isSecure
+        settingsForm.isSecure,
+        settingsForm.allowDownloads
       )
       toast.success('Event updated successfully!')
       haptic.trigger("success")
@@ -468,6 +494,30 @@ const EventDetails = () => {
     } finally {
       savingSettingsRef.current = false
       setSavingSettings(false)
+    }
+  }
+
+  const handleRegenerateCode = async () => {
+    if (!eventId) return
+    try {
+      await eventsApi.updateEvent(
+        eventId,
+        settingsForm.name,
+        settingsForm.date,
+        settingsForm.location,
+        settingsForm.isActive,
+        settingsForm.isSecure,
+        settingsForm.allowDownloads,
+        true
+      )
+      toast.success('Invite code regenerated successfully!')
+      haptic.trigger("success")
+      queryClient.invalidateQueries({ queryKey: ['event', eventId] })
+      queryClient.invalidateQueries({ queryKey: ['events'] })
+    } catch (error) {
+      console.error('Failed to regenerate invite code:', error)
+      toast.error(error instanceof Error ? error.message : 'Failed to regenerate invite code')
+      haptic.trigger("error")
     }
   }
 
@@ -576,8 +626,8 @@ const EventDetails = () => {
       const target = e.target
 
       // Only react to the main scroll container (<main> element) or document scroll
-      const isMainScroll = target === document || 
-                           (target instanceof HTMLElement && target.tagName.toLowerCase() === 'main')
+      const isMainScroll = target === document ||
+        (target instanceof HTMLElement && target.tagName.toLowerCase() === 'main')
 
       if (!isMainScroll) return
 
@@ -761,6 +811,8 @@ const EventDetails = () => {
         onSettingsFormChange={setSettingsForm}
         onSave={handleSaveSettings}
         saving={savingSettings}
+        inviteCode={event?.invite_code}
+        onRegenerateCode={handleRegenerateCode}
         onDelete={async () => {
           if (!eventId) return
           try {

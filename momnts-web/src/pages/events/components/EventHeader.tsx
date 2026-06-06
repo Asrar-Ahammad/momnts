@@ -154,10 +154,10 @@ const EventHeader = ({
   useEffect(() => {
     const handleScroll = (e: Event) => {
       const target = e.target
-      
+
       // Only react to the main scroll container (<main> element) or document scroll
-      const isMainScroll = target === document || 
-                           (target instanceof HTMLElement && target.tagName.toLowerCase() === 'main')
+      const isMainScroll = target === document ||
+        (target instanceof HTMLElement && target.tagName.toLowerCase() === 'main')
 
       if (!isMainScroll) return
 
@@ -205,6 +205,28 @@ const EventHeader = ({
   const renderCTA = (fullWidth = false) => {
     // Favourites tab: Download Favourites
     if (activeTab === 'favourites') {
+      const showDownload = isOrganizer || event?.allow_downloads
+      if (!showDownload) {
+        return (
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <div className={fullWidth ? 'w-full' : ''}>
+                <Button
+                  className={`${fullWidth ? 'flex-1 w-full' : ''} h-8 sm:h-9 lg:h-10 px-2.5 sm:px-4 lg:px-8 flex items-center justify-center gap-1 sm:gap-1.5 lg:gap-2 rounded-xl bg-neutral-200 dark:bg-neutral-800 text-neutral-400 cursor-not-allowed text-[11px] sm:text-xs lg:text-sm shrink-0 whitespace-nowrap`}
+                  disabled
+                >
+                  <DownloadSimple size={18} weight="bold" className="w-3.5 h-3.5 sm:w-4 sm:h-4 lg:w-[18px] lg:h-[18px]" />
+                  <span className="hidden sm:inline">Downloads Disabled</span>
+                  <span className="inline sm:hidden">Disabled</span>
+                </Button>
+              </div>
+            </TooltipTrigger>
+            <TooltipContent>
+              <p>Organizer has disabled photo downloads for attendees.</p>
+            </TooltipContent>
+          </Tooltip>
+        )
+      }
       return (
         <Button
           className={`${fullWidth ? 'flex-1 w-full' : ''} h-8 sm:h-9 lg:h-10 px-2.5 sm:px-4 lg:px-8 flex items-center justify-center gap-1 sm:gap-1.5 lg:gap-2 rounded-xl bg-rose-600 hover:bg-rose-700 text-white transition-colors text-[11px] sm:text-xs lg:text-sm shrink-0 whitespace-nowrap`}
@@ -282,11 +304,10 @@ const EventHeader = ({
 
   return (
     <>
-      <div className={`sticky top-0 z-30 bg-white/80 dark:bg-neutral-900/80 backdrop-blur-md border-b border-neutral-200 dark:border-neutral-800 transition-all duration-300 ease-in-out ${
-        visible ? 'translate-y-0 opacity-100' : '-translate-y-full opacity-0 pointer-events-none'
-      }`}>
+      <div className={`sticky top-0 z-30 bg-white/80 dark:bg-neutral-900/80 backdrop-blur-md border-b border-neutral-200 dark:border-neutral-800 transition-all duration-300 ease-in-out ${visible ? 'translate-y-0 opacity-100' : '-translate-y-full opacity-0 pointer-events-none'
+        }`}>
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4 flex flex-col gap-4">
-          
+
           {/* Row 1: Title Section (Left) & Actions Section (Right) */}
           <div className="flex flex-wrap items-center justify-between gap-4 w-full">
             <div className="flex items-center gap-3 sm:gap-4 flex-1 min-w-[200px]">
@@ -416,13 +437,15 @@ const EventHeader = ({
                                   </span>
                                 </DropdownMenuItem>
 
-                                <DropdownMenuItem
-                                  onClick={onToggleSelectMode}
-                                  className="cursor-pointer py-2.5 px-2.5 rounded-lg"
-                                >
-                                  <DownloadSimpleIcon size={16} className="mr-2.5 text-neutral-500" />
-                                  Download Photos
-                                </DropdownMenuItem>
+                                {showGalleryActions && (isOrganizer || event?.allow_downloads) && (
+                                  <DropdownMenuItem
+                                    onClick={onToggleSelectMode}
+                                    className="cursor-pointer py-2.5 px-2.5 rounded-lg"
+                                  >
+                                    <DownloadSimpleIcon size={16} className="mr-2.5 text-neutral-500" />
+                                    Download Photos
+                                  </DropdownMenuItem>
+                                )}
 
                                 {/* Grid Layout toggle */}
                                 <div className="px-2.5 py-2">
@@ -438,11 +461,10 @@ const EventHeader = ({
                                             e.stopPropagation()
                                             onGalleryColumnsChange?.(col)
                                           }}
-                                          className={`relative flex items-center justify-center w-8 h-7 rounded-md transition-all duration-200 cursor-pointer ${
-                                            galleryColumns === col
+                                          className={`relative flex items-center justify-center w-8 h-7 rounded-md transition-all duration-200 cursor-pointer ${galleryColumns === col
                                               ? 'bg-white dark:bg-neutral-700 shadow-sm text-neutral-900 dark:text-neutral-100'
                                               : 'text-neutral-400 dark:text-neutral-500 hover:text-neutral-600 dark:hover:text-neutral-300'
-                                          }`}
+                                            }`}
                                         >
                                           {col === 1 ? (
                                             <SquareIcon size={13} weight="bold" />
@@ -561,19 +583,21 @@ const EventHeader = ({
                             <TooltipContent>Sort Photos</TooltipContent>
                           </Tooltip>
 
-                          <Tooltip>
-                            <TooltipTrigger asChild delay={0}>
-                              <Button
-                                variant="outline"
-                                className="h-9 lg:h-10 w-9 sm:w-auto sm:px-3 lg:px-4 flex items-center justify-center gap-1.5 lg:gap-2 rounded-xl text-xs lg:text-sm shrink-0 whitespace-nowrap"
-                                onClick={onToggleSelectMode}
-                              >
-                                <DownloadSimpleIcon size={18} weight="bold" className="w-4 h-4 lg:w-[18px] lg:h-[18px]" />
-                                <span className="hidden sm:inline">Download</span>
-                              </Button>
-                            </TooltipTrigger>
-                            <TooltipContent>Select Photos to download</TooltipContent>
-                          </Tooltip>
+                          {(isOrganizer || event?.allow_downloads) && (
+                            <Tooltip>
+                              <TooltipTrigger asChild delay={0}>
+                                <Button
+                                  variant="outline"
+                                  className="h-9 lg:h-10 w-9 sm:w-auto sm:px-3 lg:px-4 flex items-center justify-center gap-1.5 lg:gap-2 rounded-xl text-xs lg:text-sm shrink-0 whitespace-nowrap"
+                                  onClick={onToggleSelectMode}
+                                >
+                                  <DownloadSimpleIcon size={18} weight="bold" className="w-4 h-4 lg:w-[18px] lg:h-[18px]" />
+                                  <span className="hidden sm:inline">Download</span>
+                                </Button>
+                              </TooltipTrigger>
+                              <TooltipContent>Select Photos to download</TooltipContent>
+                            </Tooltip>
+                          )}
                         </div>
                       )}
                     </motion.div>

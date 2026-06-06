@@ -18,6 +18,7 @@ export interface EventData {
     event_access: number
   }
   is_secure: boolean
+  allow_downloads: boolean
   pending_request_count?: number
   user_role: string
   event_access?: {
@@ -121,11 +122,11 @@ export const eventsApi = {
     return data.event
   },
 
-  async updateEvent(eventId: string, name: string, date: string, location: string, isActive: boolean, isSecure?: boolean): Promise<EventData> {
+  async updateEvent(eventId: string, name: string, date: string, location: string, isActive: boolean, isSecure?: boolean, allowDownloads?: boolean, regenerateInviteCode?: boolean): Promise<EventData> {
     const response = await apiFetch(`${API_URL}/api/events/${eventId}`, {
       method: "PUT",
       headers: jsonAuthHeaders(),
-      body: JSON.stringify({ name, date, location, isActive, isSecure }),
+      body: JSON.stringify({ name, date, location, isActive, isSecure, allowDownloads, regenerateInviteCode }),
     })
 
     if (!response.ok) {
