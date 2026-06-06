@@ -65,6 +65,12 @@ const Register = () => {
         onSubmit: async ({ value }) => {
             if (isLoadingRef.current) return
 
+            if (!agreed) {
+                toast.error("Please agree to the Terms and Conditions and Privacy Policy")
+                haptic.trigger("error")
+                return
+            }
+
             const isPasswordValid = passwordCriteria.every(c => c.test(value.password))
             if (!isPasswordValid) {
                 toast.error("Password must meet all security criteria")
@@ -307,6 +313,7 @@ const Register = () => {
                                                 className="underline font-medium text-primary hover:opacity-80 inline-flex items-center gap-0.5"
                                             >
                                                 Terms and Conditions
+                                                {openedTerms && <Check size={14} className="text-emerald-500" weight="bold" />}
                                             </a>{" "}
                                             and{" "}
                                             <a
@@ -315,6 +322,7 @@ const Register = () => {
                                                 className="underline font-medium text-primary hover:opacity-80 inline-flex items-center gap-0.5"
                                             >
                                                 Privacy Policy
+                                                {openedPrivacy && <Check size={14} className="text-emerald-500" weight="bold" />}
                                             </a>
                                         </label>
                                     </div>
