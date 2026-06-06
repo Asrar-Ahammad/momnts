@@ -71,7 +71,7 @@ export const EventCard = ({ event }: EventCardProps) => {
       tabIndex={0}
       role="button"
       aria-label={`View details for event: ${event.name}`}
-      className="group cursor-pointer w-full relative rounded-[32px] overflow-hidden shadow-sm hover:shadow-2xl border border-neutral-100 dark:border-neutral-800 transition-[box-shadow,border-color] duration-300 focus:outline-none focus:ring-2 focus:ring-neutral-400 dark:focus:ring-neutral-500 aspect-[4/5] sm:aspect-video"
+      className="group cursor-pointer w-full relative rounded-[24px] sm:rounded-[32px] overflow-hidden shadow-sm hover:shadow-2xl border border-neutral-100 dark:border-neutral-800 transition-[box-shadow,border-color] duration-300 focus:outline-none focus:ring-2 focus:ring-neutral-400 dark:focus:ring-neutral-500 aspect-square sm:aspect-video"
     >
       {/* Background Section */}
       <div className="absolute inset-0 z-0">
@@ -110,19 +110,19 @@ export const EventCard = ({ event }: EventCardProps) => {
       </div>
 
       {/* Top Status & Role Badges */}
-      <div className="absolute top-4 left-4 right-4 flex justify-between items-center z-20">
-        <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-black/20 backdrop-blur-md border border-white/20 text-white text-[10px] font-bold uppercase tracking-widest">
-          {isOrganizer ? <Crown weight="fill" className="text-amber-300" /> : <User weight="bold" />}
+      <div className="absolute top-2.5 sm:top-4 left-2.5 sm:left-4 right-2.5 sm:right-4 flex justify-between items-center z-20">
+        <div className="flex items-center gap-1 sm:gap-1.5 px-2 sm:px-3 py-1 sm:py-1.5 rounded-full bg-black/20 backdrop-blur-md border border-white/20 text-white text-[8px] sm:text-[10px] font-bold uppercase tracking-widest">
+          {isOrganizer ? <Crown weight="fill" className="text-amber-300 text-[10px] sm:text-xs" /> : <User weight="bold" />}
           {isOrganizer ? 'Organizer' : 'Attendee'}
         </div>
         
         <div className={cn(
-          "flex items-center gap-1.5 px-3 py-1.5 rounded-full backdrop-blur-md border text-[10px] font-bold uppercase tracking-widest",
+          "flex items-center gap-1 sm:gap-1.5 px-2 sm:px-3 py-1 sm:py-1.5 rounded-full backdrop-blur-md border text-[8px] sm:text-[10px] font-bold uppercase tracking-widest",
           event.is_active 
             ? "bg-emerald-500/30 border-emerald-500/30 text-emerald-100" 
             : "bg-red-500/30 border-red-500/30 text-red-100"
         )}>
-          <span className={cn("h-1.5 w-1.5 rounded-full animate-pulse", event.is_active ? "bg-emerald-400" : "bg-red-400")} />
+          <span className={cn("h-1 sm:h-1.5 w-1 sm:w-1.5 rounded-full animate-pulse", event.is_active ? "bg-emerald-400" : "bg-red-400")} />
           {event.is_active ? 'Live' : 'Closed'}
         </div>
       </div>
@@ -131,66 +131,60 @@ export const EventCard = ({ event }: EventCardProps) => {
       <div className="absolute bottom-0 inset-x-0 h-2/3 z-10 pointer-events-none bg-gradient-to-t from-black to-transparent" />
 
       {/* Bottom Content Area */}
-      <div className="absolute bottom-0 inset-x-0 z-20 p-6">
-        <div className="mb-4 flex flex-col sm:flex-row sm:justify-between items-start sm:items-end gap-3 sm:gap-4">
-            <h2 className="text-3xl sm:text-4xl font-black text-white tracking-tight leading-tight capitalize line-clamp-2 drop-shadow-lg group-hover:text-white transition-colors flex-1 pb-1 w-full sm:w-auto">
+      <div className="absolute bottom-0 inset-x-0 z-20 p-3.5 sm:p-6">
+        <div className="mb-2 sm:mb-4 flex flex-col sm:flex-row sm:justify-between items-start sm:items-end gap-1.5 sm:gap-4">
+            <h2 className="text-base sm:text-4xl font-black text-white tracking-tight leading-tight capitalize line-clamp-1 sm:line-clamp-2 drop-shadow-lg group-hover:text-white transition-colors flex-1 pb-0.5 w-full sm:w-auto">
               {event.name}
             </h2>
             
-            <div className="flex flex-row flex-wrap sm:flex-col items-center sm:items-end gap-2 shrink-0">
-              <div className="flex items-center gap-2 text-neutral-200 text-xs sm:text-sm font-medium">
+            <div className="flex flex-row flex-wrap sm:flex-col items-center sm:items-end gap-1.5 sm:gap-2 shrink-0">
+              <div className="flex items-center gap-1 sm:gap-2 text-neutral-200 text-[10px] sm:text-sm font-medium">
+                <MapPin size={10} weight="bold" className="text-white shrink-0" />
                 <span className="capitalize line-clamp-1">{event.location}</span>
-                <div className="p-1 sm:p-1.5 rounded-lg bg-white/10 backdrop-blur-sm hidden sm:block">
-                  <MapPin size={14} weight="bold" className="text-white" />
-                </div>
-                <MapPin size={14} weight="bold" className="text-white sm:hidden order-first" />
               </div>
-              <div className="flex items-center gap-2 text-neutral-200 text-xs sm:text-sm font-medium">
+              <div className="flex items-center gap-1 sm:gap-2 text-neutral-200 text-[10px] sm:text-sm font-medium">
+                <CalendarDots size={10} weight="bold" className="text-white shrink-0" />
                 <span>{format(new Date(event.date), 'MMM dd, yyyy')}</span>
-                <div className="p-1 sm:p-1.5 rounded-lg bg-white/10 backdrop-blur-sm hidden sm:block">
-                  <CalendarDots size={14} weight="bold" className="text-white" />
-                </div>
-                <CalendarDots size={14} weight="bold" className="text-white sm:hidden order-first" />
               </div>
             </div>
         </div>
 
-          {/* Footer Metrics & Action */}
-          <div className="flex items-center justify-between pt-4 border-t border-white/20">
-            <div className="flex items-center gap-2">
-              <div className="flex -space-x-2.5">
-                {event.event_access?.slice(0, 3).map((access) => (
-                  <div key={access.user.id} className="relative">
-                    <div className="w-8 h-8 rounded-full border-2 border-neutral-900 bg-neutral-800 flex items-center justify-center overflow-hidden shadow-sm">
-                      {access.user.selfie_url ? (
-                        <img 
-                          src={access.user.selfie_url} 
-                          alt={access.user.name} 
-                          loading="lazy"
-                          className="w-full h-full object-cover transition-transform duration-300 group-hover:scale-110" 
-                        />
-                      ) : (
-                        <div className="bg-neutral-800 w-full h-full flex items-center justify-center">
-                          <User size={14} weight="bold" className="text-neutral-400" />
-                        </div>
-                      )}
-                    </div>
+        {/* Footer Metrics & Action */}
+        <div className="flex items-center justify-between pt-2.5 sm:pt-4 border-t border-white/20">
+          <div className="flex items-center gap-2">
+            <div className="flex -space-x-1.5 sm:-space-x-2.5">
+              {event.event_access?.slice(0, 3).map((access) => (
+                <div key={access.user.id} className="relative">
+                  <div className="w-5 h-5 sm:w-8 sm:h-8 rounded-full border border-neutral-900 bg-neutral-800 flex items-center justify-center overflow-hidden shadow-sm">
+                    {access.user.selfie_url ? (
+                      <img 
+                        src={access.user.selfie_url} 
+                        alt={access.user.name} 
+                        loading="lazy"
+                        className="w-full h-full object-cover transition-transform duration-300 group-hover:scale-110" 
+                      />
+                    ) : (
+                      <div className="bg-neutral-800 w-full h-full flex items-center justify-center">
+                        <User size={10} weight="bold" className="text-neutral-400" />
+                      </div>
+                    )}
                   </div>
-                ))}
-                {(event._count?.event_access || event.event_access?.length || 0) > 3 && (
-                  <div className="w-8 h-8 rounded-full border-2 border-neutral-900 bg-neutral-800 flex items-center justify-center text-[10px] font-bold text-neutral-400 shadow-sm">
-                    +{(event._count?.event_access || event.event_access?.length || 0) - Math.min(3, event.event_access?.length || 0)}
-                  </div>
-                )}
-              </div>
+                </div>
+              ))}
+              {(event._count?.event_access || event.event_access?.length || 0) > 3 && (
+                <div className="w-5 h-5 sm:w-8 sm:h-8 rounded-full border border-neutral-900 bg-neutral-800 flex items-center justify-center text-[8px] sm:text-[10px] font-bold text-neutral-400 shadow-sm">
+                  +{(event._count?.event_access || event.event_access?.length || 0) - Math.min(3, event.event_access?.length || 0)}
+                </div>
+              )}
             </div>
+          </div>
 
-            <Button 
-              className="rounded-full h-10 px-5 bg-white text-neutral-900 hover:bg-neutral-200 hover:scale-105 transition-all duration-300 shadow-lg shadow-black/20 group/btn"
-            >
-              <span className="mr-2">Gallery</span>
-              <ArrowRight size={14} weight="bold" className="group-hover/btn:translate-x-1 transition-transform" />
-            </Button>
+          <Button 
+            className="rounded-full h-8 sm:h-10 px-3 sm:px-5 bg-white text-neutral-900 hover:bg-neutral-200 hover:scale-105 transition-all duration-300 shadow-lg shadow-black/20 group/btn hidden sm:flex"
+          >
+            <span className="mr-2">Gallery</span>
+            <ArrowRight size={14} weight="bold" className="group-hover/btn:translate-x-1 transition-transform" />
+          </Button>
         </div>
       </div>
     </motion.div>

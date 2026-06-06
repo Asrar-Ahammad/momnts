@@ -6,9 +6,6 @@ import { Calendar } from '../../components/ui/calendar'
 import { format } from 'date-fns'
 import { 
   CalendarIcon, 
-  Plus, 
-  ArrowsDownUp, 
-  MagnifyingGlass, 
   Ticket, 
   Faders, 
   CaretDown, 
@@ -17,7 +14,10 @@ import {
   SquaresFour,
   Rows,
   CakeIcon,
-  CircleNotch
+  CircleNotch,
+  MagnifyingGlassIcon,
+  PlusIcon,
+  ArrowsDownUpIcon
 } from '@phosphor-icons/react'
 import { Tabs, TabsList, TabsTrigger } from '../../components/ui/tabs'
 import { 
@@ -207,7 +207,7 @@ const Events = () => {
         <h1 className="text-6xl font-bold font-sirage select-none">Events</h1>
         <div className="flex items-center gap-3">
           <Button variant="outline" className="cursor-pointer px-4 rounded-full group flex items-center justify-center gap-2" onClick={() => setCreateModalOpen(true)}>
-            <Plus size={16} weight="bold" className="" />
+            <PlusIcon size={16} weight="bold" className="" />
             Create Event
           </Button>
           <Button className="cursor-pointer rounded-full px-4 bg-black dark:bg-white dark:hover:bg-white/80 group flex items-center justify-center gap-2" onClick={() => setJoinModalOpen(true)}>
@@ -221,13 +221,13 @@ const Events = () => {
       <div className="flex items-center flex-wrap gap-2 px-6">
         <div className="flex-1 max-w-md">
           <div className="relative">
-            <MagnifyingGlass className="absolute left-3 top-1/2 -translate-y-1/2 text-neutral-400" size={18} />
+            <MagnifyingGlassIcon className="absolute left-3 top-1/2 -translate-y-1/2 text-neutral-400" size={18} />
             <Input
               ref={searchInputRef}
-              placeholder="Search events by name..."
+              placeholder="Search events..."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              className="pl-9 pr-4 sm:pl-10 sm:pr-12 w-full rounded-full"
+              className="pl-9 pr-4 sm:pl-10 sm:pr-12 w-full rounded-full placeholder:text-sm"
             />
             <kbd className="absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none hidden sm:inline-flex h-5 items-center rounded border border-neutral-200 bg-neutral-100 px-1.5 font-mono text-[11px] font-medium text-neutral-500 dark:border-neutral-700 dark:bg-neutral-800 dark:text-neutral-400">
               /
@@ -257,7 +257,7 @@ const Events = () => {
                   className="cursor-pointer py-2 px-2.5 rounded-lg flex items-center justify-between"
                 >
                   <span className="flex items-center gap-2">
-                    <ArrowsDownUp size={16} />
+                    <ArrowsDownUpIcon size={16} />
                     Sort by Date
                   </span>
                   <span className="text-xs text-neutral-500 font-medium font-mono uppercase">
@@ -337,7 +337,7 @@ const Events = () => {
             onClick={() => setSortOrder(sortOrder === 'asc' ? 'desc' : 'asc')}
             className="flex items-center gap-2 cursor-pointer"
           >
-            <ArrowsDownUp size={16} weight="bold" />
+            <ArrowsDownUpIcon size={16} weight="bold" />
             Sort by Date
           </Button>
 
@@ -445,8 +445,8 @@ const Events = () => {
 
       {/* Events Grid/List */}
       <div className={viewMode === 'grid' 
-        ? "grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 px-6" 
-        : "flex flex-col gap-4 px-6"
+        ? "grid grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-6 px-4 sm:px-6" 
+        : "flex flex-col gap-4 px-4 sm:px-6"
       }>
         {visibleEvents.map((event) => (
           viewMode === 'grid' 

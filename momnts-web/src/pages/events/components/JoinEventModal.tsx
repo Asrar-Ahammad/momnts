@@ -55,6 +55,7 @@ export const JoinEventModal = ({ open, onOpenChange, onEventJoined, initialInvit
   const [scannerError, setScannerError] = useState<string | null>(null)
   const scannerRef = useRef<Html5Qrcode | null>(null)
   const scanHandledRef = useRef(false)
+  const isScannerActiveRef = useRef(false)
   const scannerContainerId = 'qr-reader-container'
 
   useEffect(() => {
@@ -73,41 +74,64 @@ export const JoinEventModal = ({ open, onOpenChange, onEventJoined, initialInvit
   }, [open])
 
   const stopScanner = useCallback(async () => {
-    if (scannerRef.current) {
+    isScannerActiveRef.current = false
+    const scanner = scannerRef.current
+    if (scanner) {
       try {
-        const state = scannerRef.current.getState()
+        const state = scanner.getState()
         // State 2 = SCANNING, 3 = PAUSED
         if (state === 2 || state === 3) {
-          await scannerRef.current.stop()
+          await scanner.stop()
         }
       } catch (err) {
         // Ignore stop errors
       }
       try {
-        scannerRef.current.clear()
+        scanner.clear()
       } catch {
         // Ignore clear errors
       }
-      scannerRef.current = null
+      if (scannerRef.current === scanner) {
+        scannerRef.current = null
+      }
     }
   }, [])
 
   const startScanner = useCallback(async () => {
     setScannerError(null)
     scanHandledRef.current = false
+    isScannerActiveRef.current = true
 
-    // Small delay to let the DOM render the container
-    await new Promise(resolve => setTimeout(resolve, 100))
+    // Wait for the container to be mounted in the DOM (polling up to 1 second to account for AnimatePresence mode="wait" transition)
+    let container = null
+    for (let i = 0; i < 20; i++) {
+      container = document.getElementById(scannerContainerId)
+      if (container) break
+      await new Promise(resolve => setTimeout(resolve, 50))
+      if (!isScannerActiveRef.current) return
+    }
 
-    const container = document.getElementById(scannerContainerId)
     if (!container) {
       setScannerError('Scanner container not found')
       return
     }
 
+    let scanner: Html5Qrcode | null = null
     try {
-      const scanner = new Html5Qrcode(scannerContainerId)
+      scanner = new Html5Qrcode(scannerContainerId)
       scannerRef.current = scanner
+
+      if (!isScannerActiveRef.current) {
+        try {
+          scanner.clear()
+        } catch {
+          // Ignore clear errors
+        }
+        if (scannerRef.current === scanner) {
+          scannerRef.current = null
+        }
+        return
+      }
 
       await scanner.start(
         { facingMode: 'environment' },
@@ -119,6 +143,7 @@ export const JoinEventModal = ({ open, onOpenChange, onEventJoined, initialInvit
         (decodedText) => {
           // Guard: callback fires every frame until camera stops
           if (scanHandledRef.current) return
+          if (!isScannerActiveRef.current) return
 
           const code = extractInviteCode(decodedText)
           if (code) {
@@ -135,7 +160,48 @@ export const JoinEventModal = ({ open, onOpenChange, onEventJoined, initialInvit
           // QR scan failure callback — ignore (fires every frame without a QR)
         }
       )
+
+      // Double check if it got stopped while starting
+      if (!isScannerActiveRef.current) {
+        try {
+          const state = scanner.getState()
+          if (state === 2 || state === 3) {
+            await scanner.stop()
+          }
+        } catch {
+          // Ignore stop errors
+        }
+        try {
+          scanner.clear()
+        } catch {
+          // Ignore clear errors
+        }
+        if (scannerRef.current === scanner) {
+          scannerRef.current = null
+        }
+      }
     } catch (err) {
+      if (scanner) {
+        try {
+          const state = scanner.getState()
+          if (state === 2 || state === 3) {
+            await scanner.stop()
+          }
+        } catch {
+          // Ignore stop errors
+        }
+        try {
+          scanner.clear()
+        } catch {
+          // Ignore clear errors
+        }
+        if (scannerRef.current === scanner) {
+          scannerRef.current = null
+        }
+      }
+
+      if (!isScannerActiveRef.current) return
+
       console.error('QR Scanner error:', err)
       const message = err instanceof Error ? err.message : String(err)
 

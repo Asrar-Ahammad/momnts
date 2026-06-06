@@ -56,6 +56,7 @@ import {
   ShareNetwork,
   Lock,
   Globe,
+  SquareIcon,
 } from '@phosphor-icons/react'
 import { EventData } from '../../../features/events/services/events.api'
 import { toast } from 'sonner'
@@ -444,7 +445,7 @@ const EventHeader = ({
                                           }`}
                                         >
                                           {col === 1 ? (
-                                            <Columns size={13} weight="bold" />
+                                            <SquareIcon size={13} weight="bold" />
                                           ) : col === 2 ? (
                                             <div className="flex gap-[2px]">
                                               <div className="w-[4px] h-[10px] rounded-[1px] bg-current" />
