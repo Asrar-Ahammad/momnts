@@ -83,7 +83,7 @@ const Navbar = ({ showProgress = false }: NavbarProps = {}) => {
   }, [])
 
   return (
-    <nav ref={navRef} className={`lp-navbar ${scrolled ? 'scrolled' : ''}`}>
+    <nav ref={navRef} className={`lp-navbar backdrop-blur-xl ${scrolled ? 'scrolled' : ''}`}>
       <div className="lp-navbar-inner">
         <Link to="/" className="lp-logo lp-nav-item">
           Momnts

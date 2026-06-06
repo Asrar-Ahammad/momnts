@@ -128,14 +128,9 @@ html.light .landing-root {
   z-index: 100;
   padding: 12px 24px;
   background: var(--lp-navbar-bg);
-  backdrop-filter: blur(16px);
-  -webkit-backdrop-filter: blur(16px);
   border-bottom: 1px solid var(--lp-navbar-border);
   box-shadow: var(--lp-navbar-shadow);
   transition: all 0.4s cubic-bezier(0.16, 1, 0.3, 1);
-  transform: translate3d(0, 0, 0);
-  -webkit-transform: translate3d(0, 0, 0);
-  will-change: transform, backdrop-filter;
 }
 
 @media (min-width: 768px) {
@@ -213,11 +208,28 @@ html.light .landing-root {
 .lp-nav-btn--primary {
   background: var(--lp-accent-color);
   color: #ffffff;
+  position: relative;
+}
+
+.lp-nav-btn--primary::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: var(--lp-accent-color);
+  filter: blur(20px);
+  opacity: 0;
+  transition: opacity 0.4s ease;
+  z-index: -1;
+  border-radius: inherit;
 }
 
 .lp-nav-btn--primary:hover {
   transform: translateY(-2px);
-  box-shadow: 0 8px 20px var(--lp-glow);
+  box-shadow: 0 4px 15px var(--lp-glow);
+}
+
+.lp-nav-btn--primary:hover::before {
+  opacity: 0.65;
 }
 
 /* ─── Hero Section ─── */
