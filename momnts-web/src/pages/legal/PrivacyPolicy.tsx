@@ -1,10 +1,12 @@
 import { useEffect, useLayoutEffect, useState } from "react"
+import { useNavigate } from "react-router"
 import Navbar from "../landing_page/Navbar"
 import Footer from "../landing_page/Footer"
-import { Shield, CaretUp } from "@phosphor-icons/react"
+import { Shield, CaretUp, ArrowLeft } from "@phosphor-icons/react"
 import "../landing_page/landing.css"
 
 const PrivacyPolicy = () => {
+  const navigate = useNavigate()
   const [showScrollTop, setShowScrollTop] = useState(false)
 
   useEffect(() => {
@@ -43,6 +45,21 @@ const PrivacyPolicy = () => {
           <div className="bg-[var(--lp-gradient-card)] border border-[var(--lp-border)] rounded-[var(--lp-radius-lg)] p-8 md:p-12 shadow-sm backdrop-blur-md">
             
             <div className="flex items-center gap-3 mb-6 text-violet-500 dark:text-violet-400">
+              <button 
+                onClick={() => {
+                  if (window.history.length > 1) {
+                    navigate(-1)
+                  } else if (window.opener) {
+                    window.close()
+                  } else {
+                    navigate('/')
+                  }
+                }}
+                className="p-2 -ml-2 rounded-full hover:bg-violet-500/10 transition-colors cursor-pointer"
+                aria-label="Go back"
+              >
+                <ArrowLeft size={24} weight="bold" />
+              </button>
               <Shield size={32} weight="fill" />
               <span className="text-sm font-semibold uppercase tracking-wider">Legal Document</span>
             </div>
