@@ -1,5 +1,5 @@
 import { Outlet, useNavigate, useLocation, Link } from 'react-router';
-import { House, Ticket, User, UserCircleDashed, Lightning } from "@phosphor-icons/react"
+import { LightningIcon, UserCircleDashedIcon, UserIcon, CakeIcon, HouseIcon } from "@phosphor-icons/react"
 import { motion, AnimatePresence } from 'framer-motion'
 import { cn } from '../lib/utils'
 import { ThemeToggle } from '../components/theme-toggle'
@@ -79,19 +79,19 @@ const DashboardLayout = () => {
   const navItems = [
     {
       title: 'Home',
-      icon: <House size={22} weight={location.pathname === '/dashboard' ? "fill" : "regular"} />,
+      icon: <HouseIcon size={22} weight={location.pathname === '/dashboard' ? "fill" : "regular"} />,
       path: '/dashboard',
       active: location.pathname === '/dashboard',
     },
     {
       title: 'Events',
-      icon: <Ticket size={22} weight={location.pathname.startsWith('/events') ? "fill" : "regular"} />,
+      icon: <CakeIcon size={22} weight={location.pathname.startsWith('/events') ? "fill" : "regular"} />,
       path: '/events',
       active: location.pathname.startsWith('/events'),
     },
     {
       title: 'Profile',
-      icon: <User size={22} weight={location.pathname === '/profile' ? "fill" : "regular"} />,
+      icon: <UserIcon size={22} weight={location.pathname === '/profile' ? "fill" : "regular"} />,
       path: '/profile',
       active: location.pathname === '/profile',
     },
@@ -131,7 +131,7 @@ const DashboardLayout = () => {
             >
               Momnts
             </Link>
-            <Badge variant="secondary" className='ml-2 select-none text-neutral-600 dark:text-neutral-300'>v 1.0</Badge>
+            <Badge variant="secondary" className='ml-2 select-none text-neutral-600 dark:text-neutral-300 text-[8px]'>v 1.0</Badge>
             <Link
               to="/pricing"
               className={`ml-1.5 select-none px-2.5 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider transition-all ${
@@ -142,7 +142,7 @@ const DashboardLayout = () => {
             >
               {isPro ? (
                 <span className="flex items-center gap-0.5">
-                  <Lightning size={12} weight="fill" /> Pro
+                  <LightningIcon size={12} weight="fill" /> Pro
                 </span>
               ) : (
                 'Free'
@@ -197,7 +197,7 @@ const DashboardLayout = () => {
                   className="w-9 h-9 rounded-full flex items-center justify-center bg-neutral-100 dark:bg-neutral-800 cursor-pointer transition-transform hover:scale-105"
                   onClick={() => navigate('/profile')}
                 >
-                  <UserCircleDashed size={22} className="text-neutral-500" />
+                  <UserCircleDashedIcon size={22} className="text-neutral-500" />
                 </div>
               )}
             </div>

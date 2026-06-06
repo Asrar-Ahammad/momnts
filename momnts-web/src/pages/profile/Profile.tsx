@@ -28,7 +28,6 @@ import {
   UserCircle,
   Devices,
   Check,
-  Trash,
   SmileyXEyesIcon,
   Gear,
   Lightning
