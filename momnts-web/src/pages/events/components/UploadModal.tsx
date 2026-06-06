@@ -25,6 +25,9 @@ interface UploadModalProps {
   uploading: boolean
   fileStatuses: FileUploadStatus[]
   onCancelUpload?: () => void
+  userRole?: 'ADMIN' | 'ATTENDEE' | 'OWNER' | string
+  userUploadCount?: number
+  uploadLimit?: number
 }
 
 const UploadModal = ({
@@ -36,7 +39,10 @@ const UploadModal = ({
   onUpload,
   uploading,
   fileStatuses,
-  onCancelUpload
+  onCancelUpload,
+  userRole,
+  userUploadCount,
+  uploadLimit
 }: UploadModalProps) => {
   const [isDragOver, setIsDragOver] = useState(false)
   const [showCancelConfirm, setShowCancelConfirm] = useState(false)
@@ -83,7 +89,14 @@ const UploadModal = ({
     <Dialog open={open} onOpenChange={handleDialogOpenChange}>
       <DialogContent className="sm:max-w-md">
         <DialogHeader>
-          <DialogTitle className="text-4xl font-sirage">Upload Photos</DialogTitle>
+          <div className="flex flex-row items-start justify-between pr-6 gap-4">
+            <DialogTitle className="text-4xl font-sirage leading-[1.1]">Upload Photos</DialogTitle>
+            {userRole === 'ATTENDEE' && uploadLimit !== undefined && uploadLimit > 0 && userUploadCount !== undefined && (
+              <span className="text-xs font-sans font-medium text-neutral-600 dark:text-neutral-400 bg-neutral-100 dark:bg-neutral-800 px-3 py-1.5 rounded-full border border-neutral-200 dark:border-neutral-700 whitespace-nowrap shrink-0 mt-1.5">
+                {userUploadCount} / {uploadLimit} uploads used
+              </span>
+            )}
+          </div>
           <DialogDescription>
             Select photos to upload to this event. Face detection will run automatically.
             (Select up to 50 photos in one upload)

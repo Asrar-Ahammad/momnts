@@ -806,6 +806,9 @@ const EventDetails = () => {
         onCancelUpload={handleCancelUpload}
         uploading={uploading}
         fileStatuses={fileStatuses}
+        userRole={event?.user_role}
+        userUploadCount={photos.filter(p => p.user_id === user?.id || p.user?.id === user?.id).length}
+        uploadLimit={event?.attendee_upload_limit}
       />
 
       <AttendeesModal
