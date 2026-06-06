@@ -8,6 +8,39 @@ export interface PlanRequest extends AuthRequest {
   planLimits?: PlanLimits;
 }
 
+export async function getEffectivePlan(userId: string): Promise<PlanType> {
+  try {
+    const subscription = await prisma.subscription.findUnique({
+      where: { user_id: userId },
+    });
+
+    if (subscription && subscription.is_active) {
+      if (
+        subscription.expires_at &&
+        new Date(subscription.expires_at) < new Date()
+      ) {
+        // Expired — mark inactive safely
+        await prisma.subscription.updateMany({
+          where: { id: subscription.id, is_active: true },
+          data: { is_active: false },
+        });
+        return "FREE";
+      } else {
+        const plan = subscription.plan;
+        if (plan in PLAN_LIMITS) {
+          return plan as PlanType;
+        } else {
+          console.warn(`[getEffectivePlan] Invalid plan type in DB: ${plan}`);
+          return "FREE";
+        }
+      }
+    }
+  } catch (error) {
+    console.error("[getEffectivePlan] Error looking up plan:", error);
+  }
+  return "FREE";
+}
+
 /**
  * @name attachPlan
  * @description Middleware that attaches the user's plan and limits to the request.
@@ -19,45 +52,14 @@ export async function attachPlan(
   res: Response,
   next: NextFunction
 ) {
-  try {
-    if (!req.user?.id) {
-      req.plan = "FREE";
-      req.planLimits = PLAN_LIMITS.FREE;
-      return next();
-    }
-
-    const subscription = await prisma.subscription.findUnique({
-      where: { user_id: req.user.id },
-    });
-
-    // Determine effective plan
-    let plan: PlanType = "FREE";
-
-    if (subscription && subscription.is_active) {
-      // Check expiry
-      if (
-        subscription.expires_at &&
-        new Date(subscription.expires_at) < new Date()
-      ) {
-        // Expired — mark inactive
-        await prisma.subscription.update({
-          where: { id: subscription.id },
-          data: { is_active: false },
-        });
-        plan = "FREE";
-      } else {
-        plan = subscription.plan as PlanType;
-      }
-    }
-
-    req.plan = plan;
-    req.planLimits = PLAN_LIMITS[plan];
-    next();
-  } catch (error) {
-    // Don't block request on plan lookup failure — default to FREE
-    console.error("[Plan Middleware] Error looking up plan:", error);
+  if (!req.user?.id) {
     req.plan = "FREE";
     req.planLimits = PLAN_LIMITS.FREE;
-    next();
+    return next();
   }
+
+  const plan = await getEffectivePlan(req.user.id);
+  req.plan = plan;
+  req.planLimits = PLAN_LIMITS[plan];
+  next();
 }

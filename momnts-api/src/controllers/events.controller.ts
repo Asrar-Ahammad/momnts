@@ -3,6 +3,7 @@ import { prisma } from "../lib/prisma.js";
 import type { AuthRequest } from "../middleware/auth.middleware.js";
 import type { PlanRequest } from "../middleware/plan.middleware.js";
 import { PLAN_LIMITS } from "../lib/plan-limits.js";
+import { getEffectivePlan } from "../middleware/plan.middleware.js";
 import { JoinRequestStatus } from "../generated/prisma/index.js";
 import crypto from 'crypto'
 import { matchingQueue } from "../lib/queue.js";
@@ -299,10 +300,7 @@ async function joinEventController(req: PlanRequest, res: Response) {
         }
 
         // --- Plan limit: max attendees per event (check organizer's plan) ---
-        const organizerSub = await prisma.subscription.findUnique({
-            where: { user_id: event.user_id }
-        });
-        const organizerPlan = (organizerSub?.is_active && organizerSub?.plan === 'PRO') ? 'PRO' : 'FREE';
+        const organizerPlan = await getEffectivePlan(event.user_id);
         const organizerLimits = PLAN_LIMITS[organizerPlan];
         const currentAttendeeCount = await prisma.eventAccess.count({
             where: { event_id: event.id }

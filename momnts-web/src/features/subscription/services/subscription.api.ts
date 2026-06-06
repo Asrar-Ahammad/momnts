@@ -46,12 +46,12 @@ export const subscriptionApi = {
       headers: authHeaders(),
     })
 
+    const body = await response.json()
     if (!response.ok) {
-      const error = await response.json()
-      throw new Error(error.message || "Failed to fetch subscription")
+      throw new Error(body.message || "Failed to fetch subscription")
     }
 
-    return response.json()
+    return body
   },
 
   async getUsage(): Promise<UsageData> {
@@ -59,11 +59,11 @@ export const subscriptionApi = {
       headers: authHeaders(),
     })
 
+    const body = await response.json()
     if (!response.ok) {
-      const error = await response.json()
-      throw new Error(error.message || "Failed to fetch usage")
+      throw new Error(body.message || "Failed to fetch usage")
     }
 
-    return response.json()
+    return body
   },
 }

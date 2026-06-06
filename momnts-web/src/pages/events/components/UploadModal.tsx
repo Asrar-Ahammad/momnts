@@ -71,8 +71,16 @@ const UploadModal = ({
       onFileSelect(syntheticEvent)
     }
   }
+  const handleDialogOpenChange = (newOpen: boolean) => {
+    if (!newOpen && uploading) {
+      setShowCancelConfirm(true)
+    } else {
+      onOpenChange(newOpen)
+    }
+  }
+
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
+    <Dialog open={open} onOpenChange={handleDialogOpenChange}>
       <DialogContent className="sm:max-w-md">
         <DialogHeader>
           <DialogTitle className="text-4xl font-sirage">Upload Photos</DialogTitle>

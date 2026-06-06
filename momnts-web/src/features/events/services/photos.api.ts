@@ -100,27 +100,21 @@ export const photosApi = {
         formData.append('photos', file)
       })
 
-      try {
-        // Use AbortController for timeout, linked with the passed signal
-        const controller = new AbortController()
-        const timeoutId = setTimeout(() => controller.abort(), TIMEOUT_MS)
-        const onAbort = () => controller.abort()
-        
-        if (signal) {
-          signal.addEventListener('abort', onAbort)
-        }
+      const controller = new AbortController()
+      const timeoutId = setTimeout(() => controller.abort(), TIMEOUT_MS)
+      const onAbort = () => controller.abort()
+      
+      if (signal) {
+        signal.addEventListener('abort', onAbort)
+      }
 
+      try {
         const response = await apiFetch(`${API_URL}/api/photos/${eventId}/upload`, {
             method: 'POST',
             body: formData,
             headers: authHeaders(),
             signal: controller.signal,
           })
-
-          clearTimeout(timeoutId)
-          if (signal) {
-            signal.removeEventListener('abort', onAbort)
-          }
 
           if (!response.ok) {
             const errorData = await response.json()
@@ -158,6 +152,11 @@ export const photosApi = {
         
         if (signal?.aborted) throw err
         return []
+      } finally {
+        clearTimeout(timeoutId)
+        if (signal) {
+          signal.removeEventListener('abort', onAbort)
+        }
       }
     }
 
