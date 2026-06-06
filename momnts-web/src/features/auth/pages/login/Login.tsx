@@ -12,8 +12,7 @@ import { ForgotPasswordModal } from "../../components/ForgotPasswordModal"
 import { useForm } from "@tanstack/react-form"
 import { useWebHaptics } from 'web-haptics/react'
 import { Turnstile } from "../../../../components/ui/Turnstile"
-import GridDistortion from "../../../../components/ui/GridDistortion"
-
+import { GoogleLogo, AppleLogo } from "@phosphor-icons/react"
 
 const Login = () => {
     const navigate = useNavigate()
@@ -65,38 +64,59 @@ const Login = () => {
 
     return (
         <>
-            <div className="register-main-view flex w-full min-h-dvh">
-                <div className="register-left flex flex-col items-center justify-center py-10 md:py-16 md:w-1/2 w-full auth-gradient-bg overflow-y-auto">
-                    <div className="auth-blob" />
-                    <form onSubmit={(e) => {
-                        e.preventDefault()
-                        e.stopPropagation()
-                        form.handleSubmit()
-                    }}
-                        className="w-full flex items-center justify-center relative z-10 px-4"
-                    >
-                        <FieldGroup className="w-[85%] sm:w-2/3 md:w-1/2">
-                            <div className="logo flex items-center justify-center gap-2">
-                                <span className="text-4xl font-bold font-logo select-none">Momnts</span>
+            <div className="flex items-center justify-center min-h-dvh w-full p-4 md:p-8 bg-neutral-100 dark:bg-neutral-950">
+                <div className="flex w-full max-w-5xl bg-white dark:bg-[#0a0a0a] rounded-[2rem] shadow-2xl overflow-hidden border border-neutral-200 dark:border-neutral-800">
+                    <div className="flex flex-col w-full md:w-1/2 p-8 md:p-12">
+                        <form onSubmit={(e) => {
+                            e.preventDefault()
+                            e.stopPropagation()
+                            form.handleSubmit()
+                        }}
+                            className="w-full max-w-sm mx-auto"
+                        >
+                            <div className="mb-8 text-center md:text-left">
+                                <div className="flex items-center justify-center md:justify-start gap-2 mb-4">
+                                    <span className="text-3xl font-bold font-logo select-none">Momnts</span>
+                                </div>
+                                <h1 className="text-3xl font-bold select-none font-sirage mb-2 text-neutral-900 dark:text-white">Welcome Back!</h1>
+                                <p className="text-neutral-500 dark:text-neutral-400 text-sm">Please enter your details to continue</p>
                             </div>
-                            <div className="flex items-start justify-start">
-                                <h1 className="text-3xl font-bold select-none font-sirage">Welcome Back!</h1>
+                            
+                            {/* 
+                            <div className="flex gap-3 mb-6">
+                                <Button type="button" variant="outline" className="flex-1 rounded-xl h-11 border-neutral-200 dark:border-neutral-800 text-neutral-700 dark:text-neutral-300">
+                                    <GoogleLogo size={20} weight="bold" />
+                                    Google
+                                </Button>
+                                <Button type="button" variant="outline" className="flex-1 rounded-xl h-11 border-neutral-200 dark:border-neutral-800 text-neutral-700 dark:text-neutral-300">
+                                    <AppleLogo size={20} weight="fill" />
+                                    Apple
+                                </Button>
                             </div>
-                            <FieldSet>
+                            
+                            <div className="flex items-center gap-4 mb-6">
+                                <div className="flex-1 h-[1px] bg-neutral-200 dark:bg-neutral-800"></div>
+                                <span className="text-xs text-neutral-400 dark:text-neutral-500 uppercase tracking-widest">or</span>
+                                <div className="flex-1 h-[1px] bg-neutral-200 dark:bg-neutral-800"></div>
+                            </div>
+                            */}
+
+                            <FieldSet className="space-y-4">
                                 <form.Field
                                     name="email"
                                     children={(field) => (
                                         <Field>
-                                            <FieldLabel htmlFor={field.name}>Email</FieldLabel>
+                                            <FieldLabel htmlFor={field.name} className="text-xs font-semibold uppercase tracking-wider text-neutral-500 mb-1">Email</FieldLabel>
                                             <Input
                                                 required
                                                 id={field.name}
                                                 type="email"
-                                                className="w-full"
+                                                className="w-full h-11 rounded-xl bg-neutral-50 dark:bg-neutral-900 border-transparent focus:border-primary"
                                                 name={field.name}
                                                 value={field.state.value}
                                                 onBlur={field.handleBlur}
                                                 onChange={(e) => field.handleChange(e.target.value)}
+                                                placeholder="hello@example.com"
                                             />
                                         </Field>
                                     )}
@@ -105,39 +125,40 @@ const Login = () => {
                                     name="password"
                                     children={(field) => (
                                         <Field>
-                                            <FieldLabel htmlFor={field.name}>Password</FieldLabel>
+                                            <div className="flex justify-between items-center mb-1">
+                                                <FieldLabel htmlFor={field.name} className="text-xs font-semibold uppercase tracking-wider text-neutral-500">Password</FieldLabel>
+                                                <button
+                                                    type="button"
+                                                    onClick={() => setIsForgotModalOpen(true)}
+                                                    className="text-xs font-medium text-primary hover:opacity-80 transition-opacity"
+                                                >
+                                                    Forgot password?
+                                                </button>
+                                            </div>
                                             <div className="relative">
                                                 <Input
                                                     required
                                                     id={field.name}
                                                     type={showPassword ? "text" : "password"}
-                                                    className="w-full pr-10"
+                                                    className="w-full h-11 pr-10 rounded-xl bg-neutral-50 dark:bg-neutral-900 border-transparent focus:border-primary"
                                                     name={field.name}
                                                     value={field.state.value}
                                                     onBlur={field.handleBlur}
                                                     onChange={(e) => field.handleChange(e.target.value)}
+                                                    placeholder="Enter password"
                                                 />
                                                 <button
                                                     type="button"
                                                     onClick={() => setShowPassword(!showPassword)}
-                                                    className="absolute right-3 top-1/2 -translate-y-1/2 text-neutral-500 hover:text-neutral-700 cursor-pointer"
+                                                    className="absolute right-3 top-1/2 -translate-y-1/2 text-neutral-400 hover:text-neutral-600 transition-colors"
                                                 >
                                                     {showPassword ? <EyeSlashIcon size={20} /> : <EyeIcon size={20} />}
-                                                </button>
-                                            </div>
-                                            <div className="flex justify-end w-full mt-1">
-                                                <button 
-                                                    type="button" 
-                                                    onClick={() => setIsForgotModalOpen(true)}
-                                                    className="text-sm font-semibold text-slate-300 hover:text-slate-200 cursor-pointer"
-                                                >
-                                                    Forgot password?
                                                 </button>
                                             </div>
                                         </Field>
                                     )}
                                 />
-                                 {sitekey && (
+                                {sitekey && (
                                     <Turnstile
                                         sitekey={sitekey}
                                         onVerify={setCaptchaToken}
@@ -145,27 +166,33 @@ const Login = () => {
                                         onError={() => setCaptchaToken("")}
                                     />
                                 )}
-                                <Field>
-                                    <Button type="submit" className="w-full cursor-pointer" disabled={isLoading || (!!sitekey && !captchaToken)}>
+                                <Field className="pt-2">
+                                    <Button type="submit" className="w-full h-11 rounded-xl font-semibold shadow-lg shadow-primary/20" disabled={isLoading || (!!sitekey && !captchaToken)}>
                                         {isLoading ? <Spinner className="mr-2 h-4 w-4 animate-spin" /> : null}
                                         {isLoading ? "Logging in..." : "Log in"}
                                     </Button>
                                 </Field>
                             </FieldSet>
-                            <span className="select-none">Don't have an account? <Link to={`/register${searchParams.get('redirect') ? `?redirect=${encodeURIComponent(searchParams.get('redirect')!)}` : ''}`} className="underline">Get Started</Link></span>
-                        </FieldGroup>
-                    </form>
-                </div>
-                <div className="register-right md:w-1/2 hidden md:block">
-                    <div className="register-right-content w-full h-full p-2 relative overflow-hidden rounded-xl">
-                        <div className="absolute inset-0 rounded-xl overflow-hidden">
-                            <GridDistortion
-                                imageSrc="/register_image.jpg"
-                                grid={10}
-                                mouse={0.1}
-                                strength={0.15}
-                                relaxation={0.9}
-                            />
+                            
+                            <div className="mt-8 text-center">
+                                <span className="text-sm text-neutral-500 dark:text-neutral-400">
+                                    Don't have an account? <Link to={`/register${searchParams.get('redirect') ? `?redirect=${encodeURIComponent(searchParams.get('redirect')!)}` : ''}`} className="font-semibold text-primary hover:underline">Sign up</Link>
+                                </span>
+                            </div>
+                        </form>
+                    </div>
+                    
+                    {/* Visual Side */}
+                    <div className="hidden md:block w-1/2 relative bg-neutral-200 dark:bg-neutral-800">
+                        <img 
+                            src="https://images.unsplash.com/photo-1492684223066-81342ee5ff30?q=80&w=2070&auto=format&fit=crop" 
+                            alt="Live event concert" 
+                            className="absolute inset-0 w-full h-full object-cover"
+                        />
+                        <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent"></div>
+                        <div className="absolute bottom-8 left-8 right-8 text-white">
+                            <h2 className="text-4xl font-bold font-sirage mb-3">Capture<br/>Every Angle</h2>
+                            <p className="text-lg text-white/90">Experience seamless, real-time photo sharing for all your live events.</p>
                         </div>
                     </div>
                 </div>
