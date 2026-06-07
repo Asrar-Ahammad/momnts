@@ -343,8 +343,8 @@ const TermsAndConditions = () => {
                 </h2>
                 <p>For questions about these Terms:</p>
                 <p className="bg-[var(--lp-accent-soft)] p-4 rounded-[var(--lp-radius)] border border-[var(--lp-border)] text-sm">
-                  <strong>Email:</strong> asrarahammadshaik@gmail.com<br />
-                  <strong>Website:</strong> momnts.vercel.app
+                  <strong>Email:</strong> <a className="text-violet-500 dark:text-violet-400 hover:underline" href="mailto:asrarahammadshaik@gmail.com">asrarahammadshaik@gmail.com</a> <br />
+                  <strong>Website:</strong> <a className="text-violet-500 dark:text-violet-400 hover:underline" href="http://asrar-ahammad.netlify.app">asrar-ahammad.netlify.app</a>
                 </p>
               </section>
 
