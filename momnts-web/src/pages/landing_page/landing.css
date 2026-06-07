@@ -38,6 +38,9 @@ html.lenis, html.lenis body {
 }
 
 .landing-root {
+  user-select: none;
+  -webkit-user-select: none;
+  cursor: default;
   --lp-bg: #09090b;
   --lp-surface: #121215;
   --lp-surface-card: #18181b;
@@ -200,6 +203,7 @@ html.light .landing-root {
   border-radius: var(--lp-radius-pill);
   transition: all 0.2s;
   white-space: nowrap;
+  cursor: pointer;
 }
 
 @media (max-width: 480px) {
@@ -748,6 +752,7 @@ html.light .landing-root {
 .lp-footer-link {
   color: var(--lp-text-muted);
   transition: color 0.2s;
+  cursor: pointer;
 }
 
 .lp-footer-link:hover {

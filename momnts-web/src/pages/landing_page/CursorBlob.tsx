@@ -61,7 +61,7 @@ const CursorBlob = () => {
     }
 
     const addListeners = () => {
-      const selectors = '.lp-btn, .lp-feature-card, .lp-step, .lp-nav-link, .lp-logo, .lp-stat, .lp-comet-nav'
+      const selectors = '.lp-btn, .lp-feature-card, .lp-step, .lp-nav-link, .lp-logo, .lp-stat, .lp-comet-nav, .lp-footer-link'
       const elements = document.querySelectorAll(selectors)
       elements.forEach(el => {
         el.addEventListener('mouseenter', handleMouseEnter)
