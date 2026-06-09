@@ -162,7 +162,7 @@ const SelfieCropModal = ({ image, open, onOpenChange, onCropComplete, isUploadin
               <Button
                 onClick={handleDone}
                 disabled={isUploading}
-                className="flex-[1.5] rounded-2xl h-12 bg-neutral-900 dark:bg-neutral-100 dark:text-neutral-900 font-bold"
+                className="flex-[1.5] rounded-2xl h-12 bg-primary text-primary-foreground font-bold"
               >
                 {isUploading ? (
                   <>

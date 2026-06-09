@@ -292,7 +292,7 @@ const EventHeader = ({
 
     return (
       <Button
-        className={`${fullWidth ? 'w-full' : ''} h-8 sm:h-9 lg:h-10 px-2.5 sm:px-4 lg:px-8 flex items-center justify-center gap-1 sm:gap-1.5 lg:gap-2 rounded-xl bg-neutral-900 dark:bg-white text-white dark:text-neutral-900 hover:opacity-90 transition-opacity text-[11px] sm:text-xs lg:text-sm font-semibold shrink-0 whitespace-nowrap`}
+        className={`${fullWidth ? 'w-full' : ''} h-8 sm:h-9 lg:h-10 px-2.5 sm:px-4 lg:px-8 flex items-center justify-center gap-1 sm:gap-1.5 lg:gap-2 rounded-xl bg-primary text-primary-foreground hover:opacity-90 transition-opacity text-[11px] sm:text-xs lg:text-sm font-semibold shrink-0 whitespace-nowrap`}
         onClick={() => { haptic.trigger("light"); onUploadClick(); }}
       >
         <Upload size={18} weight="bold" className="w-3.5 h-3.5 sm:w-4 sm:h-4 lg:w-[18px] lg:h-[18px]" />
@@ -304,7 +304,7 @@ const EventHeader = ({
 
   return (
     <>
-      <div className={`sticky top-0 z-30 bg-white/80 dark:bg-neutral-900/80 backdrop-blur-md border-b border-neutral-200 dark:border-neutral-800 transition-all duration-300 ease-in-out ${visible ? 'translate-y-0 opacity-100' : '-translate-y-full opacity-0 pointer-events-none'
+      <div className={`sticky top-0 z-30 bg-background/80 backdrop-blur-md border-b border-border transition-all duration-300 ease-in-out ${visible ? 'translate-y-0 opacity-100' : '-translate-y-full opacity-0 pointer-events-none'
         }`}>
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4 flex flex-col gap-4">
 
@@ -727,19 +727,19 @@ const EventHeader = ({
           {/* Row 2: Tabs (Full Width) */}
           <div className="mt-2 -mx-4 px-4 sm:mx-0 sm:px-0 overflow-x-auto no-scrollbar border-t border-neutral-100 dark:border-neutral-800/60 pt-3">
             <Tabs value={activeTab} onValueChange={(v) => { haptic.trigger("selection"); onTabChange(v as TabType) }} className="w-full">
-              <TabsList className="bg-neutral-100 dark:bg-neutral-800 w-max min-w-full sm:w-auto flex shrink-0 rounded-full p-1 relative">
+              <TabsList className="bg-muted w-max min-w-full sm:w-auto flex shrink-0 rounded-full p-1 relative">
                 {(['all', 'your-photos', 'favourites', 'your-uploads', 'connections'] as TabType[]).map((tab) => {
                   const isActive = activeTab === tab;
                   return (
                     <TabsTrigger
                       key={tab}
                       value={tab}
-                      className={`relative flex items-center gap-2 whitespace-nowrap px-3 sm:px-4 py-2 rounded-full z-10 transition-colors ${isActive ? 'text-neutral-900 dark:text-neutral-100 data-active:bg-transparent dark:data-active:bg-transparent shadow-none data-active:shadow-none' : 'text-neutral-500 hover:text-neutral-700 dark:text-neutral-400 dark:hover:text-neutral-300'}`}
+                      className={`relative flex items-center gap-2 whitespace-nowrap px-3 sm:px-4 py-2 rounded-full z-10 transition-colors ${isActive ? '!text-primary-foreground data-active:bg-transparent dark:data-active:bg-transparent shadow-none data-active:shadow-none' : 'text-neutral-500 hover:text-neutral-700 dark:text-neutral-400 dark:hover:text-neutral-300'}`}
                     >
                       {isActive && (
                         <motion.div
                           layoutId="tab-indicator"
-                          className="absolute inset-0 bg-white dark:bg-neutral-900 rounded-full shadow-sm -z-10"
+                          className="absolute inset-0 bg-primary rounded-full shadow-sm -z-10"
                           transition={{ type: "spring", bounce: 0.2, duration: 0.5 }}
                         />
                       )}

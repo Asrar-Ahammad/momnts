@@ -144,7 +144,7 @@ export async function deleteSelfieController(req: AuthRequest, res: Response) {
       where: { id: userId },
       select: { selfie_url: true }
     })
-    
+
     if (!existingUser?.selfie_url) {
       return res.status(400).json({ message: "No selfie found to delete" })
     }

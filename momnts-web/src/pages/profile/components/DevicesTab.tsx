@@ -103,7 +103,7 @@ const DevicesTab = () => {
   }
 
   return (
-    <div className="bg-white dark:bg-neutral-900 border border-neutral-100 dark:border-neutral-800 rounded-[32px] p-6 sm:p-8 shadow-sm">
+    <div className="bg-card text-card-foreground border border-border rounded-[32px] p-6 sm:p-8 shadow-sm">
       <div className="mb-8">
         <h3 className="text-xl font-bold select-none text-neutral-900 dark:text-neutral-100 mb-2">
           Signed-in Devices
@@ -135,11 +135,11 @@ const DevicesTab = () => {
               className={`flex flex-col sm:flex-row sm:items-center justify-between gap-4 p-4 rounded-2xl border ${
                 session.is_current 
                   ? 'border-emerald-100 dark:border-emerald-900/30 bg-emerald-50/30 dark:bg-emerald-950/10' 
-                  : 'border-neutral-100 dark:border-neutral-800 bg-white dark:bg-neutral-900'
+                  : 'border-border bg-background'
               }`}
             >
               <div className="flex items-start sm:items-center gap-4">
-                <div className="p-3 bg-neutral-100 dark:bg-neutral-800 rounded-xl shrink-0">
+                <div className="p-3 bg-muted rounded-xl shrink-0">
                   {getDeviceIcon(session.device_type)}
                 </div>
                 <div>

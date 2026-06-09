@@ -5,7 +5,7 @@
 
 generator client {
   provider        = "prisma-client-js"
-  output   = "../src/generated/prisma"
+  output          = "../src/generated/prisma"
   previewFeatures = ["postgresqlExtensions"]
 }
 
@@ -164,7 +164,7 @@ model Notification {
   image_url  String?
   is_read    Boolean  @default(false)
   created_at DateTime @default(now())
-  user User @relation(fields: [user_id], references: [id], onDelete: Cascade)
+  user       User     @relation(fields: [user_id], references: [id], onDelete: Cascade)
 
   @@index([user_id, created_at])
 }
@@ -189,10 +189,10 @@ model Comment {
   text       String   @db.VarChar(500)
   created_at DateTime @default(now())
 
-  photo    Photo     @relation(fields: [photo_id], references: [id], onDelete: Cascade)
-  user     User      @relation(fields: [user_id], references: [id], onDelete: Cascade)
-  parent   Comment?  @relation("CommentReplies", fields: [parent_id], references: [id], onDelete: Cascade)
-  replies  Comment[] @relation("CommentReplies")
+  photo   Photo     @relation(fields: [photo_id], references: [id], onDelete: Cascade)
+  user    User      @relation(fields: [user_id], references: [id], onDelete: Cascade)
+  parent  Comment?  @relation("CommentReplies", fields: [parent_id], references: [id], onDelete: Cascade)
+  replies Comment[] @relation("CommentReplies")
 }
 
 enum JoinRequestStatus {
@@ -227,4 +227,3 @@ model Subscription {
 
   user User @relation(fields: [user_id], references: [id], onDelete: Cascade)
 }
-

@@ -177,7 +177,7 @@ const UploadModal = ({
             </div>
             <div className="w-full bg-neutral-100 dark:bg-neutral-800 rounded-full h-2 overflow-hidden">
               <div
-                className="bg-neutral-900 dark:bg-white h-full rounded-full transition-all duration-300"
+                className="bg-primary h-full rounded-full transition-all duration-300"
                 style={{ width: `${selectedFiles.length > 0 ? (fileStatuses.filter(s => s === 'completed').length / selectedFiles.length) * 100 : 0}%` }}
               />
             </div>

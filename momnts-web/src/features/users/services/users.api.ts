@@ -36,11 +36,15 @@ export const usersApi = {
     return response.json()
   },
 
-  async updateProfile(name: string): Promise<{ message: string; name: string }> {
+  async updateProfile(name: string, theme?: string, custom_accent_color?: string): Promise<{ message: string; name: string }> {
+    const body: any = { name }
+    if (theme) body.theme = theme
+    if (custom_accent_color) body.custom_accent_color = custom_accent_color
+
     const response = await apiFetch(`${API_URL}/api/users/profile`, {
       method: "PUT",
       headers: jsonAuthHeaders(),
-      body: JSON.stringify({ name }),
+      body: JSON.stringify(body),
     })
 
     if (!response.ok) {

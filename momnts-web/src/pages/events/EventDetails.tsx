@@ -699,7 +699,7 @@ const EventDetails = () => {
   }
 
   return (
-    <div className="min-h-screen bg-neutral-50 dark:bg-neutral-950 pb-20 md:pb-6">
+    <div className="min-h-screen bg-background text-foreground pb-20 md:pb-6 transition-colors duration-300">
       <EventHeader
         event={event}
         activeTab={activeTab}
@@ -757,7 +757,7 @@ const EventDetails = () => {
           <>
             {selectedAttendeeId && (
               <div className="mb-4 flex items-center">
-                <Badge variant="secondary" className="flex items-center gap-2 w-fit py-3 px-3 bg-neutral-200 dark:bg-neutral-800 text-sm">
+                <Badge variant="secondary" className="flex items-center gap-2 w-fit py-3 px-3 bg-muted text-foreground text-sm">
                   Viewing <span className="capitalize font-semibold">{attendees.find(a => a.user_id === selectedAttendeeId)?.user?.name || 'attendee'}</span> uploads
                   <button
                     type="button"
@@ -887,7 +887,7 @@ const EventDetails = () => {
               variant="outline"
               size="icon"
               onClick={handleScrollToTop}
-              className="rounded-full shadow-lg border border-neutral-200/50 dark:border-neutral-800/50 bg-white/90 dark:bg-neutral-900/90 backdrop-blur-md hover:bg-neutral-50 dark:hover:bg-neutral-800 text-neutral-800 dark:text-neutral-200 cursor-pointer h-10 w-10 md:h-12 md:w-12 transition-all duration-200 hover:scale-105"
+              className="rounded-full shadow-lg border border-border bg-background/90 backdrop-blur-md hover:bg-muted text-foreground cursor-pointer h-10 w-10 md:h-12 md:w-12 transition-all duration-200 hover:scale-105"
             >
               <CaretUp size={22} weight="bold" />
             </Button>

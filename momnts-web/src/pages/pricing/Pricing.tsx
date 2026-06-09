@@ -108,7 +108,7 @@ const Pricing = () => {
                 transition={{ duration: 0.5, delay: index * 0.1 }}
                 className={`relative rounded-[32px] p-8 sm:p-10 transition-all duration-300 ${
                   plan.popular
-                    ? 'bg-neutral-900 dark:bg-white text-white dark:text-neutral-900 ring-1 ring-neutral-800 dark:ring-neutral-200 shadow-2xl shadow-neutral-900/20 dark:shadow-white/10'
+                    ? 'bg-primary text-primary-foreground shadow-2xl'
                     : 'bg-neutral-50 dark:bg-neutral-900 text-neutral-900 dark:text-white ring-1 ring-neutral-200 dark:ring-neutral-800'
                 }`}
               >

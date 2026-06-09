@@ -244,7 +244,7 @@ const Events = () => {
             </kbd>
           </div>
           {showSuggestions && searchQuery.trim() !== '' && (
-            <div className="absolute top-full mt-2 w-full bg-white dark:bg-neutral-900 border border-neutral-200 dark:border-neutral-800 rounded-xl shadow-lg z-50 overflow-hidden">
+            <div className="absolute top-full mt-2 w-full bg-card text-card-foreground border border-border rounded-xl shadow-lg z-50 overflow-hidden">
               {events
                 .filter(e => e.name.toLowerCase().includes(searchQuery.toLowerCase()))
                 .slice(0, 5)
@@ -255,7 +255,7 @@ const Events = () => {
                       setSearchQuery(event.name)
                       setShowSuggestions(false)
                     }}
-                    className="px-4 py-2 hover:bg-neutral-100 dark:hover:bg-neutral-800 cursor-pointer text-sm flex items-center gap-2"
+                    className="px-4 py-2 hover:bg-muted cursor-pointer text-sm flex items-center gap-2"
                   >
                     <span className="truncate">{event.name}</span>
                   </div>
@@ -464,12 +464,12 @@ const Events = () => {
         </div>
 
         <Tabs value={viewMode} onValueChange={(v) => { haptic.trigger("selection"); setViewMode(v as 'grid' | 'list'); }} className="ml-auto">
-          <TabsList className="rounded-full h-10 bg-white dark:bg-black border">
-            <TabsTrigger value="grid" className="rounded-full px-4 h-8 data-active:bg-white/20 dark:data-active:bg-neutral-900 data-active:shadow-md flex items-center justify-center">
+          <TabsList className="rounded-full h-10 bg-card border border-border shadow-sm">
+            <TabsTrigger value="grid" className="rounded-full px-4 h-8 data-[state=active]:bg-primary data-[state=active]:!text-primary-foreground data-[state=active]:shadow-md flex items-center justify-center transition-colors">
               <SquaresFour size={18} weight={viewMode === 'grid' ? "fill" : "regular"} className="lg:mr-2" />
               <span className='hidden lg:flex'>Grid</span>
             </TabsTrigger>
-            <TabsTrigger value="list" className="rounded-full px-4 h-8 data-active:bg-white/20 dark:data-active:bg-neutral-900 data-active:shadow-md flex items-center justify-center">
+            <TabsTrigger value="list" className="rounded-full px-4 h-8 data-[state=active]:bg-primary data-[state=active]:!text-primary-foreground data-[state=active]:shadow-md flex items-center justify-center transition-colors">
               <Rows size={18} weight={viewMode === 'list' ? "fill" : "regular"} className="lg:mr-2" />
               <span className='hidden lg:flex'>List</span>
             </TabsTrigger>

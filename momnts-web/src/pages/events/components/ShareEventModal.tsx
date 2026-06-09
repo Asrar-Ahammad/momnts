@@ -157,7 +157,7 @@ const ShareEventModal = ({ open, onOpenChange, event }: ShareEventModalProps) =>
                 Save QR
               </Button>
               {canNativeShare && (
-                <Button onClick={handleShareQRImage} className="rounded-xl bg-neutral-900 dark:bg-white text-white dark:text-neutral-900 shadow-sm">
+                <Button onClick={handleShareQRImage} className="rounded-xl bg-primary text-primary-foreground shadow-sm">
                   <ShareNetwork size={18} className="mr-2" />
                   Share QR
                 </Button>

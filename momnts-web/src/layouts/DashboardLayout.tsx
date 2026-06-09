@@ -9,6 +9,7 @@ import { useState, useEffect } from 'react';
 import { Badge } from '../components/ui/badge'
 import { useWebHaptics } from 'web-haptics/react'
 import { useSubscription } from '../features/subscription/hooks/useSubscription'
+import { usePresetTheme } from '../hooks/usePresetTheme'
 
 const DashboardLayout = () => {
   const navigate = useNavigate()
@@ -19,6 +20,9 @@ const DashboardLayout = () => {
   const [prevPath, setPrevPath] = useState(location.pathname)
   const [direction, setDirection] = useState(0)
   const [isSlideshowOpen, setIsSlideshowOpen] = useState(false)
+
+  // Apply custom preset theme globally
+  usePresetTheme()
 
   useEffect(() => {
     const handleSlideshowChange = (e: Event) => {
@@ -51,7 +55,7 @@ const DashboardLayout = () => {
     const prevIndex = getPathIndex(prevPath)
     const nextIndex = getPathIndex(location.pathname)
     const newDirection = nextIndex > prevIndex ? 1 : -1
-    
+
     setDirection(newDirection)
     setPrevPath(location.pathname)
   }
@@ -101,25 +105,25 @@ const DashboardLayout = () => {
   const smoothTransition = { type: 'spring', stiffness: 300, damping: 30, mass: 1 }
 
   return (
-    <div className="h-screen flex flex-col bg-white dark:bg-neutral-950 overflow-hidden relative">
+    <div className="h-screen flex flex-col bg-background text-foreground overflow-hidden relative transition-colors duration-300">
       {/* Top Header */}
-      <motion.header 
+      <motion.header
         layout
         transition={smoothTransition}
-        style={{ 
+        style={{
           paddingTop: 'env(safe-area-inset-top, 0px)'
         }}
         className={cn(
           "fixed z-40",
           // Mobile: full width, stick to top
           "top-0 left-0 w-full rounded-none border-b",
-          "bg-white/80 dark:bg-neutral-900/80 backdrop-blur-md",
+          "bg-background/80 backdrop-blur-md",
           "border-neutral-200/50 dark:border-neutral-800/50",
           // Desktop: Floating Island (unless event details)
           !isEventDetailsPage && [
             "md:top-6 md:left-1/2 md:-translate-x-1/2 md:w-[calc(100%-64px)] md:max-w-[900px]",
             "md:rounded-full md:border",
-            "md:bg-white/70 md:dark:bg-[#0f0f0f]/70 md:backdrop-blur-[24px]",
+            "md:bg-background/70 md:backdrop-blur-[24px]",
             "md:shadow-[0_16px_40px_rgba(0,0,0,0.05)] dark:md:shadow-[0_16px_40px_rgba(0,0,0,0.3)]"
           ]
         )}
@@ -137,11 +141,10 @@ const DashboardLayout = () => {
             <Badge variant="secondary" className='ml-2 select-none text-neutral-600 dark:text-neutral-300 text-[8px]'>v 1.0</Badge>
             <Link
               to="/pricing"
-              className={`ml-1.5 select-none px-2.5 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider transition-all ${
-                isPro
+              className={`ml-1.5 select-none px-2.5 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider transition-all ${isPro
                   ? 'bg-violet-50 text-violet-600 dark:bg-violet-500/10 dark:text-violet-400 hover:bg-violet-100 dark:hover:bg-violet-500/20'
                   : 'bg-neutral-100 text-neutral-500 dark:bg-neutral-800 dark:text-neutral-400 hover:bg-neutral-200 dark:hover:bg-neutral-700'
-              }`}
+                }`}
             >
               {isPro ? (
                 <span className="flex items-center gap-0.5">
@@ -154,7 +157,7 @@ const DashboardLayout = () => {
           </motion.div>
 
           {/* Center: Desktop Navigation */}
-          <motion.nav layout transition={smoothTransition} className={cn("hidden md:flex items-center gap-1 px-1.5 py-1.5", isEventDetailsPage && "border border-neutral-200/30 dark:border-neutral-800/30 rounded-full bg-white/30 dark:bg-neutral-900/30 backdrop-blur-xl shadow-lg")}>
+          <motion.nav layout transition={smoothTransition} className={cn("hidden md:flex items-center gap-1 px-1.5 py-1.5", isEventDetailsPage && "border border-neutral-200/30 dark:border-neutral-800/30 rounded-full bg-background/30 backdrop-blur-xl shadow-lg")}>
             {navItems.map((item) => (
               <button
                 key={item.title}
@@ -162,7 +165,7 @@ const DashboardLayout = () => {
                 className={cn(
                   'relative px-5 py-2 rounded-full transition-all duration-300 text-sm font-semibold flex items-center gap-2 group cursor-pointer',
                   item.active
-                    ? 'text-white dark:text-neutral-900'
+                    ? '!text-primary-foreground'
                     : 'text-neutral-500 hover:text-neutral-900 dark:hover:text-white'
                 )}
               >
@@ -173,7 +176,7 @@ const DashboardLayout = () => {
                 {item.active && (
                   <motion.div
                     layoutId="nav-pill"
-                    className="absolute inset-0 bg-neutral-900 dark:bg-white rounded-full shadow-md"
+                    className="absolute inset-0 bg-primary rounded-full shadow-md"
                     transition={{ type: 'spring', bounce: 0.2, duration: 0.6 }}
                   />
                 )}
@@ -186,17 +189,17 @@ const DashboardLayout = () => {
             <NotificationsPopover />
             <div className="h-4 w-px bg-neutral-200 dark:bg-neutral-800 hidden sm:block mx-1" />
             <ThemeToggle />
-            
+
             <div className="ml-1">
               {user?.selfie_url ? (
-                <img 
-                  src={user.selfie_url} 
+                <img
+                  src={user.selfie_url}
                   alt={user.name}
                   className="w-9 h-9 rounded-full object-cover ring-2 ring-neutral-200 dark:ring-neutral-800 cursor-pointer transition-transform hover:scale-105"
                   onClick={() => navigate('/profile')}
                 />
               ) : (
-                <div 
+                <div
                   className="w-9 h-9 rounded-full flex items-center justify-center bg-neutral-100 dark:bg-neutral-800 cursor-pointer transition-transform hover:scale-105"
                   onClick={() => navigate('/profile')}
                 >
@@ -209,7 +212,7 @@ const DashboardLayout = () => {
       </motion.header>
 
       {/* Main Content Area */}
-      <main 
+      <main
         id="dashboard-main"
         className={cn(
           "flex-1 overflow-x-hidden overflow-y-auto pb-24 md:pb-8 relative",
@@ -238,20 +241,20 @@ const DashboardLayout = () => {
       </main>
 
       {/* Mobile Floating Bottom Bar */}
-      <motion.div 
+      <motion.div
         initial={{ y: 0, opacity: 1 }}
-        animate={{ 
-          y: isSlideshowOpen ? 120 : 0, 
+        animate={{
+          y: isSlideshowOpen ? 120 : 0,
           opacity: isSlideshowOpen ? 0 : 1,
           pointerEvents: isSlideshowOpen ? 'none' : 'auto'
         }}
         transition={{ type: 'spring', stiffness: 260, damping: 30 }}
-        style={{ 
-          bottom: 'calc(1rem + env(safe-area-inset-bottom, 0px))' 
+        style={{
+          bottom: 'calc(1rem + env(safe-area-inset-bottom, 0px))'
         }}
         className="fixed left-1/2 -translate-x-1/2 z-50 md:hidden w-[70%] max-w-[360px]"
       >
-        <nav className="flex items-center justify-around bg-white/80 dark:bg-neutral-900/80 backdrop-blur-md border dark:border-white/10 border-white/80 rounded-[28px] p-2 shadow-2xl ring-1 ring-black/5 dark:ring-white/5">
+        <nav className="flex items-center justify-around bg-background/80 backdrop-blur-md border border-neutral-200/50 dark:border-white/10 rounded-[28px] p-2 shadow-2xl ring-1 ring-black/5 dark:ring-white/5">
           {navItems.map((item) => (
             <button
               key={item.title}
@@ -261,7 +264,7 @@ const DashboardLayout = () => {
               }}
               className={cn(
                 "relative flex flex-col items-center justify-center py-2 flex-1 rounded-2xl transition-all duration-300",
-                item.active ? "text-neutral-900 dark:text-white" : "text-neutral-400 dark:text-neutral-500 hover:text-neutral-600 dark:hover:text-neutral-400"
+                item.active ? "text-primary" : "text-neutral-400 dark:text-neutral-500 hover:text-neutral-600 dark:hover:text-neutral-400"
               )}
             >
               <div className={cn(
@@ -273,7 +276,7 @@ const DashboardLayout = () => {
               {item.active && (
                 <motion.div
                   layoutId="active-nav-dot"
-                  className="absolute -bottom-0.5 w-1 h-1 bg-neutral-900 dark:bg-white rounded-full"
+                  className="absolute -bottom-0.5 w-1 h-1 bg-primary rounded-full"
                   transition={{ type: 'spring', bounce: 0.2, duration: 0.6 }}
                 />
               )}
