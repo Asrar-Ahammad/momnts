@@ -22,6 +22,8 @@ model User {
   email_verified   Boolean                     @default(false)
   selfie_url       String?
   selfie_embedding Unsupported("vector(512)")?
+  theme            String?                     @default("dark")
+  custom_accent_color String?
   created_at       DateTime                    @default(now())
 
   events           Event[]

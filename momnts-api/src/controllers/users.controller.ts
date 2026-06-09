@@ -183,7 +183,7 @@ export async function updateProfileController(req: AuthRequest, res: Response) {
       return res.status(401).json({ message: "Unauthorized" })
     }
 
-    const { name } = req.body
+    const { name, theme, custom_accent_color } = req.body
     if (!name || typeof name !== 'string' || name.trim().length === 0) {
       return res.status(400).json({ message: "Name is required" })
     }
@@ -192,15 +192,21 @@ export async function updateProfileController(req: AuthRequest, res: Response) {
       return res.status(400).json({ message: "Name must be less than 50 characters" })
     }
 
-    // Update user name in DB
+    // Update user name and theme settings in DB
     await prisma.user.update({
       where: { id: userId },
-      data: { name: name.trim() }
+      data: { 
+        name: name.trim(),
+        theme: theme,
+        custom_accent_color: custom_accent_color
+      }
     })
 
     return res.status(200).json({
       message: "Profile updated successfully",
-      name: name.trim()
+      name: name.trim(),
+      theme,
+      custom_accent_color
     })
 
   } catch (error: any) {
