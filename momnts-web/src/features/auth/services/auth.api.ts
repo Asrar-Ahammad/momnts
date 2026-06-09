@@ -56,6 +56,21 @@ export const authApi = {
     return data
   },
 
+  async checkEmail(email: string): Promise<{ exists: boolean }> {
+    const response = await fetch(`${API_URL}/api/auth/check-email`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ email }),
+    })
+
+    if (!response.ok) {
+      const error = await response.json()
+      throw new Error(error.message || "Failed to check email")
+    }
+
+    return await response.json()
+  },
+
   async logout(): Promise<void> {
     const refreshToken = localStorage.getItem('refreshToken')
     try {

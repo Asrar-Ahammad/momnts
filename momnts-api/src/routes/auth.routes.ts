@@ -3,6 +3,7 @@ import {
   loginUserController,
   logoutUserController,
   registerUserController,
+  checkEmailController,
   getMeController,
   refreshUserController,
   sendOtpController,
@@ -25,6 +26,14 @@ const authRouter = Router();
  */
 
 authRouter.post("/register", registerUserController);
+
+/**
+ * @route POST /api/auth/check-email
+ * @description Check if an email exists
+ * @access Public
+ */
+
+authRouter.post("/check-email", checkEmailController);
 
 /**
  * @route POST /api/auth/login

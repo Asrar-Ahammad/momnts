@@ -1,7 +1,11 @@
 import { useEffect, useRef, useState } from 'react'
 import { useTheme } from 'next-themes'
 
-const CursorBlob = () => {
+interface CursorBlobProps {
+  introReady?: boolean
+}
+
+const CursorBlob = ({ introReady = true }: CursorBlobProps) => {
   const blobRef = useRef<HTMLDivElement>(null)
   const isHoveringRef = useRef(false)
   const { theme, resolvedTheme } = useTheme()
@@ -25,6 +29,11 @@ const CursorBlob = () => {
   useEffect(() => {
     isLightRef.current = isLight
   }, [isLight])
+
+  const introReadyRef = useRef(introReady)
+  useEffect(() => {
+    introReadyRef.current = introReady
+  }, [introReady])
 
   useEffect(() => {
     const blob = blobRef.current
@@ -102,11 +111,13 @@ const CursorBlob = () => {
       const targetHover = isHoveringRef.current ? 1.0 : 0.0
       currentHoverFactor += (targetHover - currentHoverFactor) * 0.15
 
-      // Decay cinematic lens zoom factor over time
-      if (initialFocusFactor > 0.001) {
-        initialFocusFactor += (0.0 - initialFocusFactor) * 0.045
-      } else {
-        initialFocusFactor = 0.0
+      // Decay cinematic lens zoom factor over time, but only after intro is ready
+      if (introReadyRef.current) {
+        if (initialFocusFactor > 0.001) {
+          initialFocusFactor += (0.0 - initialFocusFactor) * 0.15
+        } else {
+          initialFocusFactor = 0.0
+        }
       }
 
       // Intermediate values calculation based on hover factor

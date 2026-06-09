@@ -66,17 +66,14 @@ const ScrollComet = () => {
     >
       {/* SciFi Telemetry Track (Dashed) */}
       <div 
-        className="absolute left-[30px] top-0 bottom-0 w-[1px] opacity-25"
-        style={{
-          borderLeft: '1px dashed var(--lp-text)',
-          transform: 'translateX(-0.5px)'
-        }}
+        className="absolute left-[30px] top-0 bottom-0 w-[1px] opacity-25 -translate-x-1/2"
+        style={{ borderLeft: '1px dashed var(--lp-text)' }}
       />
 
       {/* Active Laser Scrolled Progress Line */}
       <div 
         ref={progressLineRef}
-        className="absolute left-[30px] top-0 w-[1.5px] bg-violet-500 -translate-x-[0.5px] shadow-[0_0_8px_#8b5cf6,0_0_20px_#8b5cf6]"
+        className="absolute left-[30px] top-0 w-[2px] bg-violet-500 -translate-x-1/2 shadow-[0_0_8px_#8b5cf6,0_0_20px_#8b5cf6]"
       />
 
       {/* Clickable Index Section Names */}
@@ -114,7 +111,7 @@ const ScrollComet = () => {
       {/* Comet Head & Tail */}
       <div
         ref={cometRef}
-        className="absolute left-[26px] top-0 w-2.5 flex flex-col-reverse items-center gap-1.5"
+        className="absolute left-[30px] top-0 flex flex-col-reverse items-center gap-1.5 -translate-x-1/2"
       >
         {/* Shutter Comet Head */}
         <div className="w-2.5 h-2.5 rounded-full bg-violet-400 shadow-[0_0_8px_#8b5cf6,0_0_15px_#8b5cf6,0_0_30px_#8b5cf6]" />

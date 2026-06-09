@@ -6,9 +6,10 @@ import ThreeDShowcase from './ThreeDShowcase'
 
 interface HeroSectionProps {
   theme: string
+  introReady?: boolean
 }
 
-const HeroSection = ({ theme }: HeroSectionProps) => {
+const HeroSection = ({ theme, introReady = true }: HeroSectionProps) => {
   const containerRef = useRef<HTMLDivElement>(null)
   const badgeRef = useRef<HTMLDivElement>(null)
   const titleRef = useRef<HTMLHeadingElement>(null)
@@ -16,28 +17,32 @@ const HeroSection = ({ theme }: HeroSectionProps) => {
   const ctaRef = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
+    if (!introReady) return
+
     const tl = gsap.timeline({ defaults: { ease: 'power4.out' } })
 
     tl.fromTo(badgeRef.current,
-      { opacity: 0, y: 30 },
-      { opacity: 1, y: 0, duration: 0.8, delay: 0.2 }
+      { opacity: 0, y: 30, filter: 'blur(10px)' },
+      { opacity: 1, y: 0, filter: 'blur(0px)', duration: 0.8, delay: 0.5 } // delayed to let blob settle
     )
     .fromTo(titleRef.current,
-      { opacity: 0, y: 40 },
-      { opacity: 1, y: 0, duration: 0.9 },
+      { opacity: 0, y: 40, filter: 'blur(12px)' },
+      { opacity: 1, y: 0, filter: 'blur(0px)', duration: 0.9 },
       '-=0.5'
     )
     .fromTo(subtitleRef.current,
-      { opacity: 0, y: 30 },
-      { opacity: 1, y: 0, duration: 0.8 },
+      { opacity: 0, y: 30, filter: 'blur(10px)' },
+      { opacity: 1, y: 0, filter: 'blur(0px)', duration: 0.8 },
       '-=0.6'
     )
     .fromTo(ctaRef.current,
-      { opacity: 0, y: 20 },
-      { opacity: 1, y: 0, duration: 0.7 },
+      { opacity: 0, y: 20, filter: 'blur(8px)' },
+      { opacity: 1, y: 0, filter: 'blur(0px)', duration: 0.7 },
       '-=0.5'
     )
+  }, [introReady])
 
+  useEffect(() => {
     // Parallax effect on scroll
     const handleScroll = () => {
       const scrollY = window.scrollY

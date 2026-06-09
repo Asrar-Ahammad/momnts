@@ -56,7 +56,8 @@ const LandingPage = () => {
   useEffect(() => {
     // Initialize Lenis Smooth Scroll
     const lenis = new Lenis({
-      duration: 1.2,
+      duration: 1.5,
+      wheelMultiplier: 0.6,
       easing: (t) => Math.min(1, 1.001 - Math.pow(2, -10 * t)), // easeOutExpo
       smoothWheel: true,
     })
@@ -88,12 +89,13 @@ const LandingPage = () => {
     // Page loader camera shutter iris animation sequence
     const tl = gsap.timeline()
     tl.fromTo('#page-loader-text',
-      { opacity: 0, scale: 0.95 },
-      { opacity: 1, scale: 1, duration: 0.8, ease: 'power2.out', delay: 0.2 }
+      { opacity: 0, scale: 0.95, filter: 'blur(10px)' },
+      { opacity: 1, scale: 1, filter: 'blur(0px)', duration: 0.8, ease: 'power2.out', delay: 0.2 }
     )
     .to('#page-loader-text', {
       opacity: 0,
       scale: 1.05,
+      filter: 'blur(5px)',
       duration: 0.5,
       delay: 0.4,
       ease: 'power2.in',
@@ -129,7 +131,7 @@ const LandingPage = () => {
 
   return (
     <div className={`landing-root ${currentTheme}`}>
-      <CursorBlob />
+      <CursorBlob introReady={!loaderVisible} />
       <ScrollComet />
       {/* Clip-path shutter opening loader */}
       {loaderVisible && (
@@ -151,7 +153,7 @@ const LandingPage = () => {
 
       <Navbar />
       <main>
-        <HeroSection theme={currentTheme} />
+        <HeroSection theme={currentTheme} introReady={!loaderVisible} />
         <DecorativeSVG />
         <FeaturesSection />
         <HowItWorks />

@@ -275,6 +275,34 @@ async function registerUserController(req: Request, res: Response) {
 }
 
 /**
+ * @name checkEmailController
+ * @description Check if an email already exists in the database
+ * @access Public
+ */
+async function checkEmailController(req: Request, res: Response) {
+  try {
+    if (typeof req.body.email !== "string") {
+      return res.status(400).json({ message: "Please provide a valid email string" });
+    }
+    const email = req.body.email.toLowerCase().trim();
+
+    if (!email) {
+      return res.status(400).json({ message: "Please provide an email" });
+    }
+
+    const user = await prisma.user.findUnique({
+      where: { email: email },
+    });
+
+    return res.status(200).json({
+      exists: !!user,
+    });
+  } catch (error:any) {
+    res.status(500).json({ message: error.message });
+  }
+}
+
+/**
  * @name loginUserController
  * @description Login user, expecting email and password in the request body.
  * @access Public
@@ -1003,6 +1031,7 @@ async function revokeSessionController(req: any, res: Response) {
 
 export {
   registerUserController,
+  checkEmailController,
   loginUserController,
   logoutUserController,
   getMeController,

@@ -14,23 +14,31 @@ const DecorativeSVG = () => {
   useEffect(() => {
     if (!svgRef.current) return
 
-    const paths = svgRef.current.querySelectorAll('path')
+    const paths = Array.from(svgRef.current.querySelectorAll('path'))
+    
+    // Create a single timeline for the waves so they stay perfectly synced
+    const tl = gsap.timeline({
+      scrollTrigger: {
+        trigger: svgRef.current,
+        start: 'top 80%',
+        end: 'bottom 20%',
+        scrub: 1,
+      }
+    })
+
     paths.forEach((path, i) => {
       const length = path.getTotalLength()
       path.style.strokeDasharray = `${length}`
       path.style.strokeDashoffset = `${length}`
 
-      gsap.to(path, {
+      // Every two paths (glow + core) belong to the same curve group
+      const curveIndex = Math.floor(i / 2)
+
+      tl.to(path, {
         strokeDashoffset: 0,
-        duration: 2 + i * 0.3,
+        duration: 2,
         ease: 'power2.inOut',
-        scrollTrigger: {
-          trigger: svgRef.current,
-          start: 'top 80%',
-          end: 'bottom 20%',
-          scrub: 1,
-        },
-      })
+      }, curveIndex * 0.4) // Stagger each curve pair slightly
     })
 
     // Float the circles
@@ -60,27 +68,68 @@ const DecorativeSVG = () => {
         style={{ width: '100%', height: '100%', position: 'absolute', inset: 0 }}
         aria-hidden="true"
       >
+        <defs>
+          <filter id="subtle-glow" x="-50%" y="-50%" width="200%" height="200%">
+            <feGaussianBlur stdDeviation="3" />
+          </filter>
+        </defs>
+
         {/* Flowing curve 1 */}
-        <path
-          d="M0 100 C200 40, 400 160, 600 100 S1000 40, 1200 100"
-          stroke="var(--lp-border)"
-          strokeWidth="1"
-          opacity="0.6"
-        />
+        <g>
+          {/* Glow */}
+          <path
+            d="M0 100 C200 40, 400 160, 600 100 S1000 40, 1200 100"
+            stroke="rgba(139, 92, 246, 0.4)"
+            strokeWidth="6"
+            filter="url(#subtle-glow)"
+            opacity="0.4"
+          />
+          {/* Core Line */}
+          <path
+            d="M0 100 C200 40, 400 160, 600 100 S1000 40, 1200 100"
+            stroke="rgba(139, 92, 246, 0.7)"
+            strokeWidth="1.5"
+            opacity="0.9"
+          />
+        </g>
+
         {/* Flowing curve 2 */}
-        <path
-          d="M0 120 C300 60, 500 180, 700 100 S900 20, 1200 80"
-          stroke="var(--lp-border)"
-          strokeWidth="0.5"
-          opacity="0.4"
-        />
+        <g>
+          {/* Glow */}
+          <path
+            d="M0 120 C300 60, 500 180, 700 100 S900 20, 1200 80"
+            stroke="rgba(139, 92, 246, 0.3)"
+            strokeWidth="5"
+            filter="url(#subtle-glow)"
+            opacity="0.3"
+          />
+          {/* Core Line */}
+          <path
+            d="M0 120 C300 60, 500 180, 700 100 S900 20, 1200 80"
+            stroke="rgba(139, 92, 246, 0.5)"
+            strokeWidth="1"
+            opacity="0.8"
+          />
+        </g>
+
         {/* Flowing curve 3 */}
-        <path
-          d="M0 80 C150 140, 350 60, 550 120 S850 60, 1200 110"
-          stroke="var(--lp-border)"
-          strokeWidth="0.5"
-          opacity="0.3"
-        />
+        <g>
+          {/* Glow */}
+          <path
+            d="M0 80 C150 140, 350 60, 550 120 S850 60, 1200 110"
+            stroke="rgba(139, 92, 246, 0.2)"
+            strokeWidth="4"
+            filter="url(#subtle-glow)"
+            opacity="0.2"
+          />
+          {/* Core Line */}
+          <path
+            d="M0 80 C150 140, 350 60, 550 120 S850 60, 1200 110"
+            stroke="rgba(139, 92, 246, 0.4)"
+            strokeWidth="0.5"
+            opacity="0.6"
+          />
+        </g>
 
         {/* Intersection dots */}
         <circle cx="300" cy="90" r="3" fill="var(--lp-text-muted)" opacity="0" />
