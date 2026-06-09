@@ -202,7 +202,7 @@ const Register = () => {
                         <div className="flex items-center gap-2 mb-2">
                             <span className="text-2xl md:text-3xl font-bold font-logo select-none">Momnts</span>
                         </div>
-                        <AnimatePresence mode="wait">
+                        <AnimatePresence mode="popLayout">
                             <motion.div
                                 key={`header-${step}`}
                                 initial={{ y: 10, opacity: 0 }}
@@ -220,13 +220,13 @@ const Register = () => {
                         </AnimatePresence>
                     </div>
 
-                    <form onSubmit={(e) => {
+                    <motion.form layout onSubmit={(e) => {
                         e.preventDefault()
                         if (step === 2) form.handleSubmit()
                     }} className="w-full flex-1 flex flex-col justify-between">
                         
-                        <div className="relative min-h-[300px]">
-                            <AnimatePresence custom={direction} mode="wait">
+                        <motion.div layout className="relative min-h-[300px]">
+                            <AnimatePresence custom={direction} mode="popLayout">
                                 <motion.div
                                     key={`step-${step}`}
                                     custom={direction}
@@ -235,7 +235,7 @@ const Register = () => {
                                     animate="center"
                                     exit="exit"
                                     transition={{ duration: 0.3, type: "spring", bounce: 0.2 }}
-                                    className="absolute inset-0 w-full"
+                                    className="w-full"
                                 >
                                     <FieldSet className="space-y-4">
                                         {/* STEP 0: Identity */}
@@ -445,7 +445,7 @@ const Register = () => {
                                     </FieldSet>
                                 </motion.div>
                             </AnimatePresence>
-                        </div>
+                        </motion.div>
                         
                         {/* Controls */}
                         <div className="mt-8 pt-4 border-t border-neutral-100 dark:border-neutral-800">
@@ -491,12 +491,12 @@ const Register = () => {
                                 </span>
                             </div>
                         </div>
-                    </form>
+                    </motion.form>
                 </div>
 
                 {/* Visual Side */}
                 <div className="hidden md:block w-1/2 relative bg-neutral-900 overflow-hidden">
-                    <AnimatePresence mode="wait">
+                    <AnimatePresence mode="popLayout">
                         <motion.img 
                             key={`img-${step}`}
                             src={STEPS[step].img}
@@ -510,7 +510,7 @@ const Register = () => {
                     </AnimatePresence>
                     <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-transparent transition-opacity duration-500"></div>
                     <div className="absolute bottom-10 left-10 right-10 text-white z-10">
-                        <AnimatePresence mode="wait">
+                        <AnimatePresence mode="popLayout">
                             <motion.div
                                 key={`text-${step}`}
                                 initial={{ opacity: 0, y: 20 }}
