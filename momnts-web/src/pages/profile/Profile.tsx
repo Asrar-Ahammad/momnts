@@ -687,6 +687,7 @@ const Profile = () => {
                 transition={{ duration: 0.3 }}
               >
                 <div className="bg-card text-card-foreground border border-border rounded-[32px] p-6 sm:p-8 shadow-sm">
+                <div className="md:hidden">
                   <div className="mb-8">
                     <h3 className="text-xl font-bold select-none text-neutral-900 dark:text-neutral-100 mb-2">
                       App Settings
@@ -715,6 +716,7 @@ const Profile = () => {
                       className="cursor-pointer"
                     />
                   </div>
+                </div>
                   
                   <div className="mt-8 mb-6">
                     <h3 className="text-xl font-bold select-none text-neutral-900 dark:text-neutral-100 mb-2">
