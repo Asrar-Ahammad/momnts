@@ -47,6 +47,7 @@ import { useWebHaptics } from 'web-haptics/react'
 const Events = () => {
   const haptic = useWebHaptics()
   const [searchQuery, setSearchQuery] = useState('')
+  const [showSuggestions, setShowSuggestions] = useState(false)
   const [dateRange, setDateRange] = useState<{ from?: Date; to?: Date }>({})
   const [isCalendarOpen, setIsCalendarOpen] = useState(false)
   const [isMobileCalendarOpen, setIsMobileCalendarOpen] = useState(false)
@@ -221,20 +222,51 @@ const Events = () => {
 
       {/* Search and Filter Row */}
       <div className="flex items-center flex-wrap gap-2 px-6">
-        <div className="flex-1 max-w-md">
+        <div className="flex-1 max-w-md relative">
           <div className="relative">
             <MagnifyingGlassIcon className="absolute left-3 top-1/2 -translate-y-1/2 text-neutral-400" size={18} />
             <Input
               ref={searchInputRef}
               placeholder="Search events..."
               value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
+              onChange={(e) => {
+                setSearchQuery(e.target.value)
+                setShowSuggestions(true)
+              }}
+              onFocus={() => setShowSuggestions(true)}
+              onBlur={() => {
+                setTimeout(() => setShowSuggestions(false), 200)
+              }}
               className="pl-9 pr-4 sm:pl-10 sm:pr-12 w-full rounded-full placeholder:text-sm"
             />
             <kbd className="absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none hidden sm:inline-flex h-5 items-center rounded border border-neutral-200 bg-neutral-100 px-1.5 font-mono text-[11px] font-medium text-neutral-500 dark:border-neutral-700 dark:bg-neutral-800 dark:text-neutral-400">
               /
             </kbd>
           </div>
+          {showSuggestions && searchQuery.trim() !== '' && (
+            <div className="absolute top-full mt-2 w-full bg-white dark:bg-neutral-900 border border-neutral-200 dark:border-neutral-800 rounded-xl shadow-lg z-50 overflow-hidden">
+              {events
+                .filter(e => e.name.toLowerCase().includes(searchQuery.toLowerCase()))
+                .slice(0, 5)
+                .map((event) => (
+                  <div
+                    key={event.id}
+                    onClick={() => {
+                      setSearchQuery(event.name)
+                      setShowSuggestions(false)
+                    }}
+                    className="px-4 py-2 hover:bg-neutral-100 dark:hover:bg-neutral-800 cursor-pointer text-sm flex items-center gap-2"
+                  >
+                    <span className="truncate">{event.name}</span>
+                  </div>
+                ))}
+                {events.filter(e => e.name.toLowerCase().includes(searchQuery.toLowerCase())).length === 0 && (
+                  <div className="px-4 py-3 text-sm text-neutral-500">
+                    No matching events found.
+                  </div>
+                )}
+            </div>
+          )}
         </div>
 
         {/* Mobile Filters */}
