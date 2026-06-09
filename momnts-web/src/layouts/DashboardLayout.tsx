@@ -98,16 +98,19 @@ const DashboardLayout = () => {
   ];
 
   const isEventDetailsPage = location.pathname.match(/^\/events\/[a-zA-Z0-9_-]+$/)
+  const smoothTransition = { type: 'spring', stiffness: 300, damping: 30, mass: 1 }
 
   return (
     <div className="h-screen flex flex-col bg-white dark:bg-neutral-950 overflow-hidden relative">
       {/* Top Header */}
-      <header 
+      <motion.header 
+        layout
+        transition={smoothTransition}
         style={{ 
           paddingTop: 'env(safe-area-inset-top, 0px)'
         }}
         className={cn(
-          "fixed z-40 transition-all duration-300 ease-out",
+          "fixed z-40",
           // Mobile: full width, stick to top
           "top-0 left-0 w-full rounded-none border-b",
           "bg-white/80 dark:bg-neutral-900/80 backdrop-blur-md",
@@ -121,9 +124,9 @@ const DashboardLayout = () => {
           ]
         )}
       >
-        <div className={cn("px-6 flex items-center justify-between w-full", isEventDetailsPage ? "h-[72px]" : "h-[72px] md:h-16")}>
+        <motion.div layout transition={smoothTransition} className={cn("px-6 flex items-center justify-between w-full", isEventDetailsPage ? "h-[72px]" : "h-[72px] md:h-16")}>
           {/* Left: Logo */}
-          <div className="flex-1 flex items-center">
+          <motion.div layout transition={smoothTransition} className="flex-1 flex items-center">
             <Link
               to="/dashboard"
               aria-label="Go to dashboard"
@@ -148,10 +151,10 @@ const DashboardLayout = () => {
                 'Free'
               )}
             </Link>
-          </div>
+          </motion.div>
 
           {/* Center: Desktop Navigation */}
-          <nav className={cn("hidden md:flex items-center gap-1 px-1.5 py-1.5", isEventDetailsPage && "border border-neutral-200/30 dark:border-neutral-800/30 rounded-full bg-white/30 dark:bg-neutral-900/30 backdrop-blur-xl shadow-lg")}>
+          <motion.nav layout transition={smoothTransition} className={cn("hidden md:flex items-center gap-1 px-1.5 py-1.5", isEventDetailsPage && "border border-neutral-200/30 dark:border-neutral-800/30 rounded-full bg-white/30 dark:bg-neutral-900/30 backdrop-blur-xl shadow-lg")}>
             {navItems.map((item) => (
               <button
                 key={item.title}
@@ -176,10 +179,10 @@ const DashboardLayout = () => {
                 )}
               </button>
             ))}
-          </nav>
+          </motion.nav>
 
           {/* Right: Actions */}
-          <div className="flex-1 flex items-center justify-end gap-3">
+          <motion.div layout transition={smoothTransition} className="flex-1 flex items-center justify-end gap-3">
             <NotificationsPopover />
             <div className="h-4 w-px bg-neutral-200 dark:bg-neutral-800 hidden sm:block mx-1" />
             <ThemeToggle />
@@ -201,9 +204,9 @@ const DashboardLayout = () => {
                 </div>
               )}
             </div>
-          </div>
-        </div>
-      </header>
+          </motion.div>
+        </motion.div>
+      </motion.header>
 
       {/* Main Content Area */}
       <main 
