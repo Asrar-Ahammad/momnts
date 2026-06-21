@@ -92,7 +92,7 @@ export const CreateEventModal = ({ open, onOpenChange, onEventCreated }: CreateE
       if (isE2EE && dek) {
         await storeDEK(createdEvent.id, dek)
         setPassphrase(createdEvent.id, passphrase)
-        setGeneratedRecoveryKey(recoveryKey)
+        setGeneratedRecoveryKey(`${newEventName} recovery key : ${recoveryKey}`)
         setCreatedEventId(createdEvent.id)
         setShowRecoveryModal(true)
       } else {
@@ -348,13 +348,13 @@ export const CreateEventModal = ({ open, onOpenChange, onEventCreated }: CreateE
             <div className="bg-neutral-50 dark:bg-neutral-900 border border-border rounded-xl p-4 flex flex-col items-center gap-3">
               <span className="text-xs text-muted-foreground font-medium">YOUR RECOVERY KEY</span>
               <span className="font-mono text-lg md:text-xl font-bold tracking-wider text-foreground select-all">
-                {generatedRecoveryKey}
+                {generatedRecoveryKey.includes('recovery key:') ? generatedRecoveryKey.split('recovery key:')[1] : generatedRecoveryKey}
               </span>
               <Button
                 variant="outline"
                 className="mt-2 text-xs flex items-center gap-2"
                 onClick={() => {
-                  navigator.clipboard.writeText(`${newEventName} recovery key: ${generatedRecoveryKey}`)
+                  navigator.clipboard.writeText(generatedRecoveryKey)
                   toast.success('Recovery key copied to clipboard!')
                   haptic.trigger("success")
                 }}
