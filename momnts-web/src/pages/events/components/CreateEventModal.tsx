@@ -165,7 +165,7 @@ export const CreateEventModal = ({ open, onOpenChange, onEventCreated }: CreateE
   }
 
   return (
-    <Dialog open={open} onOpenChange={handleOpenChange}>
+    <Dialog open={open && !showRecoveryModal} onOpenChange={handleOpenChange}>
       <DialogContent className="w-[95vw] sm:max-w-[460px] max-h-[92dvh] flex flex-col p-5 sm:p-6 overflow-hidden rounded-2xl">
         <DialogHeader className="flex-shrink-0">
           <DialogTitle className="text-3xl sm:text-4xl font-sirage">Create New Event</DialogTitle>
@@ -354,7 +354,7 @@ export const CreateEventModal = ({ open, onOpenChange, onEventCreated }: CreateE
                 variant="outline"
                 className="mt-2 text-xs flex items-center gap-2"
                 onClick={() => {
-                  navigator.clipboard.writeText(generatedRecoveryKey)
+                  navigator.clipboard.writeText(`${newEventName} recovery key: ${generatedRecoveryKey}`)
                   toast.success('Recovery key copied to clipboard!')
                   haptic.trigger("success")
                 }}
