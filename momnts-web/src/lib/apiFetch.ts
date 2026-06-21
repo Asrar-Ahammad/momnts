@@ -3,6 +3,9 @@
  * When a 401 is received on an authenticated request, it attempts to silently refresh
  * the token. If the refresh fails, it clears tokens and dispatches a custom event
  * so AuthProvider can immediately set user=null, causing Protected to redirect to /login.
+ *
+ * Also auto-injects Authorization from the active auth source (Clerk or legacy JWT)
+ * so callers do not need to be aware of which auth mechanism is active.
  */
 
 const AUTH_EXPIRED_EVENT = 'auth:session-expired'
@@ -42,6 +45,33 @@ export function onSessionExpired(cb: () => void): () => void {
   const handler = () => cb()
   window.addEventListener(AUTH_EXPIRED_EVENT, handler)
   return () => window.removeEventListener(AUTH_EXPIRED_EVENT, handler)
+}
+
+/**
+ * Resolves the active bearer token from whichever auth source is currently live:
+ * Clerk session (OAuth users) first, then legacy localStorage JWT.
+ */
+async function resolveToken(): Promise<string> {
+  try {
+    // 1. Clerk __session cookie (sync, no round-trip)
+    const cookieToken = document.cookie
+      .split('; ')
+      .find(row => row.startsWith('__session='))
+      ?.split('=')[1]
+    if (cookieToken) return decodeURIComponent(cookieToken)
+
+    // 2. Clerk JS SDK (async, handles token refresh internally)
+    const clerkInstance = (window as any).Clerk
+    if (clerkInstance?.session) {
+      const token = await clerkInstance.session.getToken()
+      if (token) return token
+    }
+  } catch {
+    // fall through to legacy
+  }
+
+  // 3. Legacy localStorage JWT
+  return localStorage.getItem('token') || ''
 }
 
 async function performRefresh(): Promise<boolean> {
@@ -87,8 +117,9 @@ async function performRefresh(): Promise<boolean> {
 }
 
 /**
- * Drop-in replacement for `fetch` that auto-detects 401 on authenticated
- * requests and triggers session expiry.
+ * Drop-in replacement for `fetch` that:
+ * 1. Auto-injects Authorization from the active auth source (Clerk or legacy JWT).
+ * 2. Auto-detects 401 on authenticated requests and triggers session expiry.
  *
  * Skips interception for auth endpoints (login, register, forgot-password, reset-password, refresh)
  * where a 401 is an expected "wrong credentials" response, not a session expiry.
@@ -98,8 +129,23 @@ export async function apiFetch(
   init?: RequestInit
 ): Promise<Response> {
   const isRequest = input instanceof Request
+
+  // ── Inject Authorization from the active auth source ──────────────────────
+  const token = await resolveToken()
+  let mergedHeaders: Record<string, string> = { Authorization: `Bearer ${token}` }
+  if (init?.headers) {
+    if (init.headers instanceof Headers) {
+      init.headers.forEach((value, key) => { mergedHeaders[key] = value })
+    } else if (Array.isArray(init.headers)) {
+      init.headers.forEach(([key, value]) => { mergedHeaders[key] = value })
+    } else {
+      mergedHeaders = { ...mergedHeaders, ...(init.headers as Record<string, string>) }
+    }
+  }
+  const mergedInit: RequestInit = { ...init, headers: mergedHeaders }
+
   const requestForFirstTry = isRequest ? input.clone() : input
-  const response = await fetch(requestForFirstTry, init)
+  const response = await fetch(requestForFirstTry, mergedInit)
 
   if (response.status === 401) {
     const url = isRequest ? input.url : typeof input === 'string' ? input : input.href
@@ -108,7 +154,7 @@ export async function apiFetch(
     const isAuthEndpoint = skipPaths.some(p => url.includes(p))
 
     if (!isAuthEndpoint) {
-      // Try to refresh token
+      // Try to refresh token (legacy path — Clerk handles its own refresh internally)
       if (!refreshPromise) {
         refreshPromise = performRefresh().finally(() => {
           refreshPromise = null
@@ -117,36 +163,16 @@ export async function apiFetch(
 
       const refreshed = await refreshPromise
       if (refreshed) {
-        const newToken = localStorage.getItem('token') || ''
-        
-        let retryHeaders: Record<string, string> = {}
-        if (init?.headers) {
-          if (init.headers instanceof Headers) {
-            init.headers.forEach((value, key) => {
-              retryHeaders[key] = value
-            })
-          } else if (Array.isArray(init.headers)) {
-            init.headers.forEach(([key, value]) => {
-              retryHeaders[key] = value
-            })
-          } else {
-            retryHeaders = { ...init.headers } as Record<string, string>
-          }
-        }
-        retryHeaders['Authorization'] = `Bearer ${newToken}`
+        // Re-resolve after refresh (will now pick up the new localStorage token)
+        const newToken = await resolveToken()
+        const retryHeaders = { ...mergedHeaders, Authorization: `Bearer ${newToken}` }
 
         if (isRequest) {
           const newRequest = input.clone()
           newRequest.headers.set('Authorization', `Bearer ${newToken}`)
-          return fetch(newRequest, {
-            ...init,
-            headers: retryHeaders
-          })
+          return fetch(newRequest, { ...mergedInit, headers: retryHeaders })
         } else {
-          return fetch(input, {
-            ...init,
-            headers: retryHeaders
-          })
+          return fetch(input, { ...mergedInit, headers: retryHeaders })
         }
       } else {
         fireSessionExpired()

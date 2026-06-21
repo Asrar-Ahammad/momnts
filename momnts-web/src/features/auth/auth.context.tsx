@@ -120,20 +120,23 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
   const logout = async () => {
     try {
       if (authSource === 'clerk') {
-        // Clerk sign-out is handled by Clerk's own hook (useClerk().signOut())
-        // We just clear our local state here
-        const { useClerk } = await import('@clerk/clerk-react');
-        // Note: can't use hook here — Clerk signOut should be called from component
+        // Sign out of the Clerk session via the global Clerk JS object.
+        // Using window.Clerk directly (same approach as getClerkToken) because
+        // useClerk() is a React hook and cannot be called outside a component.
+        const clerkInstance = (window as any).Clerk
+        if (clerkInstance) {
+          await clerkInstance.signOut()
+        }
       }
-      await authApi.logout();
+      await authApi.logout()
     } catch (error) {
-      console.error("Logout failed:", error);
-      throw error;
+      console.error("Logout failed:", error)
+      throw error
     } finally {
-      setUser(null);
-      setAuthSource(null);
+      setUser(null)
+      setAuthSource(null)
     }
-  };
+  }
 
   return (
     <AuthContext.Provider value={{ user, setUser, loading, setLoading, logout, authSource }}>

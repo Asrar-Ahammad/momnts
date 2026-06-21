@@ -14,6 +14,7 @@ import { toast } from 'sonner'
 import { useWebHaptics } from 'web-haptics/react'
 import { createE2EEEventKeys } from '../../../lib/crypto/e2ee'
 import { storeDEK } from '../../../lib/crypto/keyStore'
+import { setPassphrase } from '../../../lib/crypto/passphraseCache'
 
 interface CreateEventModalProps {
   open: boolean
@@ -90,7 +91,7 @@ export const CreateEventModal = ({ open, onOpenChange, onEventCreated }: CreateE
 
       if (isE2EE && dek) {
         await storeDEK(createdEvent.id, dek)
-        sessionStorage.setItem('passphrase_' + createdEvent.id, passphrase)
+        setPassphrase(createdEvent.id, passphrase)
         setGeneratedRecoveryKey(recoveryKey)
         setCreatedEventId(createdEvent.id)
         setShowRecoveryModal(true)

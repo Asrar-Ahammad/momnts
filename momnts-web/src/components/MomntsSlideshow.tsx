@@ -14,7 +14,7 @@ import { SlideshowControls } from './SlideshowControls'
 import { useWebHaptics } from 'web-haptics/react'
 import { decryptPhoto } from '../lib/crypto/e2ee'
 import { apiFetch } from '../lib/apiFetch'
-import { authHeaders } from '../lib/authHeaders'
+import { getAuthHeaders } from '../lib/authHeaders'
 
 // Dynamically resolve all music tracks in the assets/music folder
 const musicModules = import.meta.glob('../assets/music/*.{mp3,wav,ogg,m4a,aac}', { eager: true })
@@ -116,7 +116,7 @@ export const MomntsSlideshow = ({
                 if (match) {
                   const API_URL = import.meta.env.VITE_SERVER_URL || "http://localhost:3000"
                   fetchUrl = `${API_URL}/api/photos/${match[1]}/${match[2]}/download`
-                  headers = authHeaders()
+                  headers = await getAuthHeaders()
                 }
 
                 const response = await apiFetch(fetchUrl, { headers })

@@ -34,7 +34,15 @@ app.use(cors({
   origin:process.env.CLIENT_APP_URL,
   credentials: true,
 }))
-app.use(express.json())
+// Clerk webhook must be mounted BEFORE express.json() so express.raw() on that
+// route receives the unmodified body bytes that Svix signed.
+app.use("/api/auth/clerk", clerkRouter)
+
+app.use(express.json({
+  verify: (req: any, res, buf) => {
+    req.rawBody = buf
+  }
+}))
 app.use(cookieParser())
 
 app.get("/",(req:Request, res:Response)=>{
@@ -42,7 +50,6 @@ app.get("/",(req:Request, res:Response)=>{
 })
 
 app.use("/api/auth", authRouter)
-app.use("/api/auth/clerk", clerkRouter)
 app.use("/api/events", eventsRouter)
 app.use("/api/events", galleryRouter)
 app.use('/api/photos/:photoId/comments', commentsRouter)

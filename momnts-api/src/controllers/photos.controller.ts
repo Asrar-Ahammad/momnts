@@ -178,7 +178,27 @@ export async function uploadPhotoController(req: PlanRequest, res: Response) {
                     return result.photos![index]
                 })
                 const photos = await Promise.all(uploadPromises)
-                uploadedPhotos.push(...photos)
+                const signedPhotos = await presignPhotos(photos)
+                uploadedPhotos.push(...signedPhotos)
+            } catch (err) {
+                if (result.success && result.photos) {
+                    const photoIds = result.photos.map((p: any) => p.id)
+                    await prisma.photo.deleteMany({
+                        where: { id: { in: photoIds } }
+                    })
+                    await prisma.eventAccess.update({
+                        where: {
+                            event_id_user_id: {
+                                event_id: eventId,
+                                user_id: userId,
+                            }
+                        },
+                        data: {
+                            upload_count: { decrement: files.length }
+                        }
+                    })
+                }
+                throw err
             } finally {
                 for (const file of files) {
                     try { if (fs.existsSync(file.path)) fs.unlinkSync(file.path) } catch {}
@@ -327,6 +347,25 @@ export async function uploadPhotoController(req: PlanRequest, res: Response) {
             const photos = await Promise.all(uploadPromises)
             const signedPhotos = await presignPhotos(photos)
             uploadedPhotos.push(...signedPhotos)
+        } catch (err) {
+            if (result.success && result.photos) {
+                const photoIds = result.photos.map((p: any) => p.id)
+                await prisma.photo.deleteMany({
+                    where: { id: { in: photoIds } }
+                })
+                await prisma.eventAccess.update({
+                    where: {
+                        event_id_user_id: {
+                            event_id: eventId,
+                            user_id: userId,
+                        }
+                    },
+                    data: {
+                        upload_count: { decrement: files.length }
+                    }
+                })
+            }
+            throw err
         } finally {
             // Clean up multer temp files
             for (const file of files) {

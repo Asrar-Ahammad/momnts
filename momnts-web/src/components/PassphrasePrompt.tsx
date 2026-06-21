@@ -12,6 +12,7 @@ import {
   KDFParams
 } from '@/lib/crypto/e2ee'
 import { storeDEK } from '@/lib/crypto/keyStore'
+import { setPassphrase } from '@/lib/crypto/passphraseCache'
 import { eventsApi } from '@/features/events/services/events.api'
 import { toast } from 'sonner'
 import { useWebHaptics } from 'web-haptics/react'
@@ -107,7 +108,7 @@ export default function PassphrasePrompt({
         await storeDEK(eventId, dek)
       }
       
-      sessionStorage.setItem('passphrase_' + eventId, passphrase)
+      setPassphrase(eventId, passphrase)
       toast.success('Event unlocked successfully!')
       haptic.trigger('success')
       onUnlockSuccess(dek)
@@ -193,7 +194,7 @@ export default function PassphrasePrompt({
         await storeDEK(eventId, recoveredDek)
       }
 
-      sessionStorage.setItem('passphrase_' + eventId, newPassphrase)
+      setPassphrase(eventId, newPassphrase)
       toast.success('Passphrase updated and event unlocked!')
       haptic.trigger('success')
       onUnlockSuccess(recoveredDek)

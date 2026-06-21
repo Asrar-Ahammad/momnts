@@ -107,7 +107,10 @@ async function createEventController(req: PlanRequest, res: Response) {
         }
 
         // If AI, crypto fields must be absent
-        if (mode === 'AI' && (kdfSalt || wrappedDek)) {
+        if (mode === 'AI' && (
+            kdfSalt || kdfParams || wrappedDek || wrappedDekIv || wrappedDekTag ||
+            recoveryKdfSalt || wrappedRecoveryDek || wrappedRecoveryIv || wrappedRecoveryTag
+        )) {
             return res.status(400).json({
                 message: "AI mode events must not include encryption fields",
             });
@@ -659,6 +662,30 @@ async function updateEventDetailsController(req: PlanRequest, res: Response) {
 
         if (!event) {
             return res.status(404).json({ message: 'Event not found' })
+        }
+
+        // Validate E2EE update fields are updated together
+        const hasWrappedDek = wrappedDek !== undefined;
+        const hasWrappedDekIv = wrappedDekIv !== undefined;
+        const hasWrappedDekTag = wrappedDekTag !== undefined;
+
+        if (hasWrappedDek || hasWrappedDekIv || hasWrappedDekTag) {
+            if (!hasWrappedDek || !hasWrappedDekIv || !hasWrappedDekTag) {
+                return res.status(400).json({
+                    message: "Updating E2EE passphrase requires wrappedDek, wrappedDekIv, and wrappedDekTag to be provided together."
+                });
+            }
+            if (event.encryption_mode !== 'E2EE') {
+                return res.status(400).json({
+                    message: "Cannot update encryption fields for a non-E2EE event."
+                });
+            }
+        }
+
+        if (kdfSalt !== undefined && event.encryption_mode !== 'E2EE') {
+            return res.status(400).json({
+                message: "Cannot update kdfSalt for a non-E2EE event."
+            });
         }
 
         const limits = req.planLimits || PLAN_LIMITS.FREE;

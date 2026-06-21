@@ -15,17 +15,19 @@ import { Turnstile } from "../../../../components/ui/Turnstile"
 import { GoogleLogo, AppleLogo } from "@phosphor-icons/react"
 import { useSignIn } from "@clerk/clerk-react"
 
-const ClerkOAuthButtons = () => {
+const ClerkOAuthButtons = ({ redirectTo }: { redirectTo?: string }) => {
   const { signIn } = useSignIn()
   const haptic = useWebHaptics()
 
   const handleOAuth = async (strategy: 'oauth_google' | 'oauth_apple') => {
     try {
       if (!signIn) return
+      const callbackUrl = new URL(window.location.origin + '/sso-callback')
+      if (redirectTo) callbackUrl.searchParams.set('redirect', redirectTo)
       await signIn.authenticateWithRedirect({
         strategy,
-        redirectUrl: window.location.origin + '/sso-callback',
-        redirectUrlComplete: '/dashboard',
+        redirectUrl: callbackUrl.toString(),
+        redirectUrlComplete: redirectTo || '/dashboard',
       })
     } catch (err) {
       console.error(`${strategy} sign-in failed:`, err)
@@ -127,7 +129,7 @@ const Login = () => {
                             
                             {import.meta.env.VITE_CLERK_PUBLISHABLE_KEY && (
                             <>
-                            <ClerkOAuthButtons />
+                            <ClerkOAuthButtons redirectTo={searchParams.get('redirect') ?? undefined} />
                             
                             <div className="flex items-center gap-4 mb-6">
                                 <div className="flex-1 h-[1px] bg-neutral-200 dark:bg-neutral-800"></div>

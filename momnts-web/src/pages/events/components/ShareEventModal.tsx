@@ -10,6 +10,7 @@ import { Button } from '../../../components/ui/button'
 import { DownloadSimple, ShareNetwork, LinkSimple, LockKey, CopySimpleIcon } from '@phosphor-icons/react'
 import { toast } from 'sonner'
 import { EventData } from '../../../features/events/services/events.api'
+import { getPassphrase, setPassphrase } from '../../../lib/crypto/passphraseCache'
 
 interface ShareEventModalProps {
   open: boolean
@@ -27,7 +28,7 @@ const ShareEventModal = ({ open, onOpenChange, event }: ShareEventModalProps) =>
   if (event && (event.id !== prevEventId || open !== prevOpen)) {
     setPrevEventId(event.id)
     setPrevOpen(open)
-    const cached = sessionStorage.getItem('passphrase_' + event.id) || ''
+    const cached = getPassphrase(event.id) || ''
     setLocalPassphrase(cached)
     setTempPassphraseInput(cached)
   }
@@ -37,7 +38,7 @@ const ShareEventModal = ({ open, onOpenChange, event }: ShareEventModalProps) =>
   const handlePassphraseInputChange = (val: string) => {
     setTempPassphraseInput(val)
     if (event) {
-      sessionStorage.setItem('passphrase_' + event.id, val)
+      setPassphrase(event.id, val)
       setLocalPassphrase(val)
     }
   }

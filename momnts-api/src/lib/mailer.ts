@@ -4,6 +4,15 @@ import type { Transporter } from "nodemailer";
 
 let _transporter: Transporter | null = null;
 
+function escapeHtml(text: string): string {
+  return text
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#039;");
+}
+
 function getTransporter(): Transporter {
   if (!_transporter) {
     const email = process.env.SMTP_EMAIL;
@@ -102,6 +111,7 @@ export async function verifyOtpViaSparkage(email: string, code: string): Promise
  * Send welcome email via SMTP using a beautiful custom HTML template.
  */
 export async function sendWelcomeEmail(to: string, name: string): Promise<void> {
+  const escapedName = escapeHtml(name);
   const html = `
     <div style="background-color: #f8fafc; padding: 40px 20px; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; min-height: 100%; width: 100%; box-sizing: border-box;">
       <div style="max-width: 580px; margin: 0 auto; background-color: #ffffff; border-radius: 24px; overflow: hidden; box-shadow: 0 10px 25px -5px rgba(0,0,0,0.05), 0 8px 10px -6px rgba(0,0,0,0.05); border: 1px solid #e2e8f0;">
@@ -118,7 +128,7 @@ export async function sendWelcomeEmail(to: string, name: string): Promise<void> 
 
         <!-- Body -->
         <div style="padding: 40px 32px;">
-          <h2 style="font-size: 24px; font-weight: 700; color: #0f172a; margin: 0 0 16px 0; letter-spacing: -0.5px;">Welcome aboard, ${name}!</h2>
+          <h2 style="font-size: 24px; font-weight: 700; color: #0f172a; margin: 0 0 16px 0; letter-spacing: -0.5px;">Welcome aboard, ${escapedName}!</h2>
           <p style="font-size: 16px; color: #475569; margin: 0 0 28px 0; line-height: 1.6;">
             We're absolutely thrilled to have you join our community! Momnts is designed to help you curate, share, and relive your favorite memories from live events in real-time. Here's a quick look at what you can do:
           </p>

@@ -189,7 +189,7 @@ export const eventsApi = {
     }
 
     const data = await response.json()
-    return data.event
+    return { ...data.event, user_role: data.eventAccess?.role || 'ORGANIZER' }
   },
 
   async getEventAttendees(eventId: string, search?: string): Promise<any[]> {

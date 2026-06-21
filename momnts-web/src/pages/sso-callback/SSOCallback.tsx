@@ -1,15 +1,13 @@
 import { useEffect } from 'react'
-import { useNavigate } from 'react-router'
 import { Spinner } from '../../components/ui/spinner'
 
 /**
  * SSO Callback page for Clerk OAuth flows (Google/Apple).
  * Clerk's AuthenticateWithRedirectCallback handles the OAuth code exchange.
- * After completion, we redirect to the dashboard.
+ * After completion, we honour the `?redirect=` param forwarded from the
+ * login/register page so users land on their original deep link.
  */
 const SSOCallback = () => {
-  const navigate = useNavigate()
-
   useEffect(() => {
     const handleCallback = async () => {
       try {
@@ -17,8 +15,16 @@ const SSOCallback = () => {
         if (clerk) {
           await clerk.handleRedirectCallback()
         }
-        // Force full page reload to dashboard so AuthProvider is remounted and reads the new Clerk token
-        window.location.href = '/dashboard'
+        // Apply the same safe-redirect logic used by password login:
+        // only accept relative paths (starts with '/' but not '//').
+        const params = new URLSearchParams(window.location.search)
+        const redirect = params.get('redirect')
+        const safeRedirect =
+          redirect && redirect.startsWith('/') && !redirect.startsWith('//')
+            ? redirect
+            : '/dashboard'
+        // Full page reload so AuthProvider is remounted and reads the new Clerk token.
+        window.location.href = safeRedirect
       } catch (err) {
         console.error('[SSO Callback] Error:', err)
         window.location.href = '/login'

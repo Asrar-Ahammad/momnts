@@ -939,6 +939,14 @@ async function changePasswordController(req: Request, res: Response) {
       return res.status(400).json({ message: "Invalid password length" });
     }
 
+    const user = await prisma.user.findUnique({
+      where: { id: userId },
+      select: { email: true }
+    });
+    if (!user) {
+      return res.status(404).json({ message: "User not found" });
+    }
+
     const lockout = await redis.get(pwdOtpLockoutKey(userId));
     if (lockout) {
       return res.status(403).json({
@@ -946,23 +954,26 @@ async function changePasswordController(req: Request, res: Response) {
       });
     }
 
-    const hashedOtp = await redis.get(pwdOtpKey(userId));
-    if (!hashedOtp) {
-      return res.status(400).json({ message: "Verification code expired or invalid" });
+    // Increment attempts first
+    const attempts = await redis.incr(pwdOtpAttemptsKey(userId));
+    if (attempts === 1) {
+      await redis.expire(pwdOtpAttemptsKey(userId), OTP_TTL_SECONDS);
     }
 
-    const isValid = await verifyOtp(otp, hashedOtp);
+    if (attempts > OTP_MAX_ATTEMPTS) {
+      await redis.setex(pwdOtpLockoutKey(userId), OTP_LOCKOUT_SECONDS, "locked");
+      await redis.del(pwdOtpAttemptsKey(userId));
+      return res.status(403).json({
+        message: "Too many failed attempts. Your account is temporarily locked from changing password. Please try again in 30 minutes.",
+      });
+    }
+
+    // Verify OTP via Sparkage
+    const isValid = await verifyOtpViaSparkage(user.email, otp);
     if (!isValid) {
-      const attempts = await redis.incr(pwdOtpAttemptsKey(userId));
-      if (attempts >= OTP_MAX_ATTEMPTS) {
-        await redis.setex(pwdOtpLockoutKey(userId), OTP_LOCKOUT_SECONDS, "locked");
-        await redis.del(pwdOtpKey(userId), pwdOtpAttemptsKey(userId));
-        return res.status(403).json({
-          message: "Too many failed attempts. Your account is temporarily locked. Please try again in 30 minutes.",
-        });
-      }
+      const remaining = OTP_MAX_ATTEMPTS - attempts;
       return res.status(400).json({
-        message: `Invalid verification code. ${OTP_MAX_ATTEMPTS - attempts} attempt(s) remaining.`,
+        message: `Invalid verification code. ${remaining} attempt(s) remaining.`,
       });
     }
 
@@ -977,7 +988,7 @@ async function changePasswordController(req: Request, res: Response) {
       where: { user_id: userId },
     });
 
-    await redis.del(pwdOtpKey(userId), pwdOtpAttemptsKey(userId), pwdOtpRateKey(userId));
+    await redis.del(pwdOtpAttemptsKey(userId), pwdOtpRateKey(userId));
 
     return res.status(200).json({ message: "Password has been successfully changed" });
   } catch (error) {

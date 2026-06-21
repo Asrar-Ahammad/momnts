@@ -62,6 +62,7 @@ import { EventData } from '../../../features/events/services/events.api'
 import { toast } from 'sonner'
 import { motion, AnimatePresence } from 'framer-motion'
 import { useWebHaptics } from 'web-haptics/react'
+import { getPassphrase } from '../../../lib/crypto/passphraseCache'
 
 type TabType = 'all' | 'your-photos' | 'favourites' | 'your-uploads' | 'connections'
 type GalleryColumns = 1 | 2 | 3
@@ -387,7 +388,7 @@ const EventHeader = ({
                               </DropdownMenuItem>
                               <DropdownMenuItem onClick={async () => {
                                 haptic.trigger("success")
-                                const passphrase = sessionStorage.getItem('passphrase_' + event.id) || ''
+                                const passphrase = getPassphrase(event.id) || ''
                                 if (passphrase) {
                                   try {
                                     await navigator.clipboard.writeText(passphrase)
@@ -560,7 +561,7 @@ const EventHeader = ({
                                       </DropdownMenuItem>
                                       <DropdownMenuItem onClick={async () => {
                                         haptic.trigger("success")
-                                        const passphrase = sessionStorage.getItem('passphrase_' + event.id) || ''
+                                        const passphrase = getPassphrase(event.id) || ''
                                         if (passphrase) {
                                           try {
                                             await navigator.clipboard.writeText(passphrase)

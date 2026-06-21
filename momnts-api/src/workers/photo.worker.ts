@@ -59,6 +59,10 @@ async function handleProcessPhoto(data: { photoId: string; eventId: string; temp
     })
     if (event?.encryption_mode === 'E2EE') {
       console.warn(`[process-photo] Skipping E2EE event photo ${photoId} — should not be in queue`)
+      // Clean up the temp object so it is not left orphaned in R2 storage
+      await deleteFromR2(tempKey).catch(err => {
+        console.error(`[process-photo] Failed to delete E2EE temp file ${tempKey}:`, err.message)
+      })
       return
     }
 

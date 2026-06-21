@@ -23,6 +23,7 @@ import WhoWasIWith from '../../features/connections/components/WhoWasIWith'
 import ShareEventModal from './components/ShareEventModal'
 import { useWebHaptics } from 'web-haptics/react'
 import { getDEK, deleteDEK } from '../../lib/crypto/keyStore'
+import { getPassphrase } from '../../lib/crypto/passphraseCache'
 import PassphrasePrompt from '../../components/PassphrasePrompt'
 
 type TabType = 'all' | 'your-photos' | 'favourites' | 'your-uploads' | 'connections'
@@ -515,7 +516,7 @@ const EventDetails = () => {
       let textToCopy = event.invite_code
       let isE2EECopied = false
       if (event.encryption_mode === 'E2EE') {
-        const passphrase = sessionStorage.getItem('passphrase_' + event.id) || ''
+        const passphrase = getPassphrase(event.id) || ''
         if (passphrase) {
           textToCopy = `Event Code: ${event.invite_code}\nPassphrase: ${passphrase}`
           isE2EECopied = true

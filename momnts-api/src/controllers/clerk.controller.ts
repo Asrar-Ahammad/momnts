@@ -28,8 +28,20 @@ export async function clerkWebhookHandler(req: Request, res: Response) {
       return res.status(400).json({ message: 'Missing Svix headers' })
     }
 
-    // Verify signature
-    const body = JSON.stringify(req.body)
+    // Verify timestamp freshness to prevent replay attacks (Svix recommendation: 5 minutes)
+    const timestampInt = parseInt(svixTimestamp, 10)
+    if (isNaN(timestampInt)) {
+      return res.status(400).json({ message: 'Invalid Svix timestamp' })
+    }
+    const currentTime = Math.floor(Date.now() / 1000)
+    const fiveMinutes = 5 * 60
+    if (Math.abs(currentTime - timestampInt) > fiveMinutes) {
+      return res.status(400).json({ message: 'Webhook timestamp too old or too far in future' })
+    }
+
+    // With express.raw({ type: 'application/json' }), req.body is the raw Buffer.
+    const rawBuffer: Buffer = Buffer.isBuffer(req.body) ? req.body : Buffer.from(JSON.stringify(req.body))
+    const body = rawBuffer.toString('utf8')
     const signedContent = `${svixId}.${svixTimestamp}.${body}`
     
     // Clerk webhook secrets are prefixed with "whsec_"
@@ -59,7 +71,8 @@ export async function clerkWebhookHandler(req: Request, res: Response) {
       return res.status(401).json({ message: 'Invalid webhook signature' })
     }
 
-    const { type, data } = req.body
+    // Parse the verified raw body as JSON for event processing
+    const { type, data } = JSON.parse(body)
 
     if (type === 'user.created') {
       const clerkUserId = data.id
