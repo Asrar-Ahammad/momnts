@@ -24,6 +24,7 @@ import ShareEventModal from './components/ShareEventModal'
 import { useWebHaptics } from 'web-haptics/react'
 import { getDEK, deleteDEK } from '../../lib/crypto/keyStore'
 import { getPassphrase } from '../../lib/crypto/passphraseCache'
+import { decryptPhoto, detectImageType } from '../../lib/crypto/e2ee'
 import PassphrasePrompt from '../../components/PassphrasePrompt'
 
 type TabType = 'all' | 'your-photos' | 'favourites' | 'your-uploads' | 'connections'
@@ -68,7 +69,8 @@ const EventDetails = () => {
     location: '',
     isActive: true,
     isSecure: true,
-    allowDownloads: true
+    allowDownloads: true,
+    coverPhotoId: null as string | null
   })
   const [savingSettings, setSavingSettings] = useState(false)
   const uploadingRef = useRef(false)
@@ -272,11 +274,35 @@ const EventDetails = () => {
 
         if (!response.ok) throw new Error('Network response was not ok')
 
-        const blob = await response.blob()
+        const encryptionIv = response.headers.get('x-encryption-iv')
+        const encryptionTag = response.headers.get('x-encryption-tag')
+
+        let blob: Blob
+        let fileExtension = 'jpg'
+        if (encryptionIv && encryptionTag && dek) {
+          // E2EE event: decrypt the ciphertext before saving to device
+          const encryptedBuffer = await response.arrayBuffer()
+          const decryptedBuffer = await decryptPhoto(encryptedBuffer, encryptionIv, encryptionTag, dek)
+          const typeInfo = detectImageType(decryptedBuffer)
+          blob = new Blob([decryptedBuffer], { type: typeInfo.mime })
+          fileExtension = typeInfo.ext
+        } else {
+          blob = await response.blob()
+          if (blob.type === 'image/webp') {
+            fileExtension = 'webp'
+          } else if (blob.type === 'image/png') {
+            fileExtension = 'png'
+          } else if (blob.type === 'image/gif') {
+            fileExtension = 'gif'
+          } else if (blob.type === 'image/heic') {
+            fileExtension = 'heic'
+          }
+        }
+
         const url = window.URL.createObjectURL(blob)
         const a = document.createElement('a')
         a.href = url
-        a.download = `momnts-fav-${photo.id}.jpg`
+        a.download = `momnts-fav-${photo.id}.${fileExtension}`
         document.body.appendChild(a)
         a.click()
 
@@ -540,7 +566,8 @@ const EventDetails = () => {
         location: event.location,
         isActive: event.is_active,
         isSecure: event.is_secure,
-        allowDownloads: event.allow_downloads
+        allowDownloads: event.allow_downloads,
+        coverPhotoId: event.cover_photo_id || null
       })
       setSettingsModalOpen(true)
     }
@@ -559,7 +586,9 @@ const EventDetails = () => {
         settingsForm.location,
         settingsForm.isActive,
         settingsForm.isSecure,
-        settingsForm.allowDownloads
+        settingsForm.allowDownloads,
+        undefined,
+        settingsForm.coverPhotoId
       )
       toast.success('Event updated successfully!')
       haptic.trigger("success")
@@ -657,11 +686,35 @@ const EventDetails = () => {
 
         if (!response.ok) throw new Error('Network response was not ok')
 
-        const blob = await response.blob()
+        const encryptionIv = response.headers.get('x-encryption-iv')
+        const encryptionTag = response.headers.get('x-encryption-tag')
+
+        let blob: Blob
+        let fileExtension = 'jpg'
+        if (encryptionIv && encryptionTag && dek) {
+          // E2EE event: decrypt the ciphertext before saving to device
+          const encryptedBuffer = await response.arrayBuffer()
+          const decryptedBuffer = await decryptPhoto(encryptedBuffer, encryptionIv, encryptionTag, dek)
+          const typeInfo = detectImageType(decryptedBuffer)
+          blob = new Blob([decryptedBuffer], { type: typeInfo.mime })
+          fileExtension = typeInfo.ext
+        } else {
+          blob = await response.blob()
+          if (blob.type === 'image/webp') {
+            fileExtension = 'webp'
+          } else if (blob.type === 'image/png') {
+            fileExtension = 'png'
+          } else if (blob.type === 'image/gif') {
+            fileExtension = 'gif'
+          } else if (blob.type === 'image/heic') {
+            fileExtension = 'heic'
+          }
+        }
+
         const url = window.URL.createObjectURL(blob)
         const a = document.createElement('a')
         a.href = url
-        a.download = `momnts-${photo.id}.jpg`
+        a.download = `momnts-${photo.id}.${fileExtension}`
         document.body.appendChild(a)
         a.click()
 
@@ -912,6 +965,8 @@ const EventDetails = () => {
         saving={savingSettings}
         inviteCode={event?.invite_code}
         onRegenerateCode={handleRegenerateCode}
+        photos={photos}
+        encryptionMode={event?.encryption_mode}
         onDelete={async () => {
           if (!eventId) return
           try {

@@ -2,6 +2,7 @@ import { motion } from 'framer-motion'
 import { cn } from '../../../lib/utils'
 import { EventData } from '../../../features/events/services/events.api'
 import { toast } from 'sonner'
+import { Lock } from '@phosphor-icons/react'
 
 const momntThemes = [
   { bg: 'from-neutral-900 via-neutral-950 to-black' },
@@ -26,7 +27,8 @@ interface MomntCardProps {
 
 export const MomntCard = ({ event, onClick }: MomntCardProps) => {
   const photoCount = event._count?.photos || 0
-  const coverPhoto = event.photos?.[0]?.thumb_url || event.photos?.[0]?.display_url || null
+  const isE2EE = event.encryption_mode === 'E2EE'
+  const coverPhoto = isE2EE ? null : (event.photos?.[0]?.thumb_url || event.photos?.[0]?.display_url || null)
 
   if (photoCount === 0) {
     return null
@@ -49,7 +51,7 @@ export const MomntCard = ({ event, onClick }: MomntCardProps) => {
       onClick={handleCardClick}
       className={cn(
         "shrink-0 w-48 h-72 rounded-2xl relative overflow-hidden shadow-md hover:shadow-xl border border-neutral-200/10 cursor-pointer flex flex-col justify-between p-5 text-white select-none group transition-all",
-        coverPhoto ? "bg-neutral-900" : theme.bg
+        coverPhoto ? "bg-neutral-900" : cn("bg-gradient-to-br", isE2EE ? "from-purple-900 via-indigo-950 to-neutral-950" : theme.bg)
       )}
     >
       {/* Event Photo Cover Background */}
@@ -77,8 +79,15 @@ export const MomntCard = ({ event, onClick }: MomntCardProps) => {
         </div>
       )}
 
-      {/* Top content: role and photo count pill */}
+      {/* Top content: E2EE Lock badge or empty placeholder */}
       <div className="flex justify-between items-start z-10">
+        {isE2EE ? (
+          <span className="inline-flex items-center justify-center bg-purple-600/30 text-purple-200 rounded-full p-2 shadow-md backdrop-blur-xs border border-white/10">
+            <Lock size={14} weight="fill" />
+          </span>
+        ) : (
+          <div />
+        )}
       </div>
 
       {/* Bottom content: name */}

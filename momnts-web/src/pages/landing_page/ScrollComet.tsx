@@ -26,7 +26,7 @@ const ScrollComet = () => {
           y: trackHeight - cometHeight,
           ease: 'none',
           scrollTrigger: {
-            trigger: document.documentElement,
+            trigger: 'body',
             start: 'top top',
             end: 'bottom bottom',
             scrub: 0.5,
@@ -42,7 +42,7 @@ const ScrollComet = () => {
           height: trackHeight - cometHeight,
           ease: 'none',
           scrollTrigger: {
-            trigger: document.documentElement,
+            trigger: 'body',
             start: 'top top',
             end: 'bottom bottom',
             scrub: 0.5,
@@ -85,19 +85,29 @@ const ScrollComet = () => {
       </a>
       <a 
         href="#features" 
-        className="lp-comet-nav absolute left-[44px] top-1/4 text-[8px] font-mono uppercase tracking-[0.18em] text-[var(--lp-text-secondary)] hover:text-violet-400 select-none pointer-events-auto transition-colors duration-250 -translate-y-1/2 whitespace-nowrap cursor-pointer"
+        style={{ top: '20%' }}
+        className="lp-comet-nav absolute left-[44px] text-[8px] font-mono uppercase tracking-[0.18em] text-[var(--lp-text-secondary)] hover:text-violet-400 select-none pointer-events-auto transition-colors duration-250 -translate-y-1/2 whitespace-nowrap cursor-pointer"
       >
         Capabilities
       </a>
       <a 
+        href="#e2ee" 
+        style={{ top: '40%' }}
+        className="lp-comet-nav absolute left-[44px] text-[8px] font-mono uppercase tracking-[0.18em] text-[var(--lp-text-secondary)] hover:text-violet-400 select-none pointer-events-auto transition-colors duration-250 -translate-y-1/2 whitespace-nowrap cursor-pointer"
+      >
+        Security
+      </a>
+      <a 
         href="#how-it-works" 
-        className="lp-comet-nav absolute left-[44px] top-1/2 text-[8px] font-mono uppercase tracking-[0.18em] text-[var(--lp-text-secondary)] hover:text-violet-400 select-none pointer-events-auto transition-colors duration-250 -translate-y-1/2 whitespace-nowrap cursor-pointer"
+        style={{ top: '60%' }}
+        className="lp-comet-nav absolute left-[44px] text-[8px] font-mono uppercase tracking-[0.18em] text-[var(--lp-text-secondary)] hover:text-violet-400 select-none pointer-events-auto transition-colors duration-250 -translate-y-1/2 whitespace-nowrap cursor-pointer"
       >
         Workflow
       </a>
       <a 
         href="#vision" 
-        className="lp-comet-nav absolute left-[44px] top-3/4 text-[8px] font-mono uppercase tracking-[0.18em] text-[var(--lp-text-secondary)] hover:text-violet-400 select-none pointer-events-auto transition-colors duration-250 -translate-y-1/2 whitespace-nowrap cursor-pointer"
+        style={{ top: '80%' }}
+        className="lp-comet-nav absolute left-[44px] text-[8px] font-mono uppercase tracking-[0.18em] text-[var(--lp-text-secondary)] hover:text-violet-400 select-none pointer-events-auto transition-colors duration-250 -translate-y-1/2 whitespace-nowrap cursor-pointer"
       >
         Philosophy
       </a>

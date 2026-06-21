@@ -13,6 +13,7 @@ export interface EventData {
   is_active: boolean
   attendee_upload_limit: number
   created_at: string
+  cover_photo_id?: string | null
   _count: {
     photos: number
     event_access: number
@@ -154,11 +155,21 @@ export const eventsApi = {
     return data.event
   },
 
-  async updateEvent(eventId: string, name: string, date: string, location: string, isActive: boolean, isSecure?: boolean, allowDownloads?: boolean, regenerateInviteCode?: boolean): Promise<EventData> {
+  async updateEvent(
+    eventId: string,
+    name: string,
+    date: string,
+    location: string,
+    isActive: boolean,
+    isSecure?: boolean,
+    allowDownloads?: boolean,
+    regenerateInviteCode?: boolean,
+    coverPhotoId?: string | null
+  ): Promise<EventData> {
     const response = await apiFetch(`${API_URL}/api/events/${eventId}`, {
       method: "PUT",
       headers: jsonAuthHeaders(),
-      body: JSON.stringify({ name, date, location, isActive, isSecure, allowDownloads, regenerateInviteCode }),
+      body: JSON.stringify({ name, date, location, isActive, isSecure, allowDownloads, regenerateInviteCode, coverPhotoId }),
     })
 
     if (!response.ok) {

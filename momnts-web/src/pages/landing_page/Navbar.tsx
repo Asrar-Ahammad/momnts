@@ -5,11 +5,14 @@ import { useTheme } from 'next-themes'
 import { flushSync } from 'react-dom'
 import gsap from 'gsap'
 
+import { useAuth } from '../../features/auth/hooks/useAuth'
+
 interface NavbarProps {
   showProgress?: boolean
 }
 
 const Navbar = ({ showProgress = false }: NavbarProps = {}) => {
+  const { user, loading } = useAuth()
   const [scrolled, setScrolled] = useState(false)
   const navRef = useRef<HTMLElement>(null)
   const progressRef = useRef<HTMLDivElement>(null)
@@ -90,8 +93,7 @@ const Navbar = ({ showProgress = false }: NavbarProps = {}) => {
         </Link>
 
         <div className="lp-nav-actions">
-          <a href="#features" className="lp-nav-link lp-nav-item hidden sm:inline-flex">Capabilities</a>
-          <a href="#how-it-works" className="lp-nav-link lp-nav-item hidden sm:inline-flex">Workflow</a>
+  
           <button 
             onClick={toggleTheme}
             className="lp-nav-link lp-nav-item flex items-center justify-center p-2 rounded-full hover:bg-[var(--lp-accent-soft)] transition-colors cursor-pointer text-[var(--lp-text-secondary)] hover:text-[var(--lp-text)] border-none bg-transparent"
@@ -100,11 +102,20 @@ const Navbar = ({ showProgress = false }: NavbarProps = {}) => {
           >
             {resolvedTheme === 'dark' ? <Sun size={18} /> : <Moon size={18} />}
           </button>
-          <Link to="/login" className="lp-nav-link lp-nav-item">Log in</Link>
-          <Link to="/register" className="lp-nav-btn lp-nav-btn--primary lp-nav-item whitespace-nowrap">
-            Get Started
-            <ArrowRight size={16} weight="bold" />
-          </Link>
+          {!loading && user ? (
+            <Link to="/dashboard" className="lp-nav-btn lp-nav-btn--primary lp-nav-item whitespace-nowrap">
+              Dashboard
+              <ArrowRight size={16} weight="bold" />
+            </Link>
+          ) : (
+            <>
+              <Link to="/login" className="lp-nav-link lp-nav-item">Log in</Link>
+              <Link to="/register" className="lp-nav-btn lp-nav-btn--primary lp-nav-item whitespace-nowrap">
+                Get Started
+                <ArrowRight size={16} weight="bold" />
+              </Link>
+            </>
+          )}
         </div>
       </div>
 

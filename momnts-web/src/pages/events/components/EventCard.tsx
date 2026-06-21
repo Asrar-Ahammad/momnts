@@ -44,19 +44,29 @@ export const EventCard = ({ event }: EventCardProps) => {
     }
   }
 
-  const cachedCover = coverPhotoCache.get(event.id);
   const initialCover = (event as any).cover_url || (event as any).photos?.[0]?.thumb_url || (event as any).photos?.[0]?.url || (event as any).cover_image;
-  const [coverPhoto, setCoverPhoto] = React.useState<string | null>(cachedCover || initialCover || null);
+  const [coverPhoto, setCoverPhoto] = React.useState<string | null>(coverPhotoCache.get(event.id) || initialCover || null);
 
   React.useEffect(() => {
     let mounted = true;
     if (event.encryption_mode === 'E2EE') {
       return;
     }
-    if (coverPhoto) {
-      if (!coverPhotoCache.has(event.id)) {
-        coverPhotoCache.set(event.id, coverPhoto);
-      }
+
+    // The API already resolves the correct cover photo via resolveAndPresignEvent.
+    // Always sync the latest URL from the API so that cover photo changes are
+    // reflected immediately after the query is invalidated and re-fetched.
+    if (initialCover) {
+      setCoverPhoto(initialCover);
+      coverPhotoCache.set(event.id, initialCover);
+      return;
+    }
+
+    // Fallback: no photos were embedded in the event list response.
+    // Only perform the extra fetch if we don't already have something cached.
+    const cached = coverPhotoCache.get(event.id);
+    if (cached) {
+      setCoverPhoto(cached);
       return;
     }
 
@@ -66,7 +76,7 @@ export const EventCard = ({ event }: EventCardProps) => {
         if (photos && photos.length > 0) {
           const photo = photos.find(p => p.is_visible) || photos[0];
           const url = photo.thumb_url || photo.display_url || photo.original_url;
-          
+
           // Preload image
           const img = new Image();
           img.src = url;
@@ -79,7 +89,8 @@ export const EventCard = ({ event }: EventCardProps) => {
         console.error("Failed to fetch photos for event", event.id, err);
       });
     return () => { mounted = false; };
-  }, [event.id, initialCover, coverPhoto, event.encryption_mode]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [event.id, initialCover, event.encryption_mode]);
   return (
     <motion.div
       whileHover={{ y: -8 }}

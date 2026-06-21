@@ -12,6 +12,7 @@ import HeroSection from './HeroSection'
 import CursorBlob from './CursorBlob'
 import ScrollComet from './ScrollComet'
 import FeaturesSection from './FeaturesSection'
+import E2EESection from './E2EESection'
 import DecorativeSVG from './DecorativeSVG'
 import HowItWorks from './HowItWorks'
 import StatsSection from './StatsSection'
@@ -156,6 +157,7 @@ const LandingPage = () => {
         <HeroSection theme={currentTheme} introReady={!loaderVisible} />
         <DecorativeSVG />
         <FeaturesSection />
+        <E2EESection />
         <HowItWorks />
         <StatsSection />
         <TestimonialSection />

@@ -62,6 +62,7 @@ model Event {
   wrapped_recovery_iv   String?
   wrapped_recovery_tag  String?
   created_at            DateTime        @default(now())
+  cover_photo_id        String?
 
   user User @relation(fields: [user_id], references: [id], onDelete: Cascade)
 

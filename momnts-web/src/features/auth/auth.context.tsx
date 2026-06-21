@@ -68,6 +68,7 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
 
       // ── Legacy JWT check ──────────────────────────────────────────
       const token = localStorage.getItem('token');
+      const refreshTokenVal = localStorage.getItem('refreshToken');
 
       const isTokenExpired = (tok: string | null): boolean => {
         if (!tok) return true;
@@ -92,7 +93,36 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
         }
       };
 
+      // If access token is missing or expired, try to refresh using the refresh token
       if (!token || isTokenExpired(token)) {
+        if (refreshTokenVal) {
+          try {
+            const API_URL = import.meta.env.VITE_SERVER_URL || 'http://localhost:3000';
+            const refreshResponse = await fetch(`${API_URL}/api/auth/refresh`, {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ refreshToken: refreshTokenVal }),
+            });
+
+            if (refreshResponse.ok) {
+              const refreshData = await refreshResponse.json();
+              if (refreshData.accessToken && refreshData.refreshToken) {
+                localStorage.setItem('token', refreshData.accessToken);
+                localStorage.setItem('refreshToken', refreshData.refreshToken);
+                // Now fetch user data with the fresh token
+                const userData = await authApi.getMe();
+                setUser(userData);
+                setAuthSource('legacy');
+                setLoading(false);
+                return;
+              }
+            }
+          } catch {
+            // Refresh failed — fall through to clear session
+          }
+        }
+
+        // No refresh token or refresh failed — clear everything
         localStorage.removeItem('token');
         localStorage.removeItem('refreshToken');
         setUser(null);

@@ -225,6 +225,54 @@ export async function decryptPhoto(
   )
 }
 
+export interface ImageTypeInfo {
+  mime: string
+  ext: string
+}
+
+/** Detect image type from raw decrypted ArrayBuffer using magic bytes/file signature. */
+export function detectImageType(buffer: ArrayBuffer): ImageTypeInfo {
+  const arr = new Uint8Array(buffer)
+  if (arr.length >= 3 && arr[0] === 0xFF && arr[1] === 0xD8 && arr[2] === 0xFF) {
+    return { mime: 'image/jpeg', ext: 'jpg' }
+  }
+  if (
+    arr.length >= 8 &&
+    arr[0] === 0x89 &&
+    arr[1] === 0x50 &&
+    arr[2] === 0x4E &&
+    arr[3] === 0x47 &&
+    arr[4] === 0x0D &&
+    arr[5] === 0x0A &&
+    arr[6] === 0x1A &&
+    arr[7] === 0x0A
+  ) {
+    return { mime: 'image/png', ext: 'png' }
+  }
+  if (
+    arr.length >= 12 &&
+    arr[0] === 0x52 && arr[1] === 0x49 && arr[2] === 0x46 && arr[3] === 0x46 && // RIFF
+    arr[8] === 0x57 && arr[9] === 0x45 && arr[10] === 0x42 && arr[11] === 0x50   // WEBP
+  ) {
+    return { mime: 'image/webp', ext: 'webp' }
+  }
+  if (arr.length >= 3 && arr[0] === 0x47 && arr[1] === 0x49 && arr[2] === 0x46) { // GIF
+    return { mime: 'image/gif', ext: 'gif' }
+  }
+  // HEIC check: check for 'ftyp' at offset 4, then check brand at offset 8
+  if (
+    arr.length >= 12 &&
+    arr[4] === 0x66 && arr[5] === 0x74 && arr[6] === 0x79 && arr[7] === 0x70 // ftyp
+  ) {
+    const brand = String.fromCharCode(arr[8], arr[9], arr[10], arr[11])
+    if (['heic', 'heix', 'hevc', 'mif1', 'msf1'].includes(brand.toLowerCase())) {
+      return { mime: 'image/heic', ext: 'heic' }
+    }
+  }
+  // Default fallback if no magic bytes match
+  return { mime: 'image/jpeg', ext: 'jpg' }
+}
+
 // ─── High-level: Create E2EE event keys ──────────────────────────────
 
 export interface E2EEEventKeys {

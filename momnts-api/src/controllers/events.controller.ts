@@ -44,6 +44,38 @@ async function presignEventData(event: any): Promise<any> {
 
     return result;
 }
+
+/**
+ * Resolves the chosen cover photo of an event if cover_photo_id is set.
+ * If set, it overrides the event.photos array with the chosen photo.
+ */
+async function resolveEventCoverPhoto(event: any): Promise<any> {
+    if (!event) return event;
+    const result = { ...event };
+    if (result.cover_photo_id) {
+        const coverPhoto = await prisma.photo.findUnique({
+            where: { id: result.cover_photo_id },
+            select: {
+                id: true,
+                thumb_url: true,
+                display_url: true,
+            }
+        });
+        if (coverPhoto) {
+            result.photos = [coverPhoto];
+        }
+    }
+    return result;
+}
+
+/**
+ * Resolves the cover photo and then presigns nested event photos and selfie avatars.
+ */
+async function resolveAndPresignEvent(event: any): Promise<any> {
+    const resolved = await resolveEventCoverPhoto(event);
+    return presignEventData(resolved);
+}
+
 import { getIO } from "../lib/socket.js";
 
 /**
@@ -280,7 +312,7 @@ async function getEventDetailsController(req: AuthRequest, res: Response) {
         if (!event) {
             return res.status(404).json({ message: "Event not found" })
         }
-        const signedEvent = await presignEventData(event);
+        const signedEvent = await resolveAndPresignEvent(event);
         
         let pendingRequestCount = 0;
         if (eventAccess.role === 'ORGANIZER') {
@@ -610,7 +642,7 @@ async function getJoinedEventsController(req: AuthRequest, res: Response) {
         })
         const eventsWithOverride = await Promise.all(events.map(async acc => {
             const ev = acc.event as any;
-            const signedEv = await presignEventData(ev);
+            const signedEv = await resolveAndPresignEvent(ev);
             return {
                 ...acc,
                 event: {
@@ -645,7 +677,8 @@ async function updateEventDetailsController(req: PlanRequest, res: Response) {
             name, date, location, isActive, isSecure, allowDownloads, regenerateInviteCode,
             encryptionMode,
             // Allow passphrase re-wrap (recovery flow: set new passphrase)
-            wrappedDek, wrappedDekIv, wrappedDekTag, kdfSalt
+            wrappedDek, wrappedDekIv, wrappedDekTag, kdfSalt,
+            coverPhotoId
         } = req.body
 
         // E2EE mode is immutable after creation
@@ -729,6 +762,7 @@ async function updateEventDetailsController(req: PlanRequest, res: Response) {
                 ...(isSecure !== undefined && { is_secure: isSecure }),
                 ...(allowDownloads !== undefined && { allow_downloads: allowDownloads }),
                 ...(inviteCode !== undefined && { invite_code: inviteCode }),
+                ...(coverPhotoId !== undefined && { cover_photo_id: coverPhotoId }),
                 // Allow passphrase re-wrap for E2EE events (recovery-based passphrase reset)
                 ...(wrappedDek && event.encryption_mode === 'E2EE' && {
                     wrapped_dek: wrappedDek,
@@ -855,7 +889,7 @@ async function getEventsController(req: AuthRequest, res: Response) {
 
         // Add user_role as ORGANIZER since these are the user's own events
         const eventsWithRole = await Promise.all(events.map(async event => {
-            const signedEvent = await presignEventData(event);
+            const signedEvent = await resolveAndPresignEvent(event);
             const pendingRequestCount = await prisma.joinRequest.count({
                 where: { event_id: event.id, status: 'PENDING' }
             });

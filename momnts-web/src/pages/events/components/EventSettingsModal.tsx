@@ -3,7 +3,7 @@ import { Button } from '../../../components/ui/button'
 import { Dialog, DialogContent, DialogDescription, DialogTitle, DialogHeader } from '../../../components/ui/dialog'
 import { Input } from '../../../components/ui/input'
 import { Label } from '../../../components/ui/label'
-import { Trash, CalendarBlank, Broadcast, LockKey, DownloadSimple, Sliders, Shield, Warning, Lightning } from '@phosphor-icons/react'
+import { Trash, CalendarBlank, Broadcast, LockKey, DownloadSimple, Sliders, Shield, Warning, Lightning, Image as ImageIcon } from '@phosphor-icons/react'
 import { format } from 'date-fns'
 import { cn } from '../../../lib/utils'
 import { Popover, PopoverContent, PopoverTrigger } from '../../../components/ui/popover'
@@ -23,13 +23,24 @@ interface EventSettingsModalProps {
     isActive: boolean
     isSecure: boolean
     allowDownloads: boolean
+    coverPhotoId: string | null
   }
-  onSettingsFormChange: (form: { name: string; date: string; location: string; isActive: boolean; isSecure: boolean; allowDownloads: boolean }) => void
+  onSettingsFormChange: (form: {
+    name: string
+    date: string
+    location: string
+    isActive: boolean
+    isSecure: boolean
+    allowDownloads: boolean
+    coverPhotoId: string | null
+  }) => void
   onSave: () => void
   saving: boolean
   onDelete: () => Promise<void>
   inviteCode?: string
   onRegenerateCode?: () => Promise<void>
+  photos?: any[]
+  encryptionMode?: 'AI' | 'E2EE'
 }
 
 const EventSettingsModal = ({
@@ -42,6 +53,8 @@ const EventSettingsModal = ({
   onDelete,
   inviteCode,
   onRegenerateCode,
+  photos,
+  encryptionMode,
 }: EventSettingsModalProps) => {
   const [activeTab, setActiveTab] = useState<'general' | 'permissions' | 'danger'>('general')
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false)
@@ -74,9 +87,10 @@ const EventSettingsModal = ({
 
   const tabs = [
     { id: 'general', label: 'General Info', icon: Sliders },
+    ...(encryptionMode !== 'E2EE' ? [{ id: 'background', label: 'Card Background', icon: ImageIcon }] : []),
     { id: 'permissions', label: 'Permissions', icon: Shield },
     { id: 'danger', label: 'Danger Zone', icon: Warning, className: 'text-red-500 hover:text-red-600 hover:bg-red-50/50 dark:hover:bg-red-950/20' }
-  ] as const
+  ]
 
   return (
     <>
@@ -124,10 +138,11 @@ const EventSettingsModal = ({
             {/* Content Header */}
             <div className="px-6 py-4 sm:py-5 border-b border-neutral-100 dark:border-neutral-800 shrink-0 pr-12">
               <h4 className="text-base font-bold text-neutral-900 dark:text-neutral-100 capitalize">
-                {activeTab === 'general' ? 'General Information' : activeTab === 'permissions' ? 'Permissions & Access' : 'Danger Zone'}
+                {activeTab === 'general' ? 'General Information' : activeTab === 'background' ? 'Card Background' : activeTab === 'permissions' ? 'Permissions & Access' : 'Danger Zone'}
               </h4>
               <p className="text-[11px] text-neutral-400 dark:text-neutral-500 mt-0.5">
                 {activeTab === 'general' && "Configure basic information, location, date, and visibility settings."}
+                {activeTab === 'background' && "Choose a photo from this event to display as the background for the event card."}
                 {activeTab === 'permissions' && "Manage security options, attendee download privileges, and invite codes."}
                 {activeTab === 'danger' && "Dangerous actions that cannot be undone. Proceed with caution."}
               </p>
@@ -218,6 +233,78 @@ const EventSettingsModal = ({
                       className="cursor-pointer"
                     />
                   </div>
+                </div>
+              )}
+
+              {activeTab === 'background' && (
+                <div className="space-y-4 animate-in fade-in duration-200">
+                  <div className="space-y-1">
+                    <Label className="text-xs font-bold">Choose Event Card Background</Label>
+                    <p className="text-[10px] text-neutral-400 dark:text-neutral-500 font-medium">
+                      Select a photo to be displayed as the cover image of the event card. If none is chosen, the recently uploaded photo will be used.
+                    </p>
+                  </div>
+
+                  {photos && photos.length > 0 ? (
+                    <div className="grid grid-cols-3 gap-3 max-h-[280px] overflow-y-auto pr-2 custom-scrollbar p-1">
+                      {/* Default Option (Reset) */}
+                      <button
+                        type="button"
+                        onClick={() => {
+                          haptic.trigger("light")
+                          onSettingsFormChange({ ...settingsForm, coverPhotoId: null })
+                        }}
+                        className={cn(
+                          "relative aspect-video rounded-xl overflow-hidden border-2 flex flex-col items-center justify-center bg-neutral-50 dark:bg-neutral-900 transition-all cursor-pointer group",
+                          !settingsForm.coverPhotoId
+                            ? "border-neutral-900 dark:border-white shadow-md"
+                            : "border-neutral-200/40 dark:border-neutral-800 hover:border-neutral-400"
+                        )}
+                      >
+                        <Lightning size={20} weight={!settingsForm.coverPhotoId ? "fill" : "bold"} className={cn(!settingsForm.coverPhotoId ? "text-amber-500" : "text-neutral-400")} />
+                        <span className="text-[10px] font-bold mt-1 text-neutral-500 dark:text-neutral-400">Recently Uploaded</span>
+                      </button>
+
+                      {/* Photo Options */}
+                      {photos.map((photo) => {
+                        const isSelected = settingsForm.coverPhotoId === photo.id
+                        return (
+                          <button
+                            key={photo.id}
+                            type="button"
+                            onClick={() => {
+                              haptic.trigger("light")
+                              onSettingsFormChange({ ...settingsForm, coverPhotoId: photo.id })
+                            }}
+                            className={cn(
+                              "relative aspect-video rounded-xl overflow-hidden border-2 transition-all cursor-pointer group",
+                              isSelected
+                                ? "border-neutral-900 dark:border-white shadow-md scale-95"
+                                : "border-neutral-200/40 dark:border-neutral-800 hover:border-neutral-400"
+                            )}
+                          >
+                            <img
+                              src={photo.thumb_url || photo.display_url}
+                              alt="Event photo"
+                              className="w-full h-full object-cover"
+                            />
+                            {isSelected && (
+                              <div className="absolute inset-0 bg-black/20 flex items-center justify-center">
+                                <span className="bg-neutral-900/80 dark:bg-white/80 text-white dark:text-neutral-950 text-[9px] font-extrabold uppercase px-2 py-0.5 rounded-full tracking-wider shadow-sm">
+                                  Selected
+                                </span>
+                              </div>
+                            )}
+                          </button>
+                        )
+                      })}
+                    </div>
+                  ) : (
+                    <div className="p-8 border border-dashed border-neutral-200 dark:border-neutral-800 rounded-2xl text-center space-y-1">
+                      <p className="text-xs font-semibold text-neutral-500 dark:text-neutral-400">No photos available yet</p>
+                      <p className="text-[10px] text-neutral-400">Upload photos to this event first before choosing a cover image.</p>
+                    </div>
+                  )}
                 </div>
               )}
 
