@@ -5,11 +5,11 @@ import {
   fetchConnectionsSummary,
 } from "../services/connections.api"
 
-export function useConnections(eventId: string) {
+export function useConnections(eventId: string, enabled = true) {
   return useQuery({
     queryKey: ["connections", eventId],
     queryFn: () => fetchConnections(eventId),
-    enabled: !!eventId,
+    enabled: !!eventId && enabled,
     staleTime: 45 * 60 * 1000,
   })
 }
@@ -26,11 +26,11 @@ export function useSharedPhotos(
   })
 }
 
-export function useConnectionsSummary(eventId: string) {
+export function useConnectionsSummary(eventId: string, enabled = true) {
   return useQuery({
     queryKey: ["connections-summary", eventId],
     queryFn: () => fetchConnectionsSummary(eventId),
-    enabled: !!eventId,
+    enabled: !!eventId && enabled,
     staleTime: 5 * 60 * 1000,
   })
 }

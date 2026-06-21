@@ -1,4 +1,4 @@
-import { useRef } from 'react'
+import { useState, useRef } from 'react'
 import { QRCodeSVG } from 'qrcode.react'
 import {
   Dialog,
@@ -7,7 +7,7 @@ import {
   DialogTitle,
 } from '../../../components/ui/dialog'
 import { Button } from '../../../components/ui/button'
-import { DownloadSimple, ShareNetwork, LinkSimple } from '@phosphor-icons/react'
+import { DownloadSimple, ShareNetwork, LinkSimple, LockKey, CopySimpleIcon } from '@phosphor-icons/react'
 import { toast } from 'sonner'
 import { EventData } from '../../../features/events/services/events.api'
 
@@ -19,8 +19,42 @@ interface ShareEventModalProps {
 
 const ShareEventModal = ({ open, onOpenChange, event }: ShareEventModalProps) => {
   const qrRef = useRef<SVGSVGElement>(null)
+  const [prevEventId, setPrevEventId] = useState<string | null>(null)
+  const [prevOpen, setPrevOpen] = useState(false)
+  const [localPassphrase, setLocalPassphrase] = useState('')
+  const [tempPassphraseInput, setTempPassphraseInput] = useState('')
+
+  if (event && (event.id !== prevEventId || open !== prevOpen)) {
+    setPrevEventId(event.id)
+    setPrevOpen(open)
+    const cached = sessionStorage.getItem('passphrase_' + event.id) || ''
+    setLocalPassphrase(cached)
+    setTempPassphraseInput(cached)
+  }
 
   if (!event) return null
+
+  const handlePassphraseInputChange = (val: string) => {
+    setTempPassphraseInput(val)
+    if (event) {
+      sessionStorage.setItem('passphrase_' + event.id, val)
+      setLocalPassphrase(val)
+    }
+  }
+
+  const handleCopyCredentials = async () => {
+    const passphrase = localPassphrase || tempPassphraseInput
+    let textToCopy = `Event Code: ${event.invite_code}`
+    if (passphrase) {
+      textToCopy += `\nPassphrase: ${passphrase}`
+    }
+    try {
+      await navigator.clipboard.writeText(textToCopy)
+      toast.success(passphrase ? 'Event code & passphrase copied!' : 'Event code copied!')
+    } catch {
+      toast.error('Failed to copy credentials')
+    }
+  }
 
   const inviteUrl = `${window.location.origin}/events?joinCode=${event.invite_code}`
   const shareText = `Join "${event.name}" on Momnts!`
@@ -121,7 +155,7 @@ const ShareEventModal = ({ open, onOpenChange, event }: ShareEventModalProps) =>
     try {
       await navigator.clipboard.writeText(inviteUrl)
       toast.success('Invite link copied!')
-    } catch (err) {
+    } catch {
       toast.error('Failed to copy invite link')
     }
   }
@@ -163,6 +197,78 @@ const ShareEventModal = ({ open, onOpenChange, event }: ShareEventModalProps) =>
                 </Button>
               )}
             </div>
+
+            {event.encryption_mode === 'E2EE' && (
+              <div className="w-full max-w-xs mt-2 p-4 rounded-2xl border border-neutral-200 dark:border-neutral-800 bg-neutral-50 dark:bg-neutral-900/50 space-y-3">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-1.5 text-xs font-semibold text-neutral-600 dark:text-neutral-400">
+                    <LockKey size={14} weight="bold" className="text-neutral-500" />
+                    <span>E2EE Event Credentials</span>
+                  </div>
+                  <button
+                    onClick={handleCopyCredentials}
+                    className="flex items-center gap-1 text-[10px] text-primary hover:underline font-medium cursor-pointer"
+                  >
+                    <CopySimpleIcon size={12} />
+                    Copy Both
+                  </button>
+                </div>
+                
+                <div className="space-y-1.5 text-xs font-medium">
+                  <div className="flex justify-between items-center">
+                    <span className="text-neutral-400 font-normal">Event Code</span>
+                    <div className="flex items-center gap-1.5 font-mono font-bold text-neutral-800 dark:text-neutral-200">
+                      <span>{event.invite_code}</span>
+                      <button
+                        onClick={async () => {
+                          try {
+                            await navigator.clipboard.writeText(event.invite_code)
+                            toast.success('Event code copied!')
+                          } catch {
+                            toast.error('Failed to copy event code')
+                          }
+                        }}
+                        className="p-1 hover:bg-neutral-200 dark:hover:bg-neutral-850 rounded transition-colors text-neutral-500 hover:text-neutral-700 dark:hover:text-neutral-300"
+                        title="Copy Code"
+                      >
+                        <CopySimpleIcon size={12} />
+                      </button>
+                    </div>
+                  </div>
+                  
+                  <div className="flex items-center justify-between gap-4">
+                    <span className="text-neutral-400 font-normal shrink-0">Passphrase</span>
+                    {localPassphrase ? (
+                      <div className="flex items-center gap-1.5 font-mono font-bold text-neutral-800 dark:text-neutral-200 overflow-hidden">
+                        <span className="truncate max-w-[120px]">{localPassphrase}</span>
+                        <button
+                          onClick={async () => {
+                            try {
+                              await navigator.clipboard.writeText(localPassphrase)
+                              toast.success('Passphrase copied!')
+                            } catch {
+                              toast.error('Failed to copy passphrase')
+                            }
+                          }}
+                          className="p-1 hover:bg-neutral-200 dark:hover:bg-neutral-850 rounded transition-colors text-neutral-500 hover:text-neutral-700 dark:hover:text-neutral-300 shrink-0"
+                          title="Copy Passphrase"
+                        >
+                          <CopySimpleIcon size={12} />
+                        </button>
+                      </div>
+                    ) : (
+                      <input
+                        type="text"
+                        placeholder="Enter passphrase to show & copy"
+                        value={tempPassphraseInput}
+                        onChange={(e) => handlePassphraseInputChange(e.target.value)}
+                        className="w-full max-w-[150px] px-2 py-0.5 text-[11px] font-mono border border-neutral-300 dark:border-neutral-700 bg-white dark:bg-neutral-950 rounded text-right focus:outline-none focus:ring-1 focus:ring-primary"
+                      />
+                    )}
+                  </div>
+                </div>
+              </div>
+            )}
           </div>
 
           <div className="w-full h-px bg-neutral-100 dark:bg-neutral-800" />

@@ -3,7 +3,7 @@ import { useParams, useNavigate, useSearchParams } from 'react-router'
 import { useAuth } from '../../features/auth/hooks/useAuth'
 import { Button } from '../../components/ui/button'
 import { Badge } from '../../components/ui/badge'
-import { ArrowLeft, X, CaretUp } from '@phosphor-icons/react'
+import { ArrowLeft, X, CaretUp, LockKey } from '@phosphor-icons/react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { eventsApi, EventData } from '../../features/events/services/events.api'
 import { photosApi, PhotoData } from '../../features/events/services/photos.api'
@@ -22,9 +22,13 @@ import PhotoCarousel from './components/PhotoCarousel'
 import WhoWasIWith from '../../features/connections/components/WhoWasIWith'
 import ShareEventModal from './components/ShareEventModal'
 import { useWebHaptics } from 'web-haptics/react'
+import { getDEK, deleteDEK } from '../../lib/crypto/keyStore'
+import PassphrasePrompt from '../../components/PassphrasePrompt'
 
 type TabType = 'all' | 'your-photos' | 'favourites' | 'your-uploads' | 'connections'
 type GalleryColumns = 1 | 2 | 3
+
+const EMPTY_ARRAY: any[] = []
 
 const EventDetails = () => {
   const { eventId } = useParams<{ eventId: string }>()
@@ -36,11 +40,14 @@ const EventDetails = () => {
   const queryClient = useQueryClient()
   const haptic = useWebHaptics()
   const { data: event, isLoading: eventLoading } = useEventDetails(eventId)
-  const { data: photos = [], isLoading: photosLoading } = useEventPhotos(eventId)
-  const { data: myPhotosResponse, isLoading: myPhotosLoading } = useMyPhotos(eventId)
-  const myPhotos = myPhotosResponse?.data || []
-  const loading = eventLoading || photosLoading || myPhotosLoading
-  const { data: attendees = [], isLoading: attendeesLoading } = useEventAttendees(eventId)
+  const { data: photos = EMPTY_ARRAY, isLoading: photosLoading } = useEventPhotos(eventId)
+  const isEventE2EE = event?.encryption_mode === 'E2EE'
+  const { data: myPhotosResponse, isLoading: myPhotosLoading } = useMyPhotos(
+    eventId,
+    event ? isEventE2EE : true
+  )
+  const myPhotos = myPhotosResponse?.data || EMPTY_ARRAY
+  const { data: attendees = EMPTY_ARRAY, isLoading: attendeesLoading } = useEventAttendees(eventId)
 
   const isOrganizer = event?.user_role === 'ORGANIZER'
   const isSecure = event?.is_secure || false
@@ -81,6 +88,41 @@ const EventDetails = () => {
     const saved = localStorage.getItem('momnts_gallery_cols')
     return (saved && [1, 2, 3].includes(Number(saved))) ? Number(saved) as GalleryColumns : 2
   })
+
+  const [dek, setDek] = useState<CryptoKey | null>(null)
+  const [isPassphrasePromptOpen, setIsPassphrasePromptOpen] = useState(false)
+
+  const isE2EELocked = event?.encryption_mode === 'E2EE' && !dek
+  const loading = eventLoading || (!isE2EELocked && (photosLoading || (!isEventE2EE && myPhotosLoading)))
+
+  useEffect(() => {
+    return () => {
+      document.body.style.pointerEvents = ''
+      document.body.style.overflow = ''
+      document.body.style.paddingRight = ''
+      document.documentElement.style.pointerEvents = ''
+      document.documentElement.style.overflow = ''
+    }
+  }, [])
+
+  useEffect(() => {
+    if (event?.encryption_mode === 'E2EE') {
+      const checkLockStatus = async () => {
+        const cachedDek = await getDEK(event.id)
+        if (cachedDek) {
+          setDek(cachedDek)
+          setIsPassphrasePromptOpen(false)
+        } else {
+          setDek(null)
+          setIsPassphrasePromptOpen(true)
+        }
+      }
+      checkLockStatus()
+    } else {
+      setDek(null)
+      setIsPassphrasePromptOpen(false)
+    }
+  }, [event?.id, event?.encryption_mode])
 
   const handleGalleryColumnsChange = (cols: GalleryColumns) => {
     setGalleryColumns(cols)
@@ -423,7 +465,8 @@ const EventDetails = () => {
             return newStatuses
           })
         },
-        abortController.signal
+        abortController.signal,
+        dek || undefined
       )
 
       toast.success(`${selectedFiles.length} photo(s) uploaded successfully!`)
@@ -469,10 +512,21 @@ const EventDetails = () => {
 
   const handleCopyInviteCode = () => {
     if (event?.invite_code) {
-      navigator.clipboard.writeText(event.invite_code)
+      let textToCopy = event.invite_code
+      let isE2EECopied = false
+      if (event.encryption_mode === 'E2EE') {
+        const passphrase = sessionStorage.getItem('passphrase_' + event.id) || ''
+        if (passphrase) {
+          textToCopy = `Event Code: ${event.invite_code}\nPassphrase: ${passphrase}`
+          isE2EECopied = true
+        } else {
+          toast.info('Passphrase not cached in this session. Only copied event code.')
+        }
+      }
+      navigator.clipboard.writeText(textToCopy)
       setInviteCodeCopied(true)
       setTimeout(() => setInviteCodeCopied(false), 2000)
-      toast.success('Invite code copied!')
+      toast.success(isE2EECopied ? 'Event code & passphrase copied!' : 'Invite code copied!')
       haptic.trigger("success")
     }
   }
@@ -744,10 +798,25 @@ const EventDetails = () => {
         onSelectAll={handleSelectAll}
         isAllSelected={isAllSelected}
         onShareClick={() => setShareModalOpen(true)}
+        onForgetDeviceKeys={async () => {
+          if (!eventId) return
+          await deleteDEK(eventId)
+          setDek(null)
+          setIsPassphrasePromptOpen(true)
+          toast.success('Keys forgotten on this device')
+          haptic.trigger("light")
+        }}
       />
 
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
-        {activeTab === 'connections' ? (
+        {isE2EELocked ? (
+          <div className="text-center py-16 border border-dashed border-border rounded-2xl bg-neutral-50/50 dark:bg-neutral-900/10">
+            <LockKey size={48} className="mx-auto text-neutral-300 dark:text-neutral-700 mb-4" />
+            <p className="text-sm text-neutral-500 dark:text-neutral-400">
+              This event is end-to-end encrypted. Enter the passphrase above to view the photo gallery.
+            </p>
+          </div>
+        ) : activeTab === 'connections' ? (
           <WhoWasIWith
             eventId={eventId!}
             favouritePhotoIds={favouritePhotoIds}
@@ -788,6 +857,7 @@ const EventDetails = () => {
               favouritePhotoIds={favouritePhotoIds}
               onToggleFavourite={handleToggleFavourite}
               galleryColumns={galleryColumns}
+              dek={dek}
             />
           </>
         )}
@@ -872,6 +942,7 @@ const EventDetails = () => {
         isFavourite={(photoId) => favouritePhotoIds.has(photoId)}
         onToggleFavourite={handleToggleFavourite}
         highlightCommentId={highlightCommentId}
+        dek={dek}
       />
 
       <AnimatePresence>
@@ -903,6 +974,7 @@ const EventDetails = () => {
           eventName={event.name}
           eventLocation={event.location}
           eventDate={event.date}
+          dek={dek}
         />
       )}
 
@@ -911,6 +983,34 @@ const EventDetails = () => {
         onOpenChange={setShareModalOpen}
         event={event}
       />
+
+      {event && event.encryption_mode === 'E2EE' && !dek && (
+        <PassphrasePrompt
+          open={isPassphrasePromptOpen}
+          eventId={event.id}
+          kdfSalt={event.kdf_salt}
+          kdfParams={event.kdf_params}
+          wrappedDek={event.wrapped_dek}
+          wrappedDekIv={event.wrapped_dek_iv}
+          wrappedDekTag={event.wrapped_dek_tag}
+          recoveryKdfSalt={event.recovery_kdf_salt}
+          wrappedRecoveryDek={event.wrapped_recovery_dek}
+          wrappedRecoveryIv={event.wrapped_recovery_iv}
+          wrappedRecoveryTag={event.wrapped_recovery_tag}
+          onUnlockSuccess={(unwrappedDek) => {
+            setDek(unwrappedDek)
+            setIsPassphrasePromptOpen(false)
+            queryClient.invalidateQueries({ queryKey: ['event', event.id] })
+            queryClient.invalidateQueries({ queryKey: ['photos', event.id] })
+          }}
+          onBack={() => {
+            setIsPassphrasePromptOpen(false)
+            setTimeout(() => {
+              navigate('/events')
+            }, 150)
+          }}
+        />
+      )}
     </div>
   )
 }

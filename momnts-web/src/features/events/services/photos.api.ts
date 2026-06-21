@@ -1,8 +1,29 @@
 import { authHeaders } from "../../../lib/authHeaders"
 import { apiFetch } from "../../../lib/apiFetch"
 import { compressImages } from "../../../lib/compressImage"
+import { encryptPhoto } from "../../../lib/crypto/e2ee"
 
 const API_URL = import.meta.env.VITE_SERVER_URL || "http://localhost:3000"
+
+function getImageDimensions(file: File): Promise<{ width: number; height: number }> {
+  return new Promise((resolve) => {
+    if (!file.type.startsWith("image/")) {
+      resolve({ width: 0, height: 0 })
+      return
+    }
+    const url = URL.createObjectURL(file)
+    const img = new Image()
+    img.onload = () => {
+      URL.revokeObjectURL(url)
+      resolve({ width: img.naturalWidth, height: img.naturalHeight })
+    }
+    img.onerror = () => {
+      URL.revokeObjectURL(url)
+      resolve({ width: 0, height: 0 })
+    }
+    img.src = url
+  })
+}
 
 export interface PhotoData {
   id: string
@@ -24,6 +45,8 @@ export interface PhotoData {
     photo_faces: number
   }
   favourites?: Array<{ id: string }>
+  encryption_iv?: string
+  encryption_tag?: string
 }
 
 export interface UploadResponse {
@@ -83,7 +106,8 @@ export const photosApi = {
     files: File[],
     onFileComplete?: (fileIndex: number, photo: PhotoData) => void,
     onFileError?: (fileIndex: number, error: Error) => void,
-    signal?: AbortSignal
+    signal?: AbortSignal,
+    dek?: CryptoKey
   ): Promise<UploadResponse> {
     const results: PhotoData[] = []
     const errors: Array<{ index: number; error: Error }> = []
@@ -96,9 +120,30 @@ export const photosApi = {
     // Helper to upload a batch of files in a single request with timeout
     const uploadBatch = async (batchFiles: File[], startIndex: number): Promise<PhotoData[]> => {
       const formData = new FormData()
-      batchFiles.forEach(file => {
-        formData.append('photos', file)
-      })
+
+      if (dek) {
+        for (let i = 0; i < batchFiles.length; i++) {
+          const file = batchFiles[i]
+          try {
+            const dimensions = await getImageDimensions(file)
+            const arrayBuffer = await file.arrayBuffer()
+            const encrypted = await encryptPhoto(arrayBuffer, dek)
+            const encryptedBlob = new Blob([encrypted.ciphertext], { type: 'application/octet-stream' })
+            formData.append('photos', encryptedBlob, file.name + '.enc')
+            formData.append('encryption_iv', encrypted.iv)
+            formData.append('encryption_tag', encrypted.tag)
+            formData.append('width', String(dimensions.width))
+            formData.append('height', String(dimensions.height))
+          } catch (err) {
+            console.error('Encryption failed for file:', file.name, err)
+            throw new Error(`Encryption failed for ${file.name}`)
+          }
+        }
+      } else {
+        batchFiles.forEach(file => {
+          formData.append('photos', file)
+        })
+      }
 
       const controller = new AbortController()
       const timeoutId = setTimeout(() => controller.abort(), TIMEOUT_MS)

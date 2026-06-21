@@ -21,6 +21,17 @@ export interface EventData {
   allow_downloads: boolean
   pending_request_count?: number
   user_role: string
+  // E2EE fields
+  encryption_mode?: 'AI' | 'E2EE'
+  kdf_salt?: string
+  kdf_params?: Record<string, unknown>
+  wrapped_dek?: string
+  wrapped_dek_iv?: string
+  wrapped_dek_tag?: string
+  recovery_kdf_salt?: string
+  wrapped_recovery_dek?: string
+  wrapped_recovery_iv?: string
+  wrapped_recovery_tag?: string
   event_access?: {
     user: {
       id: string
@@ -73,11 +84,32 @@ export const eventsApi = {
     }))
   },
 
-  async createEvent(name: string, location: string, date: string, attendeeUploadLimit: number, isSecure?: boolean): Promise<EventData> {
+  async createEvent(
+    name: string,
+    location: string,
+    date: string,
+    attendeeUploadLimit: number,
+    isSecure?: boolean,
+    e2eePayload?: {
+      encryptionMode: 'E2EE'
+      kdfSalt: string
+      kdfParams: Record<string, unknown>
+      wrappedDek: string
+      wrappedDekIv: string
+      wrappedDekTag: string
+      recoveryKdfSalt: string
+      wrappedRecoveryDek: string
+      wrappedRecoveryIv: string
+      wrappedRecoveryTag: string
+    }
+  ): Promise<EventData> {
     const response = await apiFetch(`${API_URL}/api/events/create`, {
       method: "POST",
       headers: jsonAuthHeaders(),
-      body: JSON.stringify({ name, location, date, attendeeUploadLimit, isSecure }),
+      body: JSON.stringify({
+        name, location, date, attendeeUploadLimit, isSecure,
+        ...(e2eePayload || {}),
+      }),
     })
 
     if (!response.ok) {
@@ -132,6 +164,28 @@ export const eventsApi = {
     if (!response.ok) {
       const error = await response.json()
       throw new Error(error.message || "Failed to update event")
+    }
+
+    const data = await response.json()
+    return data.event
+  },
+
+  async updateEventPassphrase(
+    eventId: string,
+    wrappedDek: string,
+    wrappedDekIv: string,
+    wrappedDekTag: string,
+    kdfSalt: string
+  ): Promise<EventData> {
+    const response = await apiFetch(`${API_URL}/api/events/${eventId}`, {
+      method: "PUT",
+      headers: jsonAuthHeaders(),
+      body: JSON.stringify({ wrappedDek, wrappedDekIv, wrappedDekTag, kdfSalt }),
+    })
+
+    if (!response.ok) {
+      const error = await response.json()
+      throw new Error(error.message || "Failed to update event passphrase")
     }
 
     const data = await response.json()

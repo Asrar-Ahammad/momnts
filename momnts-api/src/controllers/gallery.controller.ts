@@ -64,6 +64,18 @@ export async function getMyPhotosController(req: AuthRequest, res: Response) {
       return res.status(403).json({ message: "You do not have access to this event" })
     }
 
+    // E2EE events don't support face search — no face detection runs on encrypted photos
+    const event = await prisma.event.findUnique({
+      where: { id: eventId },
+      select: { encryption_mode: true }
+    })
+    if (event?.encryption_mode === 'E2EE') {
+      return res.status(403).json({
+        message: "Face search is unavailable for end-to-end encrypted events.",
+        code: "E2EE_NO_AI",
+      })
+    }
+
     // 1. Check if user has selfie_embedding
     const userCheck = await prisma.$queryRaw<any[]>`
       SELECT id FROM "User" 

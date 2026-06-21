@@ -12,6 +12,9 @@ import { SlideshowIntro } from './SlideshowIntro'
 import { SlideshowThumbnails } from './SlideshowThumbnails'
 import { SlideshowControls } from './SlideshowControls'
 import { useWebHaptics } from 'web-haptics/react'
+import { decryptPhoto } from '../lib/crypto/e2ee'
+import { apiFetch } from '../lib/apiFetch'
+import { authHeaders } from '../lib/authHeaders'
 
 // Dynamically resolve all music tracks in the assets/music folder
 const musicModules = import.meta.glob('../assets/music/*.{mp3,wav,ogg,m4a,aac}', { eager: true })
@@ -33,6 +36,7 @@ interface MomntsSlideshowProps {
   eventName: string
   eventLocation: string
   eventDate: string
+  dek?: CryptoKey | null
 }
 
 export const MomntsSlideshow = ({
@@ -41,11 +45,19 @@ export const MomntsSlideshow = ({
   eventId,
   eventName,
   eventLocation,
-  eventDate
+  eventDate,
+  dek
 }: MomntsSlideshowProps) => {
   const [photos, setPhotos] = useState<PhotoData[]>([])
   const [loading, setLoading] = useState(true)
   const [currentIndex, setCurrentIndex] = useState(0)
+  const [decryptedUrls, setDecryptedUrls] = useState<Record<string, string>>({})
+
+  const getSlideshowSrc = useCallback((photo?: PhotoData) => {
+    if (!photo) return 'data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="1" height="1"/>'
+    const isEncrypted = !!(photo.encryption_iv && photo.encryption_tag)
+    return decryptedUrls[photo.id] || (isEncrypted ? 'data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="1" height="1"/>' : photo.display_url)
+  }, [decryptedUrls])
 
   // Slideshow States
   const [isSlideshowPlaying, setIsSlideshowPlaying] = useState(true)
@@ -92,8 +104,37 @@ export const MomntsSlideshow = ({
         setCurrentIndex(0)
         setShowIntro(true)
 
-        // Preload first 3 photos immediately in background
-        if (activePhotos.length > 0) {
+        if (dek && activePhotos.length > 0) {
+          const decs: Record<string, string> = {}
+          for (const photo of activePhotos) {
+            if (photo.encryption_iv && photo.encryption_tag) {
+              try {
+                let fetchUrl = photo.display_url
+                let headers: Record<string, string> = {}
+
+                const match = photo.display_url.match(/\/events\/([^\/]+)\/([^\/]+)/)
+                if (match) {
+                  const API_URL = import.meta.env.VITE_SERVER_URL || "http://localhost:3000"
+                  fetchUrl = `${API_URL}/api/photos/${match[1]}/${match[2]}/download`
+                  headers = authHeaders()
+                }
+
+                const response = await apiFetch(fetchUrl, { headers })
+                if (!response.ok) throw new Error('Failed to fetch encrypted photo')
+                const buffer = await response.arrayBuffer()
+                const decryptedBuffer = await decryptPhoto(buffer, photo.encryption_iv, photo.encryption_tag, dek)
+                const blob = new Blob([decryptedBuffer], { type: 'image/webp' })
+                decs[photo.id] = URL.createObjectURL(blob)
+              } catch (e) {
+                console.error('Failed to decrypt photo for slideshow:', photo.id, e)
+              }
+            }
+          }
+          setDecryptedUrls(decs)
+        }
+
+        // Preload first 3 photos immediately in background (non-E2EE only)
+        if (!dek && activePhotos.length > 0) {
           activePhotos.slice(0, 3).forEach((photo) => {
             const img = new Image()
             img.src = photo.display_url
@@ -107,7 +148,16 @@ export const MomntsSlideshow = ({
     }
 
     fetchPhotos()
-  }, [open, eventId])
+  }, [open, eventId, dek])
+
+  // Cleanup object URLs on unmount or decryptedUrls change
+  useEffect(() => {
+    return () => {
+      Object.values(decryptedUrls).forEach((url) => {
+        URL.revokeObjectURL(url)
+      })
+    }
+  }, [decryptedUrls])
 
   // Preload next/prev photos dynamically to avoid black screens
   useEffect(() => {
@@ -118,7 +168,7 @@ export const MomntsSlideshow = ({
     const nextPhoto = photos[nextIndex]
     if (nextPhoto) {
       const img = new Image()
-      img.src = nextPhoto.display_url
+      img.src = getSlideshowSrc(nextPhoto)
     }
 
     // Preload previous photo (just in case they navigate backwards)
@@ -126,9 +176,9 @@ export const MomntsSlideshow = ({
     const prevPhoto = photos[prevIndex]
     if (prevPhoto) {
       const img = new Image()
-      img.src = prevPhoto.display_url
+      img.src = getSlideshowSrc(prevPhoto)
     }
-  }, [currentIndex, photos])
+  }, [currentIndex, photos, getSlideshowSrc])
 
   // Toggle slideshow-active class on body and dispatch custom event for hiding mobile nav
   useEffect(() => {
@@ -407,7 +457,7 @@ export const MomntsSlideshow = ({
                 >
                   {/* Subtle Blurred Background Glow */}
                   <img
-                    src={photos[currentIndex]?.display_url}
+                    src={getSlideshowSrc(photos[currentIndex])}
                     alt="bg blur"
                     className="absolute inset-0 w-full h-full object-cover blur-[100px] opacity-35 scale-110 pointer-events-none select-none"
                   />
@@ -423,7 +473,7 @@ export const MomntsSlideshow = ({
                     className="relative max-w-full max-h-[85vh] md:max-h-[80vh] flex items-center justify-center"
                   >
                     <img
-                      src={photos[currentIndex]?.display_url}
+                      src={getSlideshowSrc(photos[currentIndex])}
                       alt={`Photo ${currentIndex + 1}`}
                       className="max-w-full max-h-[80vh] md:max-h-[75vh] object-contain rounded-2xl shadow-[0_20px_50px_rgba(0,0,0,0.8)] border border-white/10"
                     />

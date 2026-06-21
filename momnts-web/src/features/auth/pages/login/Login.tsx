@@ -13,6 +13,49 @@ import { useForm } from "@tanstack/react-form"
 import { useWebHaptics } from 'web-haptics/react'
 import { Turnstile } from "../../../../components/ui/Turnstile"
 import { GoogleLogo, AppleLogo } from "@phosphor-icons/react"
+import { useSignIn } from "@clerk/clerk-react"
+
+const ClerkOAuthButtons = () => {
+  const { signIn } = useSignIn()
+  const haptic = useWebHaptics()
+
+  const handleOAuth = async (strategy: 'oauth_google' | 'oauth_apple') => {
+    try {
+      if (!signIn) return
+      await signIn.authenticateWithRedirect({
+        strategy,
+        redirectUrl: window.location.origin + '/sso-callback',
+        redirectUrlComplete: '/dashboard',
+      })
+    } catch (err) {
+      console.error(`${strategy} sign-in failed:`, err)
+      toast.error(`${strategy === 'oauth_google' ? 'Google' : 'Apple'} sign-in failed. Please try again.`)
+    }
+  }
+
+  return (
+    <div className="flex gap-3 mb-6">
+      <Button
+        type="button"
+        variant="outline"
+        className="flex-1 rounded-xl h-11 border-neutral-200 dark:border-neutral-800 text-neutral-700 dark:text-neutral-300"
+        onClick={() => handleOAuth('oauth_google')}
+      >
+        <GoogleLogo size={20} weight="bold" />
+        Google
+      </Button>
+      <Button
+        type="button"
+        variant="outline"
+        className="flex-1 rounded-xl h-11 border-neutral-200 dark:border-neutral-800 text-neutral-700 dark:text-neutral-300"
+        onClick={() => handleOAuth('oauth_apple')}
+      >
+        <AppleLogo size={20} weight="fill" />
+        Apple
+      </Button>
+    </div>
+  )
+}
 
 const Login = () => {
     const navigate = useNavigate()
@@ -82,24 +125,17 @@ const Login = () => {
                                 <p className="text-neutral-500 dark:text-neutral-400 text-sm">Please enter your details to continue</p>
                             </div>
                             
-                            {/* 
-                            <div className="flex gap-3 mb-6">
-                                <Button type="button" variant="outline" className="flex-1 rounded-xl h-11 border-neutral-200 dark:border-neutral-800 text-neutral-700 dark:text-neutral-300">
-                                    <GoogleLogo size={20} weight="bold" />
-                                    Google
-                                </Button>
-                                <Button type="button" variant="outline" className="flex-1 rounded-xl h-11 border-neutral-200 dark:border-neutral-800 text-neutral-700 dark:text-neutral-300">
-                                    <AppleLogo size={20} weight="fill" />
-                                    Apple
-                                </Button>
-                            </div>
+                            {import.meta.env.VITE_CLERK_PUBLISHABLE_KEY && (
+                            <>
+                            <ClerkOAuthButtons />
                             
                             <div className="flex items-center gap-4 mb-6">
                                 <div className="flex-1 h-[1px] bg-neutral-200 dark:bg-neutral-800"></div>
                                 <span className="text-xs text-neutral-400 dark:text-neutral-500 uppercase tracking-widest">or</span>
                                 <div className="flex-1 h-[1px] bg-neutral-200 dark:bg-neutral-800"></div>
                             </div>
-                            */}
+                            </>
+                            )}
 
                             <FieldSet className="space-y-4">
                                 <form.Field

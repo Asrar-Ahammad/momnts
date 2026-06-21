@@ -7,6 +7,7 @@ import { useAuth } from "../../hooks/useAuth"
 import { Checkbox } from "../../../../components/ui/checkbox"
 import { authApi } from "../../services/auth.api"
 import { EyeIcon, EyeSlashIcon, Check, ArrowRight, ArrowLeft } from "@phosphor-icons/react"
+import { GoogleLogo, AppleLogo } from "@phosphor-icons/react"
 import { toast } from "sonner"
 import { Spinner } from "../../../../components/ui/spinner"
 import { useWebHaptics } from 'web-haptics/react'
@@ -15,6 +16,49 @@ import { useForm, useStore } from "@tanstack/react-form"
 import { Turnstile } from "../../../../components/ui/Turnstile"
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "../../../../components/ui/tooltip"
 import { motion, AnimatePresence } from "framer-motion"
+import { useSignUp } from "@clerk/clerk-react"
+
+const ClerkOAuthButtons = () => {
+    const { signUp } = useSignUp()
+    const haptic = useWebHaptics()
+
+    const handleOAuth = async (strategy: 'oauth_google' | 'oauth_apple') => {
+        try {
+            if (!signUp) return
+            await signUp.authenticateWithRedirect({
+                strategy,
+                redirectUrl: window.location.origin + '/sso-callback',
+                redirectUrlComplete: '/dashboard',
+            })
+        } catch (err) {
+            console.error(`${strategy} sign-up failed:`, err)
+            toast.error(`${strategy === 'oauth_google' ? 'Google' : 'Apple'} sign-up failed. Please try again.`)
+        }
+    }
+
+    return (
+        <div className="flex gap-3 mb-2">
+            <Button
+                type="button"
+                variant="outline"
+                className="flex-1 rounded-xl h-11 border-neutral-200 dark:border-neutral-800 text-neutral-700 dark:text-neutral-300"
+                onClick={() => handleOAuth('oauth_google')}
+            >
+                <GoogleLogo size={20} weight="bold" />
+                Google
+            </Button>
+            <Button
+                type="button"
+                variant="outline"
+                className="flex-1 rounded-xl h-11 border-neutral-200 dark:border-neutral-800 text-neutral-700 dark:text-neutral-300"
+                onClick={() => handleOAuth('oauth_apple')}
+            >
+                <AppleLogo size={20} weight="fill" />
+                Apple
+            </Button>
+        </div>
+    )
+}
 
 const passwordCriteria = [
     { id: "length", label: "At least 8 characters", test: (pw: string) => pw.length >= 8 },
@@ -241,6 +285,16 @@ const Register = () => {
                                         {/* STEP 0: Identity */}
                                         {step === 0 && (
                                             <>
+                                                {import.meta.env.VITE_CLERK_PUBLISHABLE_KEY && (
+                                                    <>
+                                                        <ClerkOAuthButtons />
+                                                        <div className="flex items-center gap-4 mb-2">
+                                                            <div className="flex-1 h-[1px] bg-neutral-200 dark:bg-neutral-800"></div>
+                                                            <span className="text-xs text-neutral-400 dark:text-neutral-500 uppercase tracking-widest">or</span>
+                                                            <div className="flex-1 h-[1px] bg-neutral-200 dark:bg-neutral-800"></div>
+                                                        </div>
+                                                    </>
+                                                )}
                                                 <form.Field
                                                     name="username"
                                                     children={(field) => (

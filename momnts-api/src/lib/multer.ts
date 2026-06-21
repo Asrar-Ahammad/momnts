@@ -29,11 +29,11 @@ export const upload = multer({
 
   // Only accept image files
   fileFilter: (req, file, cb) => {
-    const allowed = ['image/jpeg', 'image/png', 'image/webp', 'image/heic']
+    const allowed = ['image/jpeg', 'image/png', 'image/webp', 'image/heic', 'application/octet-stream']
     if (allowed.includes(file.mimetype)) {
       cb(null, true)  // accept the file
     } else {
-      cb(new Error('Only JPEG, PNG, WebP and HEIC images are allowed'))
+      cb(new Error('Only JPEG, PNG, WebP, HEIC and encrypted binary files are allowed'))
     }
   },
   limits: {

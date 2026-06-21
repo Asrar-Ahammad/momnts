@@ -22,6 +22,7 @@ interface PhotoGridProps {
   favouritePhotoIds: Set<string>
   onToggleFavourite: (photoId: string) => void
   galleryColumns?: GalleryColumns
+  dek?: CryptoKey | null
 }
 
 const SKELETON_HEIGHTS = [240, 320, 200, 280, 360, 220, 300, 260, 340, 180, 290, 250]
@@ -73,7 +74,8 @@ const PhotoGrid = ({
   userRole,
   favouritePhotoIds,
   onToggleFavourite,
-  galleryColumns = 1
+  galleryColumns = 1,
+  dek
 }: PhotoGridProps) => {
   const [visibleCount, setVisibleCount] = useState(10)
   const [isPageLoading, setIsPageLoading] = useState(false)
@@ -224,6 +226,7 @@ const PhotoGrid = ({
                     isSelected={selectedPhotoIds.has(photo.id)}
                     isFavourite={favouritePhotoIds.has(photo.id)}
                     onToggleFavourite={() => onToggleFavourite(photo.id)}
+                    dek={dek}
                   />
                 </motion.div>
               ))}

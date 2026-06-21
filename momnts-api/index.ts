@@ -21,6 +21,7 @@ import { notificationsRouter } from "./src/routes/notifications.routes.js";
 import { connectionsRouter } from "./src/routes/connections.routes.js";
 import { commentsRouter } from "./src/routes/comments.routes.js";
 import { subscriptionRouter } from "./src/routes/subscription.routes.js";
+import { clerkRouter } from "./src/routes/clerk.routes.js";
 import { initSocketIO } from "./src/lib/socket.js";
 
 const app = express()
@@ -41,6 +42,7 @@ app.get("/",(req:Request, res:Response)=>{
 })
 
 app.use("/api/auth", authRouter)
+app.use("/api/auth/clerk", clerkRouter)
 app.use("/api/events", eventsRouter)
 app.use("/api/events", galleryRouter)
 app.use('/api/photos/:photoId/comments', commentsRouter)

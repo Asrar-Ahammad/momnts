@@ -44,11 +44,11 @@ export const useEventPhotos = (eventId: string | undefined) => {
   })
 }
 
-export const useMyPhotos = (eventId: string | undefined) => {
+export const useMyPhotos = (eventId: string | undefined, isE2EE?: boolean) => {
   return useQuery({
     queryKey: ["my-photos", eventId],
     queryFn: () => photosApi.getMyPhotos(eventId!),
-    enabled: !!eventId,
+    enabled: !!eventId && !isE2EE,
     staleTime: 45 * 60 * 1000,
   })
 }

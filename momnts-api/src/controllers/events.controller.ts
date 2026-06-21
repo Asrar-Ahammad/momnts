@@ -71,7 +71,13 @@ async function generateUniqueInviteCode(): Promise<string> {
 
 async function createEventController(req: PlanRequest, res: Response) {
     try {
-        const { name, date, location, attendeeUploadLimit, attendee_upload_limit, isSecure, allowDownloads } = req.body;
+        const {
+            name, date, location, attendeeUploadLimit, attendee_upload_limit,
+            isSecure, allowDownloads,
+            // E2EE fields (only present when encryptionMode === 'E2EE')
+            encryptionMode, kdfSalt, kdfParams, wrappedDek, wrappedDekIv, wrappedDekTag,
+            recoveryKdfSalt, wrappedRecoveryDek, wrappedRecoveryIv, wrappedRecoveryTag
+        } = req.body;
 
         if (!name || !date || !location) {
             return res.status(400).json({
@@ -81,6 +87,30 @@ async function createEventController(req: PlanRequest, res: Response) {
 
         if (!req.user?.id) {
             return res.status(401).json({ message: "User not authenticated" });
+        }
+
+        // Validate encryptionMode
+        const mode = encryptionMode === 'E2EE' ? 'E2EE' : 'AI';
+
+        // If E2EE, all crypto fields are required
+        if (mode === 'E2EE') {
+            if (!kdfSalt || !kdfParams || !wrappedDek || !wrappedDekIv || !wrappedDekTag) {
+                return res.status(400).json({
+                    message: "E2EE mode requires kdfSalt, kdfParams, wrappedDek, wrappedDekIv, wrappedDekTag",
+                });
+            }
+            if (!recoveryKdfSalt || !wrappedRecoveryDek || !wrappedRecoveryIv || !wrappedRecoveryTag) {
+                return res.status(400).json({
+                    message: "E2EE mode requires recovery key fields: recoveryKdfSalt, wrappedRecoveryDek, wrappedRecoveryIv, wrappedRecoveryTag",
+                });
+            }
+        }
+
+        // If AI, crypto fields must be absent
+        if (mode === 'AI' && (kdfSalt || wrappedDek)) {
+            return res.status(400).json({
+                message: "AI mode events must not include encryption fields",
+            });
         }
 
         // --- Plan limit: max events (only organizer-created events count) ---
@@ -137,6 +167,19 @@ async function createEventController(req: PlanRequest, res: Response) {
                 attendee_upload_limit: attendee_upload_limit_parsed,
                 is_secure: typeof isSecure === 'boolean' ? isSecure : false,
                 allow_downloads: typeof allowDownloads === 'boolean' ? allowDownloads : true,
+                encryption_mode: mode,
+                // E2EE crypto fields (null for AI mode)
+                ...(mode === 'E2EE' && {
+                    kdf_salt: kdfSalt,
+                    kdf_params: kdfParams,
+                    wrapped_dek: wrappedDek,
+                    wrapped_dek_iv: wrappedDekIv,
+                    wrapped_dek_tag: wrappedDekTag,
+                    recovery_kdf_salt: recoveryKdfSalt,
+                    wrapped_recovery_dek: wrappedRecoveryDek,
+                    wrapped_recovery_iv: wrappedRecoveryIv,
+                    wrapped_recovery_tag: wrappedRecoveryTag,
+                }),
             },
         });
         const eventAccess = await prisma.eventAccess.create({
@@ -147,24 +190,26 @@ async function createEventController(req: PlanRequest, res: Response) {
             }
         })
 
-        // Enqueue face-matching job if user has a selfie
-        const users = await prisma.$queryRaw<{ selfie_url: string | null }[]>`
-            SELECT selfie_url FROM "User" 
-            WHERE id = ${req.user.id}::text AND selfie_embedding IS NOT NULL
-        `
-        if (users.length > 0 && users[0]?.selfie_url) {
-            const presignedSelfieUrlForMatch = await presignStoredUrl(users[0].selfie_url, 1800)
-            await matchingQueue.add(
-                'match-user',
-                {
-                    userId: req.user.id,
-                    eventId: event.id,
-                    selfieUrl: presignedSelfieUrlForMatch,
-                },
-                {
-                    jobId: `match-${event.id}-${req.user.id}-${Date.now()}`
-                }
-            )
+        // Enqueue face-matching job only for AI mode events
+        if (mode === 'AI') {
+            const users = await prisma.$queryRaw<{ selfie_url: string | null }[]>`
+                SELECT selfie_url FROM "User" 
+                WHERE id = ${req.user.id}::text AND selfie_embedding IS NOT NULL
+            `
+            if (users.length > 0 && users[0]?.selfie_url) {
+                const presignedSelfieUrlForMatch = await presignStoredUrl(users[0].selfie_url, 1800)
+                await matchingQueue.add(
+                    'match-user',
+                    {
+                        userId: req.user.id,
+                        eventId: event.id,
+                        selfieUrl: presignedSelfieUrlForMatch,
+                    },
+                    {
+                        jobId: `match-${event.id}-${req.user.id}-${Date.now()}`
+                    }
+                )
+            }
         }
 
         return res.status(201).json({
@@ -251,7 +296,18 @@ async function getEventDetailsController(req: AuthRequest, res: Response) {
                 pending_request_count: pendingRequestCount,
                 attendee_upload_limit: eventAccess.upload_limit !== null && eventAccess.upload_limit !== undefined
                     ? eventAccess.upload_limit
-                    : event.attendee_upload_limit
+                    : event.attendee_upload_limit,
+                // E2EE fields — client needs these to derive KEK and unwrap DEK
+                encryption_mode: event.encryption_mode,
+                kdf_salt: event.kdf_salt,
+                kdf_params: event.kdf_params,
+                wrapped_dek: event.wrapped_dek,
+                wrapped_dek_iv: event.wrapped_dek_iv,
+                wrapped_dek_tag: event.wrapped_dek_tag,
+                recovery_kdf_salt: event.recovery_kdf_salt,
+                wrapped_recovery_dek: event.wrapped_recovery_dek,
+                wrapped_recovery_iv: event.wrapped_recovery_iv,
+                wrapped_recovery_tag: event.wrapped_recovery_tag,
             }
         })
 
@@ -457,24 +513,26 @@ async function joinEventController(req: PlanRequest, res: Response) {
             console.error('[Notification/Socket] Failed to process join notification:', err)
         }
 
-        // Enqueue face-matching job if user has a selfie
-        const users = await prisma.$queryRaw<{ selfie_url: string | null }[]>`
-            SELECT selfie_url FROM "User" 
-            WHERE id = ${req.user.id}::text AND selfie_embedding IS NOT NULL
-        `
-        if (users.length > 0 && users[0]?.selfie_url) {
-            const presignedSelfieUrlForMatch = await presignStoredUrl(users[0].selfie_url, 1800)
-            await matchingQueue.add(
-                'match-user',
-                {
-                    userId: req.user.id,
-                    eventId: event.id,
-                    selfieUrl: presignedSelfieUrlForMatch,
-                },
-                {
-                    jobId: `match-${event.id}-${req.user.id}-${Date.now()}`,
-                }
-            )
+        // Enqueue face-matching job only for AI mode events
+        if (event.encryption_mode === 'AI') {
+            const users = await prisma.$queryRaw<{ selfie_url: string | null }[]>`
+                SELECT selfie_url FROM "User" 
+                WHERE id = ${req.user.id}::text AND selfie_embedding IS NOT NULL
+            `
+            if (users.length > 0 && users[0]?.selfie_url) {
+                const presignedSelfieUrlForMatch = await presignStoredUrl(users[0].selfie_url, 1800)
+                await matchingQueue.add(
+                    'match-user',
+                    {
+                        userId: req.user.id,
+                        eventId: event.id,
+                        selfieUrl: presignedSelfieUrlForMatch,
+                    },
+                    {
+                        jobId: `match-${event.id}-${req.user.id}-${Date.now()}`,
+                    }
+                )
+            }
         }
 
         return res.status(201).json({
@@ -485,6 +543,7 @@ async function joinEventController(req: PlanRequest, res: Response) {
                     name: event.name,
                     location: event.location,
                     date: event.date,
+                    encryption_mode: event.encryption_mode,
                 },
                 role: eventAccess.role,
             }
@@ -579,7 +638,20 @@ async function updateEventDetailsController(req: PlanRequest, res: Response) {
         }
 
         const eventId = req.params.eventId as string
-        const { name, date, location, isActive, isSecure, allowDownloads, regenerateInviteCode } = req.body
+        const {
+            name, date, location, isActive, isSecure, allowDownloads, regenerateInviteCode,
+            encryptionMode,
+            // Allow passphrase re-wrap (recovery flow: set new passphrase)
+            wrappedDek, wrappedDekIv, wrappedDekTag, kdfSalt
+        } = req.body
+
+        // E2EE mode is immutable after creation
+        if (encryptionMode !== undefined) {
+            return res.status(403).json({
+                message: 'Encryption mode cannot be changed after event creation. Create a new event to use a different mode.',
+                code: 'E2EE_MODE_IMMUTABLE',
+            })
+        }
 
         const event = await prisma.event.findFirst({
             where: { id: eventId, user_id: req.user.id }
@@ -630,6 +702,13 @@ async function updateEventDetailsController(req: PlanRequest, res: Response) {
                 ...(isSecure !== undefined && { is_secure: isSecure }),
                 ...(allowDownloads !== undefined && { allow_downloads: allowDownloads }),
                 ...(inviteCode !== undefined && { invite_code: inviteCode }),
+                // Allow passphrase re-wrap for E2EE events (recovery-based passphrase reset)
+                ...(wrappedDek && event.encryption_mode === 'E2EE' && {
+                    wrapped_dek: wrappedDek,
+                    wrapped_dek_iv: wrappedDekIv,
+                    wrapped_dek_tag: wrappedDekTag,
+                    ...(kdfSalt && { kdf_salt: kdfSalt }),
+                }),
             }
         })
 
