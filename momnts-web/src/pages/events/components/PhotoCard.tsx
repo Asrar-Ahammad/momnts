@@ -13,6 +13,7 @@ import {
 } from "../../../components/ui/alert-dialog"
 import { PhotoData } from '../../../features/events/services/photos.api'
 import { cn } from '../../../lib/utils'
+import { useDecryptedPhoto } from '@/features/events/hooks/useDecryptedPhoto'
 
 interface PhotoCardProps {
   photo: PhotoData
@@ -23,6 +24,7 @@ interface PhotoCardProps {
   onDelete?: () => Promise<void> | void
   isFavourite?: boolean
   onToggleFavourite?: () => void
+  dek?: CryptoKey | null
 }
 
 // Global cache for loaded image URLs to prevent reload flashes when components remount (e.g. during sorting)
@@ -41,33 +43,50 @@ const PhotoCard = ({
   canDelete,
   onDelete,
   isFavourite,
-  onToggleFavourite
+  onToggleFavourite,
+  dek
 }: PhotoCardProps) => {
-  const cacheKey = getCacheKey(photo.thumb_url)
+  const isEncrypted = !!(photo.encryption_iv && photo.encryption_tag)
+  const { url: decryptedThumbUrl, error: decryptionError } = useDecryptedPhoto(
+    photo.thumb_url,
+    photo.encryption_iv,
+    photo.encryption_tag,
+    dek
+  )
+  const displayUrl = isEncrypted ? decryptedThumbUrl : photo.thumb_url
+
+  const cacheKey = getCacheKey(displayUrl)
   const isAlreadyLoaded = loadedImagesCache.has(cacheKey)
   const [imageLoaded, setImageLoaded] = useState(isAlreadyLoaded)
   const [imageError, setImageError] = useState(false)
+
+  useEffect(() => {
+    if (decryptionError) {
+      setImageError(true)
+      setImageLoaded(true)
+    }
+  }, [decryptionError])
   const [isInView, setIsInView] = useState(isAlreadyLoaded)
   const [isDeleting, setIsDeleting] = useState(false)
   const cardRef = useRef<HTMLDivElement>(null)
   const imgRef = useRef<HTMLImageElement>(null)
 
   useEffect(() => {
-    const loaded = loadedImagesCache.has(getCacheKey(photo.thumb_url))
+    const loaded = loadedImagesCache.has(getCacheKey(displayUrl))
     setImageLoaded(loaded)
     setImageError(false)
     if (loaded) {
       setIsInView(true)
     }
-  }, [photo.id, photo.thumb_url])
+  }, [photo.id, displayUrl])
 
   // Sync state if image was already cached by browser and loads instantly (React onLoad may not fire in time)
   useEffect(() => {
     if (isInView && imgRef.current && imgRef.current.complete) {
-      loadedImagesCache.add(getCacheKey(photo.thumb_url))
+      loadedImagesCache.add(getCacheKey(displayUrl))
       setImageLoaded(true)
     }
-  }, [isInView, photo.thumb_url])
+  }, [isInView, displayUrl])
 
   useEffect(() => {
     if (isInView) return
@@ -107,7 +126,7 @@ const PhotoCard = ({
         <div className={cn(
           "absolute top-3 right-3 z-10 w-6 h-6 rounded-full border-2 flex items-center justify-center transition-all duration-200",
           isSelected
-            ? "bg-neutral-900 dark:bg-white border-neutral-900 dark:border-white"
+             ? "bg-neutral-900 dark:bg-white border-neutral-900 dark:border-white"
             : "bg-black/20 border-white/50 backdrop-blur-sm"
         )}>
           {isSelected && <Check size={14} weight="bold" className="text-white dark:text-neutral-900" />}
@@ -167,15 +186,17 @@ const PhotoCard = ({
 
       <img
         ref={imgRef}
-        src={isInView ? photo.thumb_url : 'data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="1" height="1"/>'}
+        src={isInView && displayUrl ? displayUrl : 'data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="1" height="1"/>'}
         alt="Event photo"
         className="w-full h-auto transition-opacity duration-300"
         style={{ display: (imageLoaded && !imageError) ? 'block' : 'none' }}
         onLoad={() => {
-          loadedImagesCache.add(getCacheKey(photo.thumb_url))
+          if (!isInView || !displayUrl) return
+          loadedImagesCache.add(getCacheKey(displayUrl))
           setImageLoaded(true)
         }}
         onError={() => {
+          if (!isInView || !displayUrl) return
           setImageError(true)
           setImageLoaded(true)
         }}

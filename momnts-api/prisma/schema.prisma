@@ -18,12 +18,14 @@ model User {
   id               String                      @id @default(uuid())
   name             String
   email            String                      @unique
-  password_hash    String
+  password_hash    String?
   email_verified   Boolean                     @default(false)
   selfie_url       String?
   selfie_embedding Unsupported("vector(512)")?
   theme            String?                     @default("dark")
   custom_accent_color String?
+  clerk_user_id    String?                     @unique
+  auth_provider    String?                     @default("legacy")
   created_at       DateTime                    @default(now())
 
   events           Event[]
@@ -39,17 +41,27 @@ model User {
 }
 
 model Event {
-  id                    String   @id @default(uuid())
+  id                    String          @id @default(uuid())
   user_id               String
   name                  String
   location              String
   date                  DateTime
-  invite_code           String   @unique
-  is_active             Boolean  @default(true)
-  is_secure             Boolean  @default(false)
-  attendee_upload_limit Int      @default(10)
-  allow_downloads       Boolean  @default(true)
-  created_at            DateTime @default(now())
+  invite_code           String          @unique
+  is_active             Boolean         @default(true)
+  is_secure             Boolean         @default(false)
+  attendee_upload_limit Int             @default(10)
+  allow_downloads       Boolean         @default(true)
+  encryption_mode       EncryptionMode  @default(AI)
+  kdf_salt              String?
+  kdf_params            Json?
+  wrapped_dek           String?
+  wrapped_dek_iv        String?
+  wrapped_dek_tag       String?
+  recovery_kdf_salt     String?
+  wrapped_recovery_dek  String?
+  wrapped_recovery_iv   String?
+  wrapped_recovery_tag  String?
+  created_at            DateTime        @default(now())
 
   user User @relation(fields: [user_id], references: [id], onDelete: Cascade)
 
@@ -69,6 +81,11 @@ enum Plan {
   PRO
 }
 
+enum EncryptionMode {
+  AI
+  E2EE
+}
+
 model EventAccess {
   id           String   @id @default(uuid())
   event_id     String
@@ -85,17 +102,19 @@ model EventAccess {
 }
 
 model Photo {
-  id           String   @id @default(uuid())
-  event_id     String
-  user_id      String
-  uploaded_at  DateTime @default(now())
-  processed    Boolean  @default(false)
-  is_visible   Boolean  @default(true)
-  original_url String
-  display_url  String
-  thumb_url    String
-  width        Int?
-  height       Int?
+  id              String   @id @default(uuid())
+  event_id        String
+  user_id         String
+  uploaded_at     DateTime @default(now())
+  processed       Boolean  @default(false)
+  is_visible      Boolean  @default(true)
+  original_url    String
+  display_url     String
+  thumb_url       String
+  width           Int?
+  height          Int?
+  encryption_iv   String?
+  encryption_tag  String?
 
   event Event @relation(fields: [event_id], references: [id], onDelete: Cascade)
   user  User  @relation(fields: [user_id], references: [id], onDelete: Cascade)

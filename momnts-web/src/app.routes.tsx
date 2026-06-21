@@ -13,6 +13,7 @@ import LandingPage from './pages/landing_page/LandingPage'
 import PrivacyPolicy from './pages/legal/PrivacyPolicy'
 import TermsAndConditions from './pages/legal/TermsAndConditions'
 import Pricing from './pages/pricing/Pricing'
+import SSOCallback from './pages/sso-callback/SSOCallback'
 
 const AuthLayout = () => (
   <AuthProvider>
@@ -50,6 +51,10 @@ export const router = createBrowserRouter([
         element: <Pricing />,
       },
 
+      {
+        path: "/sso-callback",
+        element: <SSOCallback />,
+      },
       {
         path: "/verify-email",
         element: <VerifyEmail />,

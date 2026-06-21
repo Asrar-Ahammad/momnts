@@ -4,7 +4,7 @@ import { format } from 'date-fns'
 import { motion } from 'framer-motion'
 import { EventData } from '../../../features/events/services/events.api'
 import { Button } from "../../../components/ui/button"
-import { CalendarDots, MapPin, ArrowRight, Crown, User, Image as ImageIcon } from '@phosphor-icons/react'
+import { CalendarDots, MapPin, ArrowRight, Crown, User, Image as ImageIcon, Lock } from '@phosphor-icons/react'
 import { cn } from '../../../lib/utils'
 import { photosApi } from '../../../features/events/services/photos.api'
 import { useWebHaptics } from 'web-haptics/react'
@@ -50,6 +50,9 @@ export const EventCard = ({ event }: EventCardProps) => {
 
   React.useEffect(() => {
     let mounted = true;
+    if (event.encryption_mode === 'E2EE') {
+      return;
+    }
     if (coverPhoto) {
       if (!coverPhotoCache.has(event.id)) {
         coverPhotoCache.set(event.id, coverPhoto);
@@ -76,7 +79,7 @@ export const EventCard = ({ event }: EventCardProps) => {
         console.error("Failed to fetch photos for event", event.id, err);
       });
     return () => { mounted = false; };
-  }, [event.id, initialCover, coverPhoto]);
+  }, [event.id, initialCover, coverPhoto, event.encryption_mode]);
   return (
     <motion.div
       whileHover={{ y: -8 }}
@@ -90,7 +93,7 @@ export const EventCard = ({ event }: EventCardProps) => {
     >
       {/* Background Section */}
       <div className="absolute inset-0 z-0">
-        {coverPhoto ? (
+        {coverPhoto && event.encryption_mode !== 'E2EE' ? (
           <img 
             src={coverPhoto} 
             alt={event.name} 
@@ -98,7 +101,7 @@ export const EventCard = ({ event }: EventCardProps) => {
             className="absolute inset-0 w-full h-full object-cover transition-transform duration-700 group-hover:scale-110"
           />
         ) : (
-          <div className={cn("absolute inset-0 bg-gradient-to-br", theme.bg)}>
+          <div className={cn("absolute inset-0 bg-gradient-to-br", event.encryption_mode === 'E2EE' ? 'from-purple-700 via-indigo-700 to-violet-800' : theme.bg)}>
             {/* Organic Animated Waves for gradient fallback */}
             <div className="absolute inset-0 overflow-hidden pointer-events-none">
               <motion.div 
@@ -148,8 +151,13 @@ export const EventCard = ({ event }: EventCardProps) => {
       {/* Bottom Content Area */}
       <div className="absolute bottom-0 inset-x-0 z-20 p-3.5 sm:p-6">
         <div className="mb-2 sm:mb-4 flex flex-col sm:flex-row sm:justify-between items-start sm:items-end gap-1.5 sm:gap-4">
-            <h2 className="text-sm sm:text-xl font-black text-white tracking-tight leading-tight capitalize line-clamp-1 sm:line-clamp-2 drop-shadow-lg group-hover:text-white transition-colors flex-1 pb-0.5 w-full sm:w-auto">
-              {event.name}
+            <h2 className="text-sm sm:text-xl font-black text-white tracking-tight leading-tight capitalize line-clamp-1 sm:line-clamp-2 drop-shadow-lg group-hover:text-white transition-colors flex-1 pb-0.5 w-full sm:w-auto flex items-center gap-1.5">
+              <span className="truncate">{event.name}</span>
+              {event.encryption_mode === 'E2EE' && (
+                <span className="inline-flex items-center justify-center bg-purple-600/40 text-white rounded-full p-1 shrink-0 shadow-md backdrop-blur-xs border border-white/20">
+                  <Lock size={12} weight="fill" className="text-white" />
+                </span>
+              )}
             </h2>
             
             <div className="flex flex-row flex-wrap sm:flex-col items-center sm:items-end gap-1.5 sm:gap-2 shrink-0">

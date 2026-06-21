@@ -4,7 +4,8 @@ import type { PlanRequest } from '../middleware/plan.middleware.js'
 import { PLAN_LIMITS } from '../lib/plan-limits.js'
 import { getEffectivePlan } from '../middleware/plan.middleware.js'
 import { prisma } from '../lib/prisma.js'
-import { uploadToR2, deleteFromR2, extractKeyFromUrl, presignPhotos, presignPhoto, presignStoredUrl } from '../lib/r2.js'
+import { r2, uploadToR2, deleteFromR2, extractKeyFromUrl, presignPhotos, presignPhoto, presignStoredUrl } from '../lib/r2.js'
+import { GetObjectCommand } from '@aws-sdk/client-s3'
 import { photoQueue } from '../lib/queue.js'
 import crypto from 'crypto'
 import fs from 'fs'
@@ -45,9 +46,178 @@ export async function uploadPhotoController(req: PlanRequest, res: Response) {
             return res.status(403).json({ message: 'You do not have access to this event' })
         }
 
+        const isE2EE = eventAccess.event.encryption_mode === 'E2EE'
+
         // Look up organizer's plan for this event to get plan-aware limits
         const organizerPlan = await getEffectivePlan(eventAccess.event.user_id);
         const organizerLimits = PLAN_LIMITS[organizerPlan];
+
+        // ─── E2EE Upload Path ────────────────────────────────────────────
+        if (isE2EE) {
+            // E2EE: files are ciphertext blobs, not valid images
+            // Skip sharp validation, skip BullMQ queue
+            // Accept encryption_iv, encryption_tag, width, height from form fields
+            const encryptionIvs = ([] as string[]).concat(req.body.encryption_iv || [])
+            const encryptionTags = ([] as string[]).concat(req.body.encryption_tag || [])
+            const widths = ([] as string[]).concat(req.body.width || [])
+            const heights = ([] as string[]).concat(req.body.height || [])
+
+            if (encryptionIvs.length !== files.length || encryptionTags.length !== files.length) {
+                // Cleanup temp files
+                for (const file of files) {
+                    try { if (fs.existsSync(file.path)) fs.unlinkSync(file.path) } catch {}
+                }
+                return res.status(400).json({
+                    message: 'E2EE uploads require encryption_iv and encryption_tag for each file',
+                })
+            }
+
+            // Build file data without sharp (ciphertext is not a valid image)
+            const fileData: Array<{ file: Express.Multer.File, photoId: string, r2Key: string, width: number | null, height: number | null, iv: string, tag: string }> = []
+            for (let i = 0; i < files.length; i++) {
+                const file = files[i];
+                if (!file) continue;
+                const photoId = crypto.randomUUID()
+                const r2Key = `events/${eventId}/${photoId}/encrypted.bin`
+                fileData.push({
+                    file,
+                    photoId,
+                    r2Key,
+                    width: widths[i] ? parseInt(widths[i]!, 10) || null : null,
+                    height: heights[i] ? parseInt(heights[i]!, 10) || null : null,
+                    iv: encryptionIvs[i]!,
+                    tag: encryptionTags[i]!,
+                })
+            }
+
+            // Enforce upload limits (same logic as AI path)
+            const userId = req.user.id
+            const result = await prisma.$transaction(async (tx: any) => {
+                const current = await tx.eventAccess.findUnique({
+                    where: {
+                        event_id_user_id: {
+                            event_id: eventId,
+                            user_id: userId,
+                        }
+                    },
+                    select: { role: true, upload_limit: true, upload_count: true }
+                })
+                if (!current) throw new Error('Event access not found')
+
+                const actualCount = current.upload_count
+
+                let limit: number;
+                if (current.role === 'ORGANIZER') {
+                    limit = organizerLimits.maxOrganizerUploadsPerEvent;
+                } else {
+                    const planLimit = organizerLimits.maxAttendeeUploadsPerEvent;
+                    const eventLimit = eventAccess.event.attendee_upload_limit ?? planLimit;
+                    limit = current.upload_limit ?? Math.min(eventLimit, planLimit);
+                }
+
+                if (actualCount + files.length > limit) {
+                    return { success: false, current: actualCount, limit, role: current.role }
+                }
+
+                // Create DB records atomically — E2EE photos use single R2 key for all URL fields
+                const photos = await Promise.all(fileData.map(data =>
+                    tx.photo.create({
+                        data: {
+                            id: data.photoId,
+                            event_id: eventId,
+                            user_id: userId,
+                            thumb_url: data.r2Key,
+                            display_url: data.r2Key,
+                            original_url: data.r2Key,
+                            width: data.width,
+                            height: data.height,
+                            processed: true, // Nothing to process server-side for E2EE
+                            is_visible: true,
+                            encryption_iv: data.iv,
+                            encryption_tag: data.tag,
+                        }
+                    })
+                ))
+
+                await tx.eventAccess.update({
+                    where: {
+                        event_id_user_id: {
+                            event_id: eventId,
+                            user_id: userId,
+                        }
+                    },
+                    data: {
+                        upload_count: { increment: files.length }
+                    }
+                })
+
+                return { success: true, newCount: actualCount + files.length, role: current.role, limit, photos }
+            })
+
+            if (!result.success) {
+                for (const file of files) {
+                    try { if (fs.existsSync(file.path)) fs.unlinkSync(file.path) } catch {}
+                }
+                const remainingQuota = result.limit! - result.current
+                return res.status(400).json({
+                    message: remainingQuota <= 0
+                        ? `Upload limit reached. You can upload a maximum of ${result.limit} photos per event.`
+                        : `You can only upload ${remainingQuota} more photo(s). You tried to upload ${files.length}.`,
+                    upload_count: result.current,
+                    limit: result.limit,
+                    remaining_quota: remainingQuota,
+                })
+            }
+
+            // Upload ciphertext blobs to R2 — no processing, no queue
+            const uploadedPhotos: any[] = []
+            try {
+                const uploadPromises = fileData.map(async (data, index) => {
+                    const fileBuffer = fs.readFileSync(data.file.path)
+                    await uploadToR2(data.r2Key, fileBuffer, 'application/octet-stream')
+                    return result.photos![index]
+                })
+                const photos = await Promise.all(uploadPromises)
+                const signedPhotos = await presignPhotos(photos)
+                uploadedPhotos.push(...signedPhotos)
+            } catch (err) {
+                if (result.success && result.photos) {
+                    const photoIds = result.photos.map((p: any) => p.id)
+                    await prisma.photo.deleteMany({
+                        where: { id: { in: photoIds } }
+                    })
+                    await prisma.eventAccess.update({
+                        where: {
+                            event_id_user_id: {
+                                event_id: eventId,
+                                user_id: userId,
+                            }
+                        },
+                        data: {
+                            upload_count: { decrement: files.length }
+                        }
+                    })
+                }
+                throw err
+            } finally {
+                for (const file of files) {
+                    try { if (fs.existsSync(file.path)) fs.unlinkSync(file.path) } catch {}
+                }
+            }
+
+            const effectiveLimit = result.limit!
+            return res.status(201).json({
+                message: `${uploadedPhotos.length} encrypted photo(s) uploaded.`,
+                photos: uploadedPhotos,
+                quota: {
+                    used: result.newCount,
+                    limit: effectiveLimit,
+                    remaining: effectiveLimit - result.newCount!,
+                },
+            })
+        }
+
+        // ─── AI Upload Path (existing, unchanged) ────────────────────────
 
         // Validate each file is a valid image and gather metadata first
         const fileData: Array<{ file: Express.Multer.File, photoId: string, tempKey: string, width: number | null, height: number | null }> = []
@@ -177,6 +347,25 @@ export async function uploadPhotoController(req: PlanRequest, res: Response) {
             const photos = await Promise.all(uploadPromises)
             const signedPhotos = await presignPhotos(photos)
             uploadedPhotos.push(...signedPhotos)
+        } catch (err) {
+            if (result.success && result.photos) {
+                const photoIds = result.photos.map((p: any) => p.id)
+                await prisma.photo.deleteMany({
+                    where: { id: { in: photoIds } }
+                })
+                await prisma.eventAccess.update({
+                    where: {
+                        event_id_user_id: {
+                            event_id: eventId,
+                            user_id: userId,
+                        }
+                    },
+                    data: {
+                        upload_count: { decrement: files.length }
+                    }
+                })
+            }
+            throw err
         } finally {
             // Clean up multer temp files
             for (const file of files) {
@@ -484,20 +673,37 @@ export async function downloadPhotoController(req: AuthRequest, res: Response) {
             return res.status(404).json({ message: 'Photo not found' })
         }
 
-        // Fetch from R2 and stream to response
-        const presignedOriginalUrl = await presignStoredUrl(photo.original_url, 86400)
-        const response = await fetch(presignedOriginalUrl)
-        if (!response.ok) throw new Error('Failed to fetch from storage')
+        // Fetch from R2 directly using S3 SDK to bypass local DNS/SSL resolution issue with node fetch
+        const key = photo.original_url.startsWith('http')
+            ? extractKeyFromUrl(photo.original_url)
+            : photo.original_url
 
-        const contentType = response.headers.get('content-type') || 'image/jpeg'
+        const command = new GetObjectCommand({
+            Bucket: process.env.R2_BUCKET_NAME!,
+            Key: key,
+        })
+        const s3Response = await r2.send(command)
+        if (!s3Response.Body) throw new Error('Failed to fetch from storage')
+
+        const contentType = s3Response.ContentType || 'image/jpeg'
 
         // Set headers to force download
         res.setHeader('Content-Type', contentType)
         res.setHeader('Content-Disposition', `attachment; filename="momnts-${photo.id}.jpg"`)
 
-        // Using ArrayBuffer as a fallback for simple streaming
-        const buffer = await response.arrayBuffer()
-        return res.send(Buffer.from(buffer))
+        if (photo.encryption_iv && photo.encryption_tag) {
+            res.setHeader('x-encryption-iv', photo.encryption_iv)
+            res.setHeader('x-encryption-tag', photo.encryption_tag)
+            res.setHeader('Access-Control-Expose-Headers', 'x-encryption-iv, x-encryption-tag')
+        }
+
+        // Convert S3 stream to buffer using standard async iteration to support all Node/Bun/SDK versions
+        const chunks: any[] = []
+        for await (const chunk of s3Response.Body as any) {
+            chunks.push(chunk)
+        }
+        const buffer = Buffer.concat(chunks)
+        return res.send(buffer)
 
     } catch (error) {
         console.error('Download proxy error:', error)

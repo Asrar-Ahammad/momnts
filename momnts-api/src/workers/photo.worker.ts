@@ -52,6 +52,20 @@ async function handleProcessPhoto(data: { photoId: string; eventId: string; temp
   console.log(`[process-photo] Processing photo: ${photoId}`)
 
   try {
+    // Safety guard: E2EE photos should never enter the queue, but skip if they do
+    const event = await prisma.event.findUnique({
+      where: { id: eventId },
+      select: { encryption_mode: true }
+    })
+    if (event?.encryption_mode === 'E2EE') {
+      console.warn(`[process-photo] Skipping E2EE event photo ${photoId} — should not be in queue`)
+      // Clean up the temp object so it is not left orphaned in R2 storage
+      await deleteFromR2(tempKey).catch(err => {
+        console.error(`[process-photo] Failed to delete E2EE temp file ${tempKey}:`, err.message)
+      })
+      return
+    }
+
     // Download raw file from R2
     const rawUrl = await presignStoredUrl(tempKey, 3600)
     const response = await axios.get(rawUrl, { responseType: 'arraybuffer', timeout: 60000 })

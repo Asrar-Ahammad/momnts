@@ -7,6 +7,7 @@ import { useAuth } from "../../hooks/useAuth"
 import { Checkbox } from "../../../../components/ui/checkbox"
 import { authApi } from "../../services/auth.api"
 import { EyeIcon, EyeSlashIcon, Check, ArrowRight, ArrowLeft } from "@phosphor-icons/react"
+import { GoogleLogo, AppleLogo } from "@phosphor-icons/react"
 import { toast } from "sonner"
 import { Spinner } from "../../../../components/ui/spinner"
 import { useWebHaptics } from 'web-haptics/react'
@@ -15,6 +16,93 @@ import { useForm, useStore } from "@tanstack/react-form"
 import { Turnstile } from "../../../../components/ui/Turnstile"
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "../../../../components/ui/tooltip"
 import { motion, AnimatePresence } from "framer-motion"
+import { useSignUp } from "@clerk/clerk-react"
+
+interface ClerkOAuthButtonsProps {
+    redirectTo?: string
+    agreed: boolean
+    openedTerms: boolean
+    openedPrivacy: boolean
+    onOpenTerms: (e: React.MouseEvent<HTMLAnchorElement>) => void
+    onOpenPrivacy: (e: React.MouseEvent<HTMLAnchorElement>) => void
+    onAgreeChange: (val: boolean) => void
+}
+
+const ClerkOAuthButtons = ({ redirectTo, agreed, openedTerms, openedPrivacy, onOpenTerms, onOpenPrivacy, onAgreeChange }: ClerkOAuthButtonsProps) => {
+    const { signUp } = useSignUp()
+    const haptic = useWebHaptics()
+
+    const handleOAuth = async (strategy: 'oauth_google' | 'oauth_apple') => {
+        if (!agreed) {
+            toast.error("Please agree to the Terms and Conditions and Privacy Policy before continuing.")
+            haptic.trigger("error")
+            return
+        }
+        try {
+            if (!signUp) return
+            const callbackUrl = new URL(window.location.origin + '/sso-callback')
+            if (redirectTo) callbackUrl.searchParams.set('redirect', redirectTo)
+            await signUp.authenticateWithRedirect({
+                strategy,
+                redirectUrl: callbackUrl.toString(),
+                redirectUrlComplete: redirectTo || '/dashboard',
+            })
+        } catch (err) {
+            console.error(`${strategy} sign-up failed:`, err)
+            toast.error(`${strategy === 'oauth_google' ? 'Google' : 'Apple'} sign-up failed. Please try again.`)
+        }
+    }
+
+    const isAgreementEnabled = openedTerms && openedPrivacy
+
+    return (
+        <div className="mb-2">
+            {/* Inline consent — mirrors the gate enforced on form submission */}
+            <div className="flex items-start gap-2.5 mb-3 p-3 bg-neutral-50 dark:bg-neutral-900/50 rounded-xl border border-neutral-100 dark:border-neutral-800">
+                <Checkbox
+                    id="oauth-terms-checkbox"
+                    checked={agreed}
+                    onCheckedChange={(checked) => onAgreeChange(!!checked)}
+                    disabled={!isAgreementEnabled}
+                    className={`mt-0.5 ${!isAgreementEnabled ? "pointer-events-none opacity-50" : "scale-110"}`}
+                />
+                <label
+                    htmlFor="oauth-terms-checkbox"
+                    className={`text-xs leading-relaxed select-none ${!isAgreementEnabled ? "text-neutral-400 dark:text-neutral-600 cursor-not-allowed" : "text-neutral-600 dark:text-neutral-400 cursor-pointer"}`}
+                >
+                    I agree to the{" "}
+                    <a href="/terms" onClick={onOpenTerms} className="underline font-semibold text-primary hover:opacity-80 transition-opacity inline-flex items-center gap-0.5">
+                        Terms{openedTerms && <Check size={12} className="text-emerald-500" weight="bold" />}
+                    </a>{" "}and{" "}
+                    <a href="/privacy" onClick={onOpenPrivacy} className="underline font-semibold text-primary hover:opacity-80 transition-opacity inline-flex items-center gap-0.5">
+                        Privacy Policy{openedPrivacy && <Check size={12} className="text-emerald-500" weight="bold" />}
+                    </a>
+                    {!isAgreementEnabled && <span className="block text-[10px] text-amber-600 dark:text-amber-500 mt-0.5">Open both documents above to enable</span>}
+                </label>
+            </div>
+            <div className="flex gap-3">
+                <Button
+                    type="button"
+                    variant="outline"
+                    className="flex-1 rounded-xl h-11 border-neutral-200 dark:border-neutral-800 text-neutral-700 dark:text-neutral-300"
+                    onClick={() => handleOAuth('oauth_google')}
+                >
+                    <GoogleLogo size={20} weight="bold" />
+                    Google
+                </Button>
+                <Button
+                    type="button"
+                    variant="outline"
+                    className="flex-1 rounded-xl h-11 border-neutral-200 dark:border-neutral-800 text-neutral-700 dark:text-neutral-300"
+                    onClick={() => handleOAuth('oauth_apple')}
+                >
+                    <AppleLogo size={20} weight="fill" />
+                    Apple
+                </Button>
+            </div>
+        </div>
+    )
+}
 
 const passwordCriteria = [
     { id: "length", label: "At least 8 characters", test: (pw: string) => pw.length >= 8 },
@@ -241,6 +329,24 @@ const Register = () => {
                                         {/* STEP 0: Identity */}
                                         {step === 0 && (
                                             <>
+                                                {import.meta.env.VITE_CLERK_PUBLISHABLE_KEY && (
+                                                    <>
+                                                        <ClerkOAuthButtons
+                                                        redirectTo={searchParams.get('redirect') ?? undefined}
+                                                        agreed={agreed}
+                                                        openedTerms={openedTerms}
+                                                        openedPrivacy={openedPrivacy}
+                                                        onOpenTerms={handleOpenTerms}
+                                                        onOpenPrivacy={handleOpenPrivacy}
+                                                        onAgreeChange={setAgreed}
+                                                    />
+                                                        <div className="flex items-center gap-4 mb-2">
+                                                            <div className="flex-1 h-[1px] bg-neutral-200 dark:bg-neutral-800"></div>
+                                                            <span className="text-xs text-neutral-400 dark:text-neutral-500 uppercase tracking-widest">or</span>
+                                                            <div className="flex-1 h-[1px] bg-neutral-200 dark:bg-neutral-800"></div>
+                                                        </div>
+                                                    </>
+                                                )}
                                                 <form.Field
                                                     name="username"
                                                     children={(field) => (

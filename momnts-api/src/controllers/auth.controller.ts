@@ -6,7 +6,7 @@ import bcrypt from "bcryptjs";
 import jwt from "jsonwebtoken";
 import crypto from "crypto";
 import { redis } from "../lib/redis";
-import { sendOtpEmail, sendPasswordResetOtpEmail } from "../lib/mailer";
+import { sendOtpEmail, sendPasswordResetOtpEmail, verifyOtpViaSparkage, sendWelcomeEmail } from "../lib/mailer";
 import { verifyTurnstileToken } from "../lib/turnstile";
 
 // ─── OTP Constants ───────────────────────────────────────────────────
@@ -63,17 +63,13 @@ async function storeAndSendPasswordOtp(userId: string, email: string): Promise<{
     return { success: false, retryAfter: ttl > 0 ? ttl : OTP_RATE_LIMIT_WINDOW };
   }
 
-  const otp = generateOtp();
-  const hashed = await hashOtp(otp);
-
   try {
-    await sendPasswordResetOtpEmail(email, otp);
+    await sendPasswordResetOtpEmail(email);
   } catch (error) {
     await redis.decr(pwdOtpRateKey(userId));
     throw error;
   }
 
-  await redis.setex(pwdOtpKey(userId), OTP_TTL_SECONDS, hashed);
   await redis.del(pwdOtpAttemptsKey(userId));
 
   return { success: true };
@@ -102,21 +98,16 @@ async function storeAndSendOtp(userId: string, email: string): Promise<{ success
     return { success: false, retryAfter: ttl > 0 ? ttl : OTP_RATE_LIMIT_WINDOW };
   }
 
-  const otp = generateOtp();
-  const hashed = await hashOtp(otp);
-
   try {
     // Send email FIRST (OTP never logged)
     // If this throws (e.g. invalid credentials), the function aborts
-    await sendOtpEmail(email, otp);
+    await sendOtpEmail(email);
   } catch (error) {
     // Refund the rate limit count since the email failed
     await redis.decr(otpRateKey(userId));
     throw error;
   }
 
-  // Store hashed OTP with TTL
-  await redis.setex(otpKey(userId), OTP_TTL_SECONDS, hashed);
   // Reset attempt counter
   await redis.del(otpAttemptsKey(userId));
 
@@ -345,12 +336,46 @@ async function loginUserController(req: Request, res: Response) {
       });
     }
 
+    // OAuth-only users (no password) must use Clerk sign-in
+    if (!user.password_hash) {
+      return res.status(400).json({
+        message: "This account uses Google/Apple sign-in. Please use that method to log in.",
+        code: "OAUTH_ONLY",
+      });
+    }
+
     const isPasswordValid = await bcrypt.compare(password, user.password_hash);
 
     if (!isPasswordValid) {
       return res.status(400).json({
         message: "Invalid email or password",
       });
+    }
+
+    // ── Clerk migration-on-first-login ─────────────────────────────
+    // If user hasn't been linked to Clerk yet, attempt to create/link
+    if (!user.clerk_user_id && process.env.CLERK_SECRET_KEY) {
+      try {
+        const { createClerkClient } = await import('@clerk/express');
+        const clerk = createClerkClient({ secretKey: process.env.CLERK_SECRET_KEY });
+        const clerkUser = await clerk.users.createUser({
+          emailAddress: [user.email],
+          firstName: user.name.split(' ')[0] || user.name,
+          lastName: user.name.split(' ').slice(1).join(' ') || undefined,
+          skipPasswordRequirement: true,
+        });
+        await prisma.user.update({
+          where: { id: user.id },
+          data: {
+            clerk_user_id: clerkUser.id,
+            auth_provider: 'clerk',
+          },
+        });
+        console.log(`[Auth Migration] User ${user.id} migrated to Clerk ${clerkUser.id}`);
+      } catch (migrationErr) {
+        // Non-fatal — user can still log in with legacy JWT
+        console.warn('[Auth Migration] Failed to migrate user to Clerk:', migrationErr);
+      }
     }
 
     const jwtSecret = process.env.JWT_SECRET;
@@ -660,7 +685,7 @@ async function verifyOtpController(req: any, res: any) {
 
     const user = await prisma.user.findUnique({
       where: { id: userId },
-      select: { id: true, email_verified: true },
+      select: { id: true, email: true, email_verified: true },
     });
 
     if (!user) {
@@ -669,12 +694,6 @@ async function verifyOtpController(req: any, res: any) {
 
     if (user.email_verified) {
       return res.status(400).json({ message: "Email is already verified" });
-    }
-
-    // Get stored OTP hash
-    const storedHash = await redis.get(otpKey(userId));
-    if (!storedHash) {
-      return res.status(400).json({ message: "Verification code has expired. Please request a new one." });
     }
 
     // Increment attempt counter before checking (fail-first to prevent race conditions)
@@ -688,8 +707,8 @@ async function verifyOtpController(req: any, res: any) {
     if (attempts > OTP_MAX_ATTEMPTS) {
       // Set lockout
       await redis.setex(otpLockoutKey(userId), OTP_LOCKOUT_SECONDS, "1");
-      // Delete OTP and attempts — force fresh OTP after lockout
-      await redis.del(otpKey(userId), otpAttemptsKey(userId));
+      // Delete attempts — force fresh OTP after lockout
+      await redis.del(otpAttemptsKey(userId));
 
       return res.status(429).json({
         message: "Too many failed attempts. Your account is temporarily locked. Please try again in 30 minutes.",
@@ -697,8 +716,8 @@ async function verifyOtpController(req: any, res: any) {
       });
     }
 
-    // Verify OTP (bcrypt.compare is internally constant-time)
-    const isValid = await verifyOtp(otp, storedHash);
+    // Verify OTP via Sparkage
+    const isValid = await verifyOtpViaSparkage(user.email, otp);
     if (!isValid) {
       const remaining = OTP_MAX_ATTEMPTS - attempts;
       return res.status(400).json({
@@ -720,8 +739,13 @@ async function verifyOtpController(req: any, res: any) {
       },
     });
 
-    // Cleanup Redis — one-time use, delete immediately
-    await redis.del(otpKey(userId), otpAttemptsKey(userId), otpRateKey(userId));
+    // Cleanup Redis — delete attempts & rate limit
+    await redis.del(otpAttemptsKey(userId), otpRateKey(userId));
+
+    // Send welcome email asynchronously via SMTP
+    sendWelcomeEmail(updatedUser.email, updatedUser.name).catch((err) => {
+      console.error("Failed to send welcome email:", err);
+    });
 
     return res.status(200).json({
       message: "Email verified successfully",
@@ -819,23 +843,26 @@ async function resetPasswordController(req: Request, res: Response) {
       });
     }
 
-    const hashedOtp = await redis.get(pwdOtpKey(userId));
-    if (!hashedOtp) {
-      return res.status(400).json({ message: "Verification code expired or invalid" });
+    // Increment attempts first
+    const attempts = await redis.incr(pwdOtpAttemptsKey(userId));
+    if (attempts === 1) {
+      await redis.expire(pwdOtpAttemptsKey(userId), OTP_TTL_SECONDS);
     }
 
-    const isValid = await verifyOtp(otp, hashedOtp);
+    if (attempts > OTP_MAX_ATTEMPTS) {
+      await redis.setex(pwdOtpLockoutKey(userId), OTP_LOCKOUT_SECONDS, "locked");
+      await redis.del(pwdOtpAttemptsKey(userId));
+      return res.status(403).json({
+        message: "Too many failed attempts. Your account is temporarily locked from resetting password. Please try again in 30 minutes.",
+      });
+    }
+
+    // Verify OTP via Sparkage
+    const isValid = await verifyOtpViaSparkage(email, otp);
     if (!isValid) {
-      const attempts = await redis.incr(pwdOtpAttemptsKey(userId));
-      if (attempts >= OTP_MAX_ATTEMPTS) {
-        await redis.setex(pwdOtpLockoutKey(userId), OTP_LOCKOUT_SECONDS, "locked");
-        await redis.del(pwdOtpKey(userId), pwdOtpAttemptsKey(userId));
-        return res.status(403).json({
-          message: "Too many failed attempts. Your account is temporarily locked from resetting password. Please try again in 30 minutes.",
-        });
-      }
+      const remaining = OTP_MAX_ATTEMPTS - attempts;
       return res.status(400).json({
-        message: `Invalid verification code. ${OTP_MAX_ATTEMPTS - attempts} attempt(s) remaining.`,
+        message: `Invalid verification code. ${remaining} attempt(s) remaining.`,
       });
     }
 
@@ -852,7 +879,7 @@ async function resetPasswordController(req: Request, res: Response) {
     });
 
     // Cleanup Redis
-    await redis.del(pwdOtpKey(userId), pwdOtpAttemptsKey(userId), pwdOtpRateKey(userId));
+    await redis.del(pwdOtpAttemptsKey(userId), pwdOtpRateKey(userId));
 
     return res.status(200).json({ message: "Password has been successfully reset" });
   } catch (error) {
@@ -912,6 +939,14 @@ async function changePasswordController(req: Request, res: Response) {
       return res.status(400).json({ message: "Invalid password length" });
     }
 
+    const user = await prisma.user.findUnique({
+      where: { id: userId },
+      select: { email: true }
+    });
+    if (!user) {
+      return res.status(404).json({ message: "User not found" });
+    }
+
     const lockout = await redis.get(pwdOtpLockoutKey(userId));
     if (lockout) {
       return res.status(403).json({
@@ -919,23 +954,26 @@ async function changePasswordController(req: Request, res: Response) {
       });
     }
 
-    const hashedOtp = await redis.get(pwdOtpKey(userId));
-    if (!hashedOtp) {
-      return res.status(400).json({ message: "Verification code expired or invalid" });
+    // Increment attempts first
+    const attempts = await redis.incr(pwdOtpAttemptsKey(userId));
+    if (attempts === 1) {
+      await redis.expire(pwdOtpAttemptsKey(userId), OTP_TTL_SECONDS);
     }
 
-    const isValid = await verifyOtp(otp, hashedOtp);
+    if (attempts > OTP_MAX_ATTEMPTS) {
+      await redis.setex(pwdOtpLockoutKey(userId), OTP_LOCKOUT_SECONDS, "locked");
+      await redis.del(pwdOtpAttemptsKey(userId));
+      return res.status(403).json({
+        message: "Too many failed attempts. Your account is temporarily locked from changing password. Please try again in 30 minutes.",
+      });
+    }
+
+    // Verify OTP via Sparkage
+    const isValid = await verifyOtpViaSparkage(user.email, otp);
     if (!isValid) {
-      const attempts = await redis.incr(pwdOtpAttemptsKey(userId));
-      if (attempts >= OTP_MAX_ATTEMPTS) {
-        await redis.setex(pwdOtpLockoutKey(userId), OTP_LOCKOUT_SECONDS, "locked");
-        await redis.del(pwdOtpKey(userId), pwdOtpAttemptsKey(userId));
-        return res.status(403).json({
-          message: "Too many failed attempts. Your account is temporarily locked. Please try again in 30 minutes.",
-        });
-      }
+      const remaining = OTP_MAX_ATTEMPTS - attempts;
       return res.status(400).json({
-        message: `Invalid verification code. ${OTP_MAX_ATTEMPTS - attempts} attempt(s) remaining.`,
+        message: `Invalid verification code. ${remaining} attempt(s) remaining.`,
       });
     }
 
@@ -950,7 +988,7 @@ async function changePasswordController(req: Request, res: Response) {
       where: { user_id: userId },
     });
 
-    await redis.del(pwdOtpKey(userId), pwdOtpAttemptsKey(userId), pwdOtpRateKey(userId));
+    await redis.del(pwdOtpAttemptsKey(userId), pwdOtpRateKey(userId));
 
     return res.status(200).json({ message: "Password has been successfully changed" });
   } catch (error) {

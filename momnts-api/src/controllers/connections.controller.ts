@@ -33,6 +33,18 @@ async function getWhoWasIWithController(req: AuthRequest, res: Response) {
         .json({ message: "You do not have access to this event" });
     }
 
+    // E2EE events don't have face profiles — no AI processing
+    const event = await prisma.event.findUnique({
+      where: { id: eventId },
+      select: { encryption_mode: true }
+    });
+    if (event?.encryption_mode === 'E2EE') {
+      return res.status(403).json({
+        message: "Connections are unavailable for end-to-end encrypted events.",
+        code: "E2EE_NO_AI",
+      });
+    }
+
     // Find ALL of user's FaceProfiles for this event (can have multiple clusters)
     const faceProfiles = await prisma.faceProfile.findMany({
       where: { event_id: eventId, claimed_by: req.user.id },
@@ -138,6 +150,18 @@ async function getSharedPhotosController(req: AuthRequest, res: Response) {
       return res
         .status(403)
         .json({ message: "You do not have access to this event" });
+    }
+
+    // E2EE events don't have face profiles — no AI processing
+    const eventCheck = await prisma.event.findUnique({
+      where: { id: eventId },
+      select: { encryption_mode: true }
+    });
+    if (eventCheck?.encryption_mode === 'E2EE') {
+      return res.status(403).json({
+        message: "Connections are unavailable for end-to-end encrypted events.",
+        code: "E2EE_NO_AI",
+      });
     }
 
     // Find ALL of user's FaceProfiles for this event
@@ -280,6 +304,18 @@ async function getEventConnectionsSummaryController(
       return res
         .status(403)
         .json({ message: "You do not have access to this event" });
+    }
+
+    // E2EE events don't have face profiles — no AI processing
+    const eventCheck = await prisma.event.findUnique({
+      where: { id: eventId },
+      select: { encryption_mode: true }
+    });
+    if (eventCheck?.encryption_mode === 'E2EE') {
+      return res.status(403).json({
+        message: "Connections are unavailable for end-to-end encrypted events.",
+        code: "E2EE_NO_AI",
+      });
     }
 
     // Find ALL of user's FaceProfiles

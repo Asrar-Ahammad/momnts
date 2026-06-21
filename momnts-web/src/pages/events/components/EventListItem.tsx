@@ -2,7 +2,7 @@ import { useNavigate } from 'react-router'
 import { format } from 'date-fns'
 import { EventData } from '../../../features/events/services/events.api'
 import { Button } from "../../../components/ui/button"
-import { MapPinAreaIcon, CalendarDotsIcon, Users, ArrowRight } from '@phosphor-icons/react'
+import { MapPinAreaIcon, CalendarDotsIcon, Users, ArrowRight, Lock } from '@phosphor-icons/react'
 
 interface EventListItemProps {
   event: EventData
@@ -30,8 +30,13 @@ export const EventListItem = ({ event }: EventListItemProps) => {
     >
       <div className="flex-1 flex flex-col md:flex-row md:items-center gap-4 w-full">
         <div className="flex-1 text-left">
-          <h3 className="text-lg font-bold text-neutral-900 dark:text-neutral-100 capitalize line-clamp-1">
-            {event.name}
+          <h3 className="text-lg font-bold text-neutral-900 dark:text-neutral-100 capitalize line-clamp-1 flex items-center gap-1.5">
+            <span className="truncate">{event.name}</span>
+            {event.encryption_mode === 'E2EE' && (
+              <span className="inline-flex items-center justify-center bg-purple-100 dark:bg-purple-950/40 text-purple-600 dark:text-purple-400 rounded-full p-0.5 shrink-0">
+                <Lock size={12} weight="fill" />
+              </span>
+            )}
           </h3>
           <div className="flex flex-wrap gap-x-4 gap-y-1 mt-1 text-sm text-neutral-500">
             <div className="flex items-center gap-1.5 capitalize">

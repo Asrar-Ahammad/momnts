@@ -62,6 +62,7 @@ import { EventData } from '../../../features/events/services/events.api'
 import { toast } from 'sonner'
 import { motion, AnimatePresence } from 'framer-motion'
 import { useWebHaptics } from 'web-haptics/react'
+import { getPassphrase } from '../../../lib/crypto/passphraseCache'
 
 type TabType = 'all' | 'your-photos' | 'favourites' | 'your-uploads' | 'connections'
 type GalleryColumns = 1 | 2 | 3
@@ -94,6 +95,7 @@ interface EventHeaderProps {
   isAllSelected?: boolean
   onShareClick?: () => void
   pendingRequestCount?: number
+  onForgetDeviceKeys?: () => void
 }
 
 const EventHeader = ({
@@ -122,14 +124,15 @@ const EventHeader = ({
   onMemoryLaneClick,
   onSelectAll,
   isAllSelected = false,
-  onShareClick
+  onShareClick,
+  onForgetDeviceKeys
 }: EventHeaderProps) => {
   const [showLeaveConfirm, setShowLeaveConfirm] = useState(false)
   const [leaving, setLeaving] = useState(false)
   const leavingRef = useRef(false)
   const haptic = useWebHaptics()
   // TODO: Add error handling for this hook
-  const { data: summaryData } = useConnectionsSummary(event?.id ?? '')
+  const { data: summaryData } = useConnectionsSummary(event?.id ?? '', event?.encryption_mode !== 'E2EE')
 
   const handleLeave = async () => {
     if (!onLeaveEvent || leavingRef.current) return
@@ -326,7 +329,12 @@ const EventHeader = ({
                 <h1 className="text-2xl sm:text-3xl lg:text-4xl font-bold font-sirage capitalize mb-1 sm:mb-2 flex items-center gap-2 truncate">
                   <span className="truncate">{event?.name || 'Loading...'}</span>
                   {event && (
-                    event.is_secure ? (
+                    event.encryption_mode === 'E2EE' ? (
+                      <Badge className="bg-purple-600 hover:bg-purple-700 text-white border-0 flex items-center gap-1 py-1 px-2.5 rounded-full shadow-md shrink-0 select-none">
+                        <Lock size={12} weight="fill" />
+                        <span className="text-[10px] font-bold tracking-wider">E2EE</span>
+                      </Badge>
+                    ) : event.is_secure ? (
                       <Lock size={22} weight="fill" className="text-amber-500 shrink-0" />
                     ) : (
                       <Globe size={22} className="text-neutral-400 dark:text-neutral-500 shrink-0" />
@@ -363,12 +371,46 @@ const EventHeader = ({
                             <ShareNetwork size={16} className="mr-2.5" />
                             Share Event & QR
                           </DropdownMenuItem>
-                          <DropdownMenuSeparator className="my-1" />
-                          <DropdownMenuItem onClick={() => { haptic.trigger("success"); onCopyInviteCode(); }} className="cursor-pointer py-2 text-neutral-600 dark:text-neutral-400">
-                            <CopySimpleIcon size={16} className="mr-2.5" />
-                            Copy Code
-                            <span className="ml-auto font-mono text-[10px] text-neutral-400">{event?.invite_code}</span>
-                          </DropdownMenuItem>
+                          {event?.encryption_mode === 'E2EE' ? (
+                            <>
+                              <DropdownMenuItem onClick={async () => {
+                                haptic.trigger("success")
+                                try {
+                                  await navigator.clipboard.writeText(event.invite_code)
+                                  toast.success('Event code copied!')
+                                } catch {
+                                  toast.error('Failed to copy event code')
+                                }
+                              }} className="cursor-pointer py-2 text-neutral-600 dark:text-neutral-400">
+                                <CopySimpleIcon size={16} className="mr-2.5 text-neutral-500" />
+                                Copy Code
+                                <span className="ml-auto font-mono text-[10px] text-neutral-400">{event?.invite_code}</span>
+                              </DropdownMenuItem>
+                              <DropdownMenuItem onClick={async () => {
+                                haptic.trigger("success")
+                                const passphrase = getPassphrase(event.id) || ''
+                                if (passphrase) {
+                                  try {
+                                    await navigator.clipboard.writeText(passphrase)
+                                    toast.success('Passphrase copied!')
+                                  } catch {
+                                    toast.error('Failed to copy passphrase')
+                                  }
+                                } else {
+                                  toast.error('Passphrase not cached in this session.')
+                                }
+                              }} className="cursor-pointer py-2 text-neutral-600 dark:text-neutral-400">
+                                <Lock size={16} className="mr-2.5 text-neutral-500" />
+                                Copy Passphrase
+                              </DropdownMenuItem>
+                            </>
+                          ) : (
+                            <DropdownMenuItem onClick={() => { haptic.trigger("success"); onCopyInviteCode(); }} className="cursor-pointer py-2 text-neutral-600 dark:text-neutral-400">
+                              <CopySimpleIcon size={16} className="mr-2.5" />
+                              Copy Code
+                              <span className="ml-auto font-mono text-[10px] text-neutral-400">{event?.invite_code}</span>
+                            </DropdownMenuItem>
+                          )}
                           <DropdownMenuItem onClick={async () => {
                             haptic.trigger("success")
                             const url = `${window.location.origin}/events?joinCode=${event?.invite_code}`
@@ -500,13 +542,50 @@ const EventHeader = ({
                                     <ShareNetwork size={16} className="mr-2.5 text-neutral-500" />
                                     Share Event & QR
                                   </DropdownMenuItem>
-                                  <DropdownMenuItem onClick={() => { haptic.trigger("success"); onCopyInviteCode(); }} className="cursor-pointer py-2.5 px-2.5 rounded-lg">
-                                    <CopySimpleIcon size={16} className="mr-2.5 text-neutral-500" />
-                                    Copy Invite Code
-                                    <span className="ml-auto font-mono text-[11px] text-neutral-400 dark:text-neutral-500">
-                                      {event?.invite_code}
-                                    </span>
-                                  </DropdownMenuItem>
+                                  {event?.encryption_mode === 'E2EE' ? (
+                                    <>
+                                      <DropdownMenuItem onClick={async () => {
+                                        haptic.trigger("success")
+                                        try {
+                                          await navigator.clipboard.writeText(event.invite_code)
+                                          toast.success('Event code copied!')
+                                        } catch {
+                                          toast.error('Failed to copy event code')
+                                        }
+                                      }} className="cursor-pointer py-2.5 px-2.5 rounded-lg">
+                                        <CopySimpleIcon size={16} className="mr-2.5 text-neutral-500" />
+                                        Copy Invite Code
+                                        <span className="ml-auto font-mono text-[11px] text-neutral-400 dark:text-neutral-500">
+                                          {event?.invite_code}
+                                        </span>
+                                      </DropdownMenuItem>
+                                      <DropdownMenuItem onClick={async () => {
+                                        haptic.trigger("success")
+                                        const passphrase = getPassphrase(event.id) || ''
+                                        if (passphrase) {
+                                          try {
+                                            await navigator.clipboard.writeText(passphrase)
+                                            toast.success('Passphrase copied!')
+                                          } catch {
+                                            toast.error('Failed to copy passphrase')
+                                          }
+                                        } else {
+                                          toast.error('Passphrase not cached in this session.')
+                                        }
+                                      }} className="cursor-pointer py-2.5 px-2.5 rounded-lg">
+                                        <Lock size={16} className="mr-2.5 text-neutral-500" />
+                                        Copy Passphrase
+                                      </DropdownMenuItem>
+                                    </>
+                                  ) : (
+                                    <DropdownMenuItem onClick={() => { haptic.trigger("success"); onCopyInviteCode(); }} className="cursor-pointer py-2.5 px-2.5 rounded-lg">
+                                      <CopySimpleIcon size={16} className="mr-2.5 text-neutral-500" />
+                                      Copy Invite Code
+                                      <span className="ml-auto font-mono text-[11px] text-neutral-400 dark:text-neutral-500">
+                                        {event?.invite_code}
+                                      </span>
+                                    </DropdownMenuItem>
+                                  )}
                                   <DropdownMenuItem onClick={async () => {
                                     haptic.trigger("success")
                                     const url = `${window.location.origin}/events?joinCode=${event?.invite_code}`
@@ -551,6 +630,21 @@ const EventHeader = ({
                               </>
                             )}
 
+                            {event?.encryption_mode === 'E2EE' && (
+                              <>
+                                <DropdownMenuSeparator />
+                                <DropdownMenuGroup>
+                                  <DropdownMenuItem
+                                    onClick={() => { haptic.trigger("light"); onForgetDeviceKeys?.(); }}
+                                    className="cursor-pointer py-2.5 px-2.5 rounded-lg text-amber-500 hover:text-amber-600"
+                                  >
+                                    <Lock size={16} className="mr-2.5" />
+                                    Forget Device Keys
+                                  </DropdownMenuItem>
+                                </DropdownMenuGroup>
+                              </>
+                            )}
+
                             {/* Leave (Attendee) */}
                             {isAttendee && (
                               <>
@@ -571,110 +665,95 @@ const EventHeader = ({
                         </DropdownMenu>
                       </div>
 
-                      {/* ═══ DESKTOP: Individual buttons ═══ */}
-                      {showGalleryActions && (
-                        <div className="hidden sm:flex items-center gap-2">
-                          <Tooltip>
-                            <TooltipTrigger asChild delay={0}>
-                              <Button
-                                variant="outline"
-                                className="h-9 lg:h-10 w-9 sm:w-auto sm:px-3 lg:px-4 flex items-center justify-center gap-1.5 lg:gap-2 rounded-xl text-xs lg:text-sm shrink-0 whitespace-nowrap"
-                                onClick={() => { haptic.trigger("light"); onToggleSort(); }}
-                              >
-                                {sortOrder === 'desc' ? <SortDescending size={18} weight="bold" className="w-4 h-4 lg:w-[18px] lg:h-[18px]" /> : <SortAscending size={18} weight="bold" className="w-4 h-4 lg:w-[18px] lg:h-[18px]" />}
-                                <span className="hidden sm:inline">Sort</span>
-                              </Button>
-                            </TooltipTrigger>
-                            <TooltipContent>Sort Photos</TooltipContent>
-                          </Tooltip>
-
-                          {(isOrganizer || event?.allow_downloads) && (
-                            <Tooltip>
-                              <TooltipTrigger asChild delay={0}>
-                                <Button
-                                  variant="outline"
-                                  className="h-9 lg:h-10 w-9 sm:w-auto sm:px-3 lg:px-4 flex items-center justify-center gap-1.5 lg:gap-2 rounded-xl text-xs lg:text-sm shrink-0 whitespace-nowrap"
-                                  onClick={() => { haptic.trigger("light"); onToggleSelectMode(); }}
+                      {/* ═══ DESKTOP: Consolidated Manage menu ═══ */}
+                      <div className="hidden sm:block">
+                        <DropdownMenu>
+                          <DropdownMenuTrigger asChild>
+                            <Button
+                              variant="outline"
+                              onClick={() => haptic.trigger("light")}
+                              className="h-9 lg:h-10 px-3 lg:px-4 flex items-center gap-1.5 lg:gap-2 rounded-xl text-xs lg:text-sm font-semibold shrink-0 cursor-pointer"
+                            >
+                              <Gear size={18} weight="bold" className="w-4 h-4 lg:w-[18px] lg:h-[18px]" />
+                              <span>Manage</span>
+                              {pendingRequestCount > 0 && (
+                                <span className="flex items-center justify-center bg-amber-500 text-white text-[10px] font-bold h-4 min-w-[16px] px-1.5 rounded-full ml-1 shrink-0">
+                                  {pendingRequestCount}
+                                </span>
+                              )}
+                            </Button>
+                          </DropdownMenuTrigger>
+                          <DropdownMenuContent align="end" className="w-56 rounded-2xl p-1.5">
+                            {isOrganizer && (
+                              <DropdownMenuGroup>
+                                <DropdownMenuLabel className="text-[10px] uppercase tracking-wider text-neutral-400 dark:text-neutral-500 font-semibold px-2 pt-1.5 pb-1">
+                                  Event
+                                </DropdownMenuLabel>
+                                <DropdownMenuItem
+                                  onClick={() => { haptic.trigger("light"); onAttendeesClick(); }}
+                                  className="cursor-pointer py-2.5 px-2.5 rounded-lg flex items-center justify-between"
                                 >
-                                  <DownloadSimpleIcon size={18} weight="bold" className="w-4 h-4 lg:w-[18px] lg:h-[18px]" />
-                                  <span className="hidden sm:inline">Download</span>
-                                </Button>
-                              </TooltipTrigger>
-                              <TooltipContent>Select Photos to download</TooltipContent>
-                            </Tooltip>
-                          )}
-                        </div>
-                      )}
+                                  <div className="flex items-center">
+                                    <Users size={16} className="mr-2.5 text-neutral-500" />
+                                    <span>Attendees</span>
+                                  </div>
+                                  {pendingRequestCount > 0 && (
+                                    <span className="flex items-center justify-center bg-amber-500 text-white text-[10px] font-bold h-4 min-w-[16px] px-1.5 rounded-full shrink-0">
+                                      {pendingRequestCount}
+                                    </span>
+                                  )}
+                                </DropdownMenuItem>
+                                <DropdownMenuItem
+                                  onClick={() => { haptic.trigger("light"); onSettingsClick(); }}
+                                  className="cursor-pointer py-2.5 px-2.5 rounded-lg"
+                                >
+                                  <Gear size={16} className="mr-2.5 text-neutral-500" />
+                                  <span>Settings</span>
+                                </DropdownMenuItem>
+                              </DropdownMenuGroup>
+                            )}
+
+                            {event?.encryption_mode === 'E2EE' && (
+                              <>
+                                <DropdownMenuSeparator />
+                                <DropdownMenuItem
+                                  onClick={() => { haptic.trigger("light"); onForgetDeviceKeys?.(); }}
+                                  className="cursor-pointer py-2.5 px-2.5 rounded-lg text-amber-500 hover:text-amber-600"
+                                >
+                                  <Lock size={16} className="mr-2.5" />
+                                  <span>Forget Keys</span>
+                                </DropdownMenuItem>
+                              </>
+                            )}
+
+                            {isAttendee && (
+                              <>
+                                <DropdownMenuSeparator />
+                                <DropdownMenuItem
+                                  onClick={() => { haptic.trigger("warning"); setShowLeaveConfirm(true); }}
+                                  variant="destructive"
+                                  className="cursor-pointer py-2.5 px-2.5 rounded-lg text-red-500"
+                                >
+                                  <SignOut size={16} className="mr-2.5" />
+                                  <span>Leave Event</span>
+                                </DropdownMenuItem>
+                              </>
+                            )}
+                          </DropdownMenuContent>
+                        </DropdownMenu>
+                      </div>
                     </motion.div>
                   </AnimatePresence>
 
-                  {/* Desktop: Organizer-only buttons */}
-                  {isOrganizer && (
-                    <motion.div layout className="hidden sm:flex items-center gap-2 shrink-0">
-
-                      <Tooltip>
-                        <TooltipTrigger asChild delay={0}>
-                          <Button
-                            variant="outline"
-                            className="h-9 lg:h-10 w-9 sm:w-auto sm:px-3 lg:px-4 flex items-center justify-center gap-1.5 lg:gap-2 rounded-xl text-xs lg:text-sm shrink-0 whitespace-nowrap"
-                            onClick={() => { haptic.trigger("light"); onAttendeesClick(); }}
-                          >
-                            <Users size={18} weight="bold" className="w-4 h-4 lg:w-[18px] lg:h-[18px]" />
-                            <span className="hidden sm:inline">Attendees</span>
-                            {pendingRequestCount > 0 && (
-                              <span className="flex items-center justify-center bg-amber-500 text-white text-[10px] font-bold h-4 min-w-[16px] px-1.5 rounded-full ml-1">
-                                {pendingRequestCount > 9 ? "9+" : pendingRequestCount}
-                              </span>
-                            )}
-                          </Button>
-                        </TooltipTrigger>
-                        <TooltipContent>View Attendees</TooltipContent>
-                      </Tooltip>
-
-                      <Tooltip>
-                        <TooltipTrigger asChild delay={0}>
-                          <Button
-                            variant="outline"
-                            className="h-9 lg:h-10 w-9 sm:w-auto sm:px-3 lg:px-4 flex items-center justify-center gap-1.5 lg:gap-2 rounded-xl text-xs lg:text-sm shrink-0 whitespace-nowrap"
-                            onClick={() => { haptic.trigger("light"); onSettingsClick(); }}
-                          >
-                            <Gear size={18} weight="bold" className="w-4 h-4 lg:w-[18px] lg:h-[18px]" />
-                            <span className="hidden sm:inline">Settings</span>
-                          </Button>
-                        </TooltipTrigger>
-                        <TooltipContent>Event Settings</TooltipContent>
-                      </Tooltip>
-                    </motion.div>
-                  )}
-
-                  {/* Desktop: Attendee Leave button */}
-                  {isAttendee && (
-                    <motion.div layout className="hidden sm:block">
-                      <Tooltip>
-                        <TooltipTrigger asChild delay={0}>
-                          <Button
-                            variant="outline"
-                            className="h-10 w-10 sm:w-auto sm:px-4 flex items-center justify-center gap-2 rounded-xl text-red-500 border-red-200 hover:bg-red-50 hover:text-red-600 dark:border-red-900 dark:hover:bg-red-950 shrink-0 whitespace-nowrap"
-                            onClick={() => { haptic.trigger("warning"); setShowLeaveConfirm(true); }}
-                          >
-                            <SignOut size={18} weight="bold" />
-                            <span className="hidden sm:inline">Leave</span>
-                          </Button>
-                        </TooltipTrigger>
-                        <TooltipContent>Leave Event</TooltipContent>
-                      </Tooltip>
-                    </motion.div>
-                  )}
-
-                  {/* CTA button */}
+                  {/* Desktop CTA actions */}
                   <motion.div layout className="flex-none order-1 sm:order-none flex items-center gap-2">
                     {event && event._count.photos >= 5 && (
                       <Button
                         variant="outline"
-                        className="h-8 sm:h-9 lg:h-10 px-2.5 sm:px-3 lg:px-6 flex items-center justify-center gap-1 sm:gap-1.5 lg:gap-2 rounded-xl border-neutral-200 dark:border-neutral-800 hover:bg-neutral-100 dark:hover:bg-neutral-850 cursor-pointer text-[11px] sm:text-xs lg:text-sm font-semibold transition-colors shrink-0 whitespace-nowrap"
+                        className="h-9 lg:h-10 px-3 lg:px-6 flex items-center justify-center gap-1.5 lg:gap-2 rounded-xl border-neutral-200 dark:border-neutral-800 hover:bg-neutral-100 dark:hover:bg-neutral-850 cursor-pointer text-xs lg:text-sm font-semibold transition-colors shrink-0 whitespace-nowrap"
                         onClick={() => { haptic.trigger("light"); onMemoryLaneClick?.(); }}
                       >
-                        <MusicNotes size={18} weight="bold" className="text-rose-500 w-3.5 h-3.5 sm:w-4 sm:h-4 lg:w-[18px] lg:h-[18px]" />
+                        <MusicNotes size={18} weight="bold" className="text-rose-500 w-4 h-4 lg:w-[18px] lg:h-[18px]" />
                         <span>Memory Lane</span>
                       </Button>
                     )}
@@ -724,43 +803,89 @@ const EventHeader = ({
             </motion.div>
           </div>
 
-          {/* Row 2: Tabs (Full Width) */}
-          <div className="mt-2 -mx-4 px-4 sm:mx-0 sm:px-0 overflow-x-auto no-scrollbar border-t border-neutral-100 dark:border-neutral-800/60 pt-3">
-            <Tabs value={activeTab} onValueChange={(v) => { haptic.trigger("selection"); onTabChange(v as TabType) }} className="w-full">
-              <TabsList className="bg-muted w-max min-w-full sm:w-auto flex shrink-0 rounded-full p-1 relative">
-                {(['all', 'your-photos', 'favourites', 'your-uploads', 'connections'] as TabType[]).map((tab) => {
-                  const isActive = activeTab === tab;
-                  return (
-                    <TabsTrigger
-                      key={tab}
-                      value={tab}
-                      className={`relative flex items-center gap-2 whitespace-nowrap px-3 sm:px-4 py-2 rounded-full z-10 transition-colors ${isActive ? '!text-primary-foreground data-active:bg-transparent dark:data-active:bg-transparent shadow-none data-active:shadow-none' : 'text-neutral-500 hover:text-neutral-700 dark:text-neutral-400 dark:hover:text-neutral-300'}`}
-                    >
-                      {isActive && (
-                        <motion.div
-                          layoutId="tab-indicator"
-                          className="absolute inset-0 bg-primary rounded-full shadow-sm -z-10"
-                          transition={{ type: "spring", bounce: 0.2, duration: 0.5 }}
-                        />
-                      )}
-                      {tab === 'all' && <Images size={16} className="z-10" />}
-                      {tab === 'your-photos' && <User size={16} className="z-10" />}
-                      {tab === 'favourites' && <Heart size={16} className="z-10 text-rose-500" weight="fill" />}
-                      {tab === 'your-uploads' && <CloudArrowUp size={16} className="z-10" />}
-                      {tab === 'connections' && <UsersThree size={16} className="z-10" />}
-                      <span className="hidden sm:inline z-10">
-                        {tab === 'all' ? 'All Photos' : tab === 'your-photos' ? 'Your Photos' : tab === 'favourites' ? 'Favourites' : tab === 'your-uploads' ? 'Your Uploads' : 'Who was I with?'}
-                      </span>
-                      {tab === 'connections' && (summaryData?.total_people ?? 0) > 0 && (
-                        <span className="bg-neutral-900 dark:bg-white text-white dark:text-neutral-900 text-[10px] font-bold px-1.5 py-0.5 rounded-full leading-none z-10">
-                          {summaryData!.total_people}
+          {/* Row 2: Tabs and Gallery Controls */}
+          <div className="mt-2 -mx-4 px-4 sm:mx-0 sm:px-0 border-t border-neutral-100 dark:border-neutral-800/60 pt-3">
+            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 w-full">
+              <Tabs value={activeTab} onValueChange={(v) => { haptic.trigger("selection"); onTabChange(v as TabType) }} className="w-full sm:w-auto">
+                <TabsList className="bg-muted w-max min-w-full sm:w-auto flex shrink-0 rounded-full p-1 relative">
+                  {((['all', 'your-photos', 'favourites', 'your-uploads', 'connections'] as TabType[]).filter(tab => {
+                    if (event?.encryption_mode === 'E2EE') {
+                      return tab !== 'your-photos' && tab !== 'connections'
+                    }
+                    return true
+                  })).map((tab) => {
+                    const isActive = activeTab === tab;
+                    return (
+                      <TabsTrigger
+                        key={tab}
+                        value={tab}
+                        className={`relative flex items-center gap-2 whitespace-nowrap px-3 sm:px-4 py-2 rounded-full z-10 transition-colors ${isActive ? '!text-primary-foreground data-active:bg-transparent dark:data-active:bg-transparent shadow-none data-active:shadow-none' : 'text-neutral-500 hover:text-neutral-700 dark:text-neutral-400 dark:hover:text-neutral-300'}`}
+                      >
+                        {isActive && (
+                          <motion.div
+                            layoutId="tab-indicator"
+                            className="absolute inset-0 bg-primary rounded-full shadow-sm -z-10"
+                            transition={{ type: "spring", bounce: 0.2, duration: 0.5 }}
+                          />
+                        )}
+                        {tab === 'all' && <Images size={16} className="z-10" />}
+                        {tab === 'your-photos' && <User size={16} className="z-10" />}
+                        {tab === 'favourites' && <Heart size={16} className="z-10 text-rose-500" weight="fill" />}
+                        {tab === 'your-uploads' && <CloudArrowUp size={16} className="z-10" />}
+                        {tab === 'connections' && <UsersThree size={16} className="z-10" />}
+                        <span className="hidden sm:inline z-10">
+                          {tab === 'all' ? 'All Photos' : tab === 'your-photos' ? 'Your Photos' : tab === 'favourites' ? 'Favourites' : tab === 'your-uploads' ? 'Your Uploads' : 'Who was I with?'}
                         </span>
-                      )}
-                    </TabsTrigger>
-                  )
-                })}
-              </TabsList>
-            </Tabs>
+                        {tab === 'connections' && (summaryData?.total_people ?? 0) > 0 && (
+                          <span className="bg-neutral-900 dark:bg-white text-white dark:text-neutral-900 text-[10px] font-bold px-1.5 py-0.5 rounded-full leading-none z-10">
+                            {summaryData!.total_people}
+                          </span>
+                        )}
+                      </TabsTrigger>
+                    )
+                  })}
+                </TabsList>
+              </Tabs>
+
+              {/* Desktop Gallery Controls: Sort and Select/Download (moved next to tabs) */}
+              {showGalleryActions && (
+                <div className="hidden sm:flex items-center gap-2 shrink-0">
+                  <Tooltip>
+                    <TooltipTrigger asChild delay={0}>
+                      <Button
+                        variant="outline"
+                        className="h-9 px-3 flex items-center justify-center gap-1.5 rounded-xl text-xs font-semibold shrink-0 cursor-pointer border-neutral-200 dark:border-neutral-800 text-neutral-700 dark:text-neutral-300 hover:bg-neutral-100 dark:hover:bg-neutral-850"
+                        onClick={() => { haptic.trigger("light"); onToggleSort(); }}
+                      >
+                        {sortOrder === 'desc' ? (
+                          <SortDescending size={16} weight="bold" />
+                        ) : (
+                          <SortAscending size={16} weight="bold" />
+                        )}
+                        <span>Sort</span>
+                      </Button>
+                    </TooltipTrigger>
+                    <TooltipContent>Sort Photos</TooltipContent>
+                  </Tooltip>
+
+                  {(isOrganizer || event?.allow_downloads) && (
+                    <Tooltip>
+                      <TooltipTrigger asChild delay={0}>
+                        <Button
+                          variant="outline"
+                          className="h-9 px-3 flex items-center justify-center gap-1.5 rounded-xl text-xs font-semibold shrink-0 cursor-pointer border-neutral-200 dark:border-neutral-800 text-neutral-700 dark:text-neutral-300 hover:bg-neutral-100 dark:hover:bg-neutral-850"
+                          onClick={() => { haptic.trigger("light"); onToggleSelectMode(); }}
+                        >
+                          <DownloadSimpleIcon size={16} weight="bold" />
+                          <span>Select &amp; Download</span>
+                        </Button>
+                      </TooltipTrigger>
+                      <TooltipContent>Select Photos to download</TooltipContent>
+                    </Tooltip>
+                  )}
+                </div>
+              )}
+            </div>
           </div>
 
         </div>

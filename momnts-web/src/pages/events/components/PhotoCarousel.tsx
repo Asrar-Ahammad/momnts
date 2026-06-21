@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback, useRef, useMemo } from 'react'
 import { Dialog, DialogContent, DialogClose } from '../../../components/ui/dialog'
 import { Button } from '../../../components/ui/button'
-import { X, CaretLeft, CaretRight, XIcon, Trash, Heart, ChatCircle, Keyboard } from '@phosphor-icons/react'
+import { X, CaretLeft, CaretRight, XIcon, Trash, Heart, ChatCircle, Keyboard, Warning } from '@phosphor-icons/react'
 import { PhotoData } from '../../../features/events/services/photos.api'
 import { CommentsSection } from '../../../features/comments/components/CommentsSection'
 import { useComments } from '../../../features/comments/hooks/useComments'
@@ -20,6 +20,7 @@ import { Tooltip, TooltipContent, TooltipTrigger, TooltipProvider } from '../../
 import { Kbd } from '../../../components/ui/kbd'
 import { motion, AnimatePresence } from 'framer-motion'
 import { useWebHaptics } from 'web-haptics/react'
+import { useDecryptedPhoto, preloadAndDecryptPhoto } from '@/features/events/hooks/useDecryptedPhoto'
 
 interface PhotoCarouselProps {
   open: boolean
@@ -33,6 +34,7 @@ interface PhotoCarouselProps {
   isFavourite?: (photoId: string) => boolean
   onToggleFavourite?: (photoId: string) => void
   highlightCommentId?: string
+  dek?: CryptoKey | null
 }
 
 // Preload an image and return a promise
@@ -56,7 +58,8 @@ const PhotoCarousel = ({
   isEventActive,
   isFavourite,
   onToggleFavourite,
-  highlightCommentId
+  highlightCommentId,
+  dek
 }: PhotoCarouselProps) => {
   const [currentIndex, setCurrentIndex] = useState(initialIndex)
   const [isLoading, setIsLoading] = useState(false)
@@ -161,13 +164,20 @@ const PhotoCarousel = ({
     ]
 
     indicesToPreload.forEach((i) => {
-      const url = photos[i]?.display_url
+      const photo = photos[i]
+      if (!photo) return
+      const url = photo.display_url
       if (url && !preloadedRef.current.has(url)) {
         preloadedRef.current.add(url)
-        preloadImage(url)
+        const isEncrypted = !!(photo.encryption_iv && photo.encryption_tag)
+        if (isEncrypted && dek) {
+          preloadAndDecryptPhoto(url, photo.encryption_iv, photo.encryption_tag, dek)
+        } else {
+          preloadImage(url)
+        }
       }
     })
-  }, [photos])
+  }, [photos, dek])
 
   // Preload adjacent images when index changes
   useEffect(() => {
@@ -178,8 +188,18 @@ const PhotoCarousel = ({
   useEffect(() => {
     if (open && photos.length > 0) {
       // Preload current + adjacent first for immediate responsiveness
-      const currentUrl = photos[initialIndex]?.display_url
-      if (currentUrl) preloadImage(currentUrl)
+      const currentPhoto = photos[initialIndex]
+      if (currentPhoto) {
+        const currentUrl = currentPhoto.display_url
+        if (currentUrl) {
+          const isEncrypted = !!(currentPhoto.encryption_iv && currentPhoto.encryption_tag)
+          if (isEncrypted && dek) {
+            preloadAndDecryptPhoto(currentUrl, currentPhoto.encryption_iv, currentPhoto.encryption_tag, dek)
+          } else {
+            preloadImage(currentUrl)
+          }
+        }
+      }
       preloadAdjacentImages(initialIndex)
 
       // Then preload remaining images in background
@@ -187,19 +207,29 @@ const PhotoCarousel = ({
         photos.forEach((photo) => {
           if (!preloadedRef.current.has(photo.display_url)) {
             preloadedRef.current.add(photo.display_url)
-            preloadImage(photo.display_url)
+            const isEncrypted = !!(photo.encryption_iv && photo.encryption_tag)
+            if (isEncrypted && dek) {
+              preloadAndDecryptPhoto(photo.display_url, photo.encryption_iv, photo.encryption_tag, dek)
+            } else {
+              preloadImage(photo.display_url)
+            }
           }
         })
       }) ?? setTimeout(() => {
         photos.forEach((photo) => {
           if (!preloadedRef.current.has(photo.display_url)) {
             preloadedRef.current.add(photo.display_url)
-            preloadImage(photo.display_url)
+            const isEncrypted = !!(photo.encryption_iv && photo.encryption_tag)
+            if (isEncrypted && dek) {
+              preloadAndDecryptPhoto(photo.display_url, photo.encryption_iv, photo.encryption_tag, dek)
+            } else {
+              preloadImage(photo.display_url)
+            }
           }
         })
       }, 200)
     }
-  }, [open, photos, initialIndex, preloadAdjacentImages])
+  }, [open, photos, initialIndex, preloadAdjacentImages, dek])
 
   const goToPrevious = useCallback(() => {
     setCurrentIndex((prev) => (prev > 0 ? prev - 1 : photos.length - 1))
@@ -254,13 +284,33 @@ const PhotoCarousel = ({
     }
   }, [initialIndex, open])
 
-  // Reset natural size and show loading spinner when index changes
+  const [imageError, setImageError] = useState(false)
+
+  // Reset natural size, error state, and show loading spinner when index changes
   useEffect(() => {
     setNaturalSize(null)
     setIsLoading(true)
+    setImageError(false)
   }, [currentIndex])
 
   const currentPhoto = photos[currentIndex]
+  const isEncrypted = !!(currentPhoto?.encryption_iv && currentPhoto?.encryption_tag)
+
+  const { url: decryptedDisplayUrl, error: decryptionError } = useDecryptedPhoto(
+    currentPhoto?.display_url,
+    currentPhoto?.encryption_iv,
+    currentPhoto?.encryption_tag,
+    dek
+  )
+
+  const displayUrl = isEncrypted ? decryptedDisplayUrl : currentPhoto?.display_url
+
+  useEffect(() => {
+    if (decryptionError) {
+      setIsLoading(false)
+      setImageError(true)
+    }
+  }, [decryptionError])
 
   const handleImageLoad = (e: React.SyntheticEvent<HTMLImageElement>) => {
     setIsLoading(false)
@@ -270,6 +320,7 @@ const PhotoCarousel = ({
 
   const handleImageError = () => {
     setIsLoading(false)
+    setImageError(true)
   }
 
   // Compute dialog size from photo aspect ratio to fill viewport
@@ -505,18 +556,30 @@ const PhotoCarousel = ({
                 {/* Image Container */}
                 <div className="relative w-full h-full flex items-center justify-center">
                   <img
-                    key={currentPhoto?.display_url}
-                    src={currentPhoto?.display_url}
+                    key={currentPhoto?.id}
+                    src={displayUrl || 'data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="1" height="1"/>'}
                     alt={`Photo ${currentIndex + 1}`}
                     className={cn(
                       "max-w-full max-h-full object-contain select-none transition-opacity duration-300",
                       isLoading ? "opacity-0" : "opacity-100"
                     )}
-                    onLoad={handleImageLoad}
-                    onError={handleImageError}
+                    onLoad={(e) => {
+                      if (!displayUrl) return
+                      handleImageLoad(e)
+                    }}
+                    onError={() => {
+                      if (!displayUrl) return
+                      handleImageError()
+                    }}
                   />
+                  {imageError && (
+                    <div className="absolute inset-0 flex flex-col items-center justify-center text-neutral-400 p-4 text-center">
+                      <Warning size={32} className="mb-2 text-neutral-400 dark:text-neutral-500" />
+                      <span className="text-sm font-medium">Failed to load photo</span>
+                    </div>
+                  )}
                   <AnimatePresence>
-                    {isLoading && (
+                    {isLoading && !imageError && (
                       <motion.div
                         initial={{ opacity: 0 }}
                         animate={{ opacity: 1 }}
