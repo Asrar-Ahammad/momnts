@@ -43,7 +43,7 @@ interface EventSettingsModalProps {
   encryptionMode?: 'AI' | 'E2EE'
 }
 
-const PHOTOS_PER_PAGE = 15
+const PHOTOS_PER_PAGE = 24
 
 const EventSettingsModal = ({
   open,
@@ -69,22 +69,27 @@ const EventSettingsModal = ({
   const navigate = useNavigate()
   const [visiblePhotosCount, setVisiblePhotosCount] = useState(PHOTOS_PER_PAGE)
 
+  const wasOpenRef = useRef(false)
+  const lastActiveTabRef = useRef(activeTab)
+
   useEffect(() => {
-    if (open) {
+    if (open && !wasOpenRef.current) {
       setActiveTab('general')
       setVisiblePhotosCount(PHOTOS_PER_PAGE)
     }
+    wasOpenRef.current = open
   }, [open])
 
   useEffect(() => {
-    if (activeTab === 'background') {
+    if (activeTab === 'background' && lastActiveTabRef.current !== 'background') {
       setVisiblePhotosCount(PHOTOS_PER_PAGE)
     }
+    lastActiveTabRef.current = activeTab
   }, [activeTab])
 
   const handlePhotosScroll = (e: React.UIEvent<HTMLDivElement>) => {
     const target = e.currentTarget
-    if (target.scrollHeight - target.scrollTop <= target.clientHeight + 30) {
+    if (target.scrollHeight - target.scrollTop <= target.clientHeight + 100) {
       if (photos && visiblePhotosCount < photos.length) {
         setVisiblePhotosCount((prev) => Math.min(prev + PHOTOS_PER_PAGE, photos.length))
       }
@@ -168,7 +173,10 @@ const EventSettingsModal = ({
             </div>
 
             {/* Scrollable Content Form */}
-            <div className="flex-1 overflow-y-auto p-6 space-y-5 custom-scrollbar">
+            <div 
+              onScroll={activeTab === 'background' ? handlePhotosScroll : undefined}
+              className="flex-1 overflow-y-auto p-6 space-y-5 custom-scrollbar"
+            >
               {activeTab === 'general' && (
                 <div className="space-y-4 animate-in fade-in duration-200">
                   <div className="space-y-2">
@@ -257,18 +265,8 @@ const EventSettingsModal = ({
 
               {activeTab === 'background' && (
                 <div className="space-y-4 animate-in fade-in duration-200">
-                  <div className="space-y-1">
-                    <Label className="text-xs font-bold">Choose Event Card Background</Label>
-                    <p className="text-[10px] text-neutral-400 dark:text-neutral-500 font-medium">
-                      Select a photo to be displayed as the cover image of the event card. If none is chosen, the recently uploaded photo will be used.
-                    </p>
-                  </div>
-
                   {photos && photos.length > 0 ? (
-                    <div 
-                      onScroll={handlePhotosScroll}
-                      className="grid grid-cols-3 gap-3 max-h-[280px] overflow-y-auto pr-2 custom-scrollbar p-1"
-                    >
+                    <div className="grid grid-cols-3 gap-3 pr-2 p-1">
                       {/* Default Option (Reset) */}
                       <button
                         type="button"
