@@ -137,9 +137,40 @@ async function deleteNotificationController(req: AuthRequest, res: Response) {
     }
 }
 
+/**
+ * @name markAllAsReadController
+ * @description Marks all notifications as read for the authenticated user
+ * @access Private
+ */
+async function markAllAsReadController(req: AuthRequest, res: Response) {
+    try {
+        if (!req.user?.id) {
+            return res.status(401).json({ message: "User not authenticated" });
+        }
+
+        await prisma.notification.updateMany({
+            where: {
+                user_id: req.user.id,
+                is_read: false
+            },
+            data: {
+                is_read: true
+            }
+        });
+
+        return res.status(200).json({
+            message: "All notifications marked as read",
+        });
+    } catch (error) {
+        console.error("[markAllAsReadController] Error:", error);
+        return res.status(500).json({ message: "Internal server error" });
+    }
+}
+
 export {
     getNotificationsController,
     markAsReadController,
+    markAllAsReadController,
     clearNotificationsController,
     deleteNotificationController
 };

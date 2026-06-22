@@ -14,7 +14,8 @@ import {
     removeAttendeeController,
     getJoinRequestsController,
     handleJoinRequestController,
-    getPendingRequestCountController
+    getPendingRequestCountController,
+    getEventChatKeyController
 } from "../controllers/events.controller";
 import { authenticate } from "../middleware/auth.middleware";
 import { attachPlan } from "../middleware/plan.middleware";
@@ -35,6 +36,9 @@ eventsRouter.post("/join", authenticate, attachPlan, joinEventController);
 
 // Get event details
 eventsRouter.get("/:eventId", authenticate, getEventDetailsController);
+
+// Get event chat key
+eventsRouter.get("/:eventId/chat-key", authenticate, getEventChatKeyController);
 
 // Update event details
 eventsRouter.put("/:eventId", authenticate, attachPlan, updateEventDetailsController);

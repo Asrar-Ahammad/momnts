@@ -36,10 +36,14 @@ const NotificationsPopover = () => {
   const [unreadCount, setUnreadCount] = useState(0)
   const [popoverOpen, setPopoverOpen] = useState(false)
   const shownNotificationsRef = useRef<Set<string>>(new Set())
+  const fetchVersionRef = useRef(0)
 
   const fetchNotifications = useCallback(async () => {
+    const version = ++fetchVersionRef.current
     try {
       const data = await notificationsApi.getNotifications()
+      // Guard against stale responses racing with newer fetches or clears
+      if (version !== fetchVersionRef.current) return
       setNotifications(data)
       setUnreadCount(data.filter(n => !n.is_read).length)
       // Seed shownNotificationsRef with existing notification IDs
@@ -77,13 +81,15 @@ const NotificationsPopover = () => {
         }
       }
 
-      toast.info(notification.title, {
-        description: notification.message,
-        action: notification.link ? {
-          label: 'View',
-          onClick: () => navigate(notification.link!)
-        } : undefined
-      })
+      if (!notification.skipToast) {
+        toast.info(notification.title, {
+          description: notification.message,
+          action: notification.link ? {
+            label: 'View',
+            onClick: () => navigate(notification.link!)
+          } : undefined
+        })
+      }
 
       setNotifications(prev => {
         const isDuplicate = prev.some(n => n.id === notification.id)
@@ -114,6 +120,10 @@ const NotificationsPopover = () => {
     try {
       await notificationsApi.clearNotifications()
       haptic.trigger("success")
+      
+      // Increment version to discard any in-flight fetches that might repopulate state
+      fetchVersionRef.current++
+      
       setNotifications([])
       setUnreadCount(0)
       shownNotificationsRef.current.clear()
@@ -167,10 +177,10 @@ const NotificationsPopover = () => {
         </button>
       </PopoverTrigger>
       <PopoverContent className="w-[calc(100vw-2rem)] sm:w-96 p-0 bg-white/95 dark:bg-neutral-950/95 backdrop-blur-xl border-neutral-100 dark:border-neutral-800 rounded-3xl shadow-2xl overflow-hidden" align="end" sideOffset={8}>
-        <div className="p-4 border-b border-neutral-100 dark:border-neutral-800 flex justify-between items-center bg-white dark:bg-neutral-950">
-          <h3 className="font-bold text-3xl font-sirage">Notifications</h3>
+        <div className="p-4 border-b border-neutral-100 dark:border-neutral-800 flex justify-between items-center bg-white dark:bg-neutral-950 overflow-hidden">
+          <h3 className="font-bold text-3xl font-sirage truncate">Notifications</h3>
           {unreadCount > 0 && (
-            <span className="text-[10px] font-bold px-2 py-0.5 bg-red-50 dark:bg-red-500/10 text-red-500 rounded-full uppercase tracking-widest">
+            <span className="text-[10px] font-bold px-2 py-0.5 bg-red-50 dark:bg-red-500/10 text-red-500 rounded-full uppercase tracking-widest shrink-0 ml-3">
               {unreadCount} New
             </span>
           )}
@@ -283,13 +293,29 @@ const NotificationsPopover = () => {
           )}
         </div>
         {notifications.length > 0 && (
-          <div className="p-3 border-t border-neutral-100 dark:border-neutral-800 bg-neutral-50/50 dark:bg-neutral-900/50">
+          <div className="p-3 border-t border-neutral-100 dark:border-neutral-800 bg-neutral-50/50 dark:bg-neutral-900/50 flex gap-2">
+            {unreadCount > 0 && (
+              <Button 
+                variant="ghost" 
+                onClick={async () => {
+                  try {
+                    await notificationsApi.markAllAsRead();
+                    fetchNotifications();
+                  } catch (error) {
+                    toast.error("Failed to mark all as read");
+                  }
+                }}
+                className="flex-1 text-[11px] font-bold uppercase tracking-widest h-8 text-blue-500 hover:text-blue-600 hover:bg-blue-50 dark:hover:bg-blue-500/10 transition-colors"
+              >
+                Mark All Read
+              </Button>
+            )}
             <Button 
               variant="ghost" 
               onClick={handleClearAll}
-              className="w-full text-[11px] font-bold uppercase tracking-widest h-8 text-neutral-500 hover:text-neutral-900 dark:hover:text-white transition-colors"
+              className="flex-1 text-[11px] font-bold uppercase tracking-widest h-8 text-neutral-500 hover:text-neutral-900 dark:hover:text-white transition-colors"
             >
-              Clear All Notifications
+              Clear All
             </Button>
           </div>
         )}

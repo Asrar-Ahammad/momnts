@@ -55,6 +55,7 @@ import {
   DownloadSimpleIcon,
   ShareNetwork,
   Lock,
+  ChatCircle,
   Globe,
   SquareIcon,
 } from '@phosphor-icons/react'

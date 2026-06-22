@@ -23,6 +23,7 @@ import { commentsRouter } from "./src/routes/comments.routes.js";
 import { subscriptionRouter } from "./src/routes/subscription.routes.js";
 import { clerkRouter } from "./src/routes/clerk.routes.js";
 import { initSocketIO } from "./src/lib/socket.js";
+import { chatsRouter } from "./src/routes/chats.routes.js";
 
 const app = express()
 const httpServer = createServer(app)
@@ -53,6 +54,7 @@ app.use("/api/auth", authRouter)
 app.use("/api/events", eventsRouter)
 app.use("/api/events", galleryRouter)
 app.use('/api/photos/:photoId/comments', commentsRouter)
+app.use('/api/events/:eventId/chats', chatsRouter)
 app.use('/api/photos', photosRouter)
 app.use('/api/onboarding', onboardingRouter)
 app.use('/api/users', usersRouter)

@@ -384,3 +384,31 @@ export async function rewrapWithNewPassphrase(
     wrappedDekTag: newWrapped.tag,
   }
 }
+
+/** Encrypt a text message string with the event DEK. */
+export async function encryptTextMessage(
+  text: string,
+  dek: CryptoKey
+): Promise<{ ciphertext: string; iv: string; tag: string }> {
+  const encoder = new TextEncoder()
+  const plainBytes = encoder.encode(text)
+  const encrypted = await encryptPhoto(plainBytes.buffer, dek)
+  return {
+    ciphertext: arrayBufferToBase64(encrypted.ciphertext),
+    iv: encrypted.iv,
+    tag: encrypted.tag,
+  }
+}
+
+/** Decrypt a text message ciphertext with the event DEK. */
+export async function decryptTextMessage(
+  ciphertext: string,
+  iv: string,
+  tag: string,
+  dek: CryptoKey
+): Promise<string> {
+  const ctBuffer = base64ToArrayBuffer(ciphertext)
+  const decryptedBuffer = await decryptPhoto(ctBuffer, iv, tag, dek)
+  const decoder = new TextDecoder()
+  return decoder.decode(decryptedBuffer)
+}

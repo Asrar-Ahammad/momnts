@@ -155,6 +155,20 @@ export const eventsApi = {
     return data.event
   },
 
+  async getEventChatKey(eventId: string): Promise<string> {
+    const response = await apiFetch(`${API_URL}/api/events/${eventId}/chat-key`, {
+      headers: authHeaders(),
+    })
+
+    if (!response.ok) {
+      const error = await response.json()
+      throw new Error(error.message || "Failed to fetch event chat key")
+    }
+
+    const data = await response.json()
+    return data.key
+  },
+
   async updateEvent(
     eventId: string,
     name: string,
