@@ -1,4 +1,4 @@
-import React, { useState, useRef, useEffect, useMemo, Suspense } from "react"
+import React, { useState, useRef, useEffect, useLayoutEffect, useMemo, Suspense } from "react"
 import { useAuth } from "@/features/auth/hooks/useAuth"
 import { useChatMessages, useSendChatMessage, useUpdateChatMessage, useDeleteChatMessage, useToggleChatMessageReaction } from "@/features/chats/hooks/useChats"
 import { cn } from "@/lib/utils"
@@ -10,7 +10,7 @@ import { decryptTextMessage, encryptTextMessage } from "@/lib/crypto/e2ee"
 import { useDecryptedPhoto } from "@/features/events/hooks/useDecryptedPhoto"
 import { useQueryClient } from "@tanstack/react-query"
 import { useWebHaptics } from "web-haptics/react"
-import { motion, AnimatePresence } from "framer-motion"
+import { motion, AnimatePresence, useMotionValue, useTransform } from "framer-motion"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar"
@@ -539,6 +539,21 @@ export default function EventChatRoom({
     initialLastReadIdRef.current = localStorage.getItem(`lastReadMsg_${eventId}`)
   }, [eventId])
 
+  const chatOpenedAtRef = useRef<number | null>(null)
+
+  useEffect(() => {
+    if (!isLoading) {
+      if (chatOpenedAtRef.current === null) {
+        if (messages.length > 0) {
+          const timestamps = messages.map(m => new Date(m.created_at).getTime())
+          chatOpenedAtRef.current = Math.max(Math.max(...timestamps), Date.now())
+        } else {
+          chatOpenedAtRef.current = Date.now()
+        }
+      }
+    }
+  }, [isLoading, messages])
+
   // Auto-scroll on loading finished or new messages
   useEffect(() => {
     if (!isLoading && messages.length > 0) {
@@ -761,6 +776,7 @@ export default function EventChatRoom({
                     showActionsTooltip={isFirstTimeChat && index === messages.length - 1}
                     onDismissTooltip={handleDismissTooltip}
                     topEmojis={topEmojis}
+                    chatOpenedAt={chatOpenedAtRef.current}
                   />
                 ))}
               </AnimatePresence>
@@ -950,6 +966,7 @@ export default function EventChatRoom({
           </Button>
 
           <Input
+            id="chat-input-field"
             ref={inputRef}
             type="text"
             value={inputText}
@@ -1007,6 +1024,7 @@ interface ChatMessageItemProps {
   showActionsTooltip?: boolean
   onDismissTooltip?: () => void
   topEmojis: string[]
+  chatOpenedAt: number | null
 }
 
 function ChatMessageItem({
@@ -1022,7 +1040,8 @@ function ChatMessageItem({
   index,
   showActionsTooltip,
   onDismissTooltip,
-  topEmojis
+  topEmojis,
+  chatOpenedAt
 }: ChatMessageItemProps) {
   const { resolvedTheme } = useTheme()
   const [decryptedText, setDecryptedText] = useState("")
@@ -1127,6 +1146,34 @@ function ChatMessageItem({
   }, [msg.created_at])
   const haptic = useWebHaptics()
 
+  const dragX = useMotionValue(0)
+  const replyIconOpacity = useTransform(dragX, isSelf ? [0, -60] : [0, 60], [0, 1])
+  const replyIconScale = useTransform(dragX, isSelf ? [0, -60] : [0, 60], [0.6, 1.1])
+  const replyIconX = useTransform(dragX, isSelf ? [0, -60] : [0, 60], isSelf ? [15, 0] : [-15, 0])
+  const hasTriggeredHaptic = useRef(false)
+
+  const handleDrag = (event: any, info: any) => {
+    const thresholdCrossed = isSelf ? info.offset.x < -50 : info.offset.x > 50
+    if (thresholdCrossed) {
+      if (!hasTriggeredHaptic.current) {
+        haptic.trigger("light")
+        hasTriggeredHaptic.current = true
+      }
+    } else {
+      hasTriggeredHaptic.current = false
+    }
+  }
+
+  const handleDragEnd = (event: any, info: any) => {
+    const thresholdCrossed = isSelf ? info.offset.x < -50 : info.offset.x > 50
+    if (thresholdCrossed) {
+      onReply(msg)
+    }
+    hasTriggeredHaptic.current = false
+  }
+
+  const dragElastic = isSelf ? { left: 0.65, right: 0.02 } : { left: 0.02, right: 0.65 }
+
   // Asynchronously decrypt the message on mount/key changes
   useEffect(() => {
     let active = true
@@ -1217,15 +1264,85 @@ function ChatMessageItem({
   const canEdit = isSelf && isWithinEditWindow
   const canDelete = isSelf || isOrganizer
 
+  const isTemp = msg.id.startsWith("temp-")
+  const isNew = isTemp || (chatOpenedAt !== null && new Date(msg.created_at).getTime() > chatOpenedAt)
+  const [animationOrigin, setAnimationOrigin] = useState({ x: 0, y: 0, scale: 0.3, opacity: 0 })
+  const [isReadyToAnimate, setIsReadyToAnimate] = useState(false)
+
+  useLayoutEffect(() => {
+    if (isNew) {
+      const timer = setTimeout(() => {
+        const bubbleEl = document.getElementById(`msg-${msg.id}`)
+        const inputEl = document.getElementById("chat-input-field")
+        if (bubbleEl && inputEl) {
+          const bubbleRect = bubbleEl.getBoundingClientRect()
+          const inputRect = inputEl.getBoundingClientRect()
+          
+          const deltaX = (inputRect.left + inputRect.width / 2) - (bubbleRect.left + bubbleRect.width / 2)
+          const deltaY = (inputRect.top + inputRect.height / 2) - (bubbleRect.top + bubbleRect.height / 2)
+          
+          setAnimationOrigin({ x: deltaX, y: deltaY, scale: 0.3, opacity: 0 })
+          setIsReadyToAnimate(true)
+        } else {
+          setAnimationOrigin({ x: isSelf ? -80 : 80, y: 120, scale: 0.5, opacity: 0 })
+          setIsReadyToAnimate(true)
+        }
+      }, 30)
+      return () => clearTimeout(timer)
+    } else {
+      setIsReadyToAnimate(true)
+    }
+  }, [msg.id, isNew])
+
+  const initialAnimation = isNew
+    ? animationOrigin
+    : { opacity: 0, y: 15, x: 0, scale: 1 }
+
+  const transitionAnimation = isNew
+    ? { type: "spring", stiffness: 180, damping: 18 }
+    : { type: "spring", stiffness: 350, damping: 28 }
+
+  const shouldRenderHidden = isNew && !isReadyToAnimate
+
   return (
     <motion.div
       id={`msg-${msg.id}`}
-      initial={{ opacity: 0, y: 15 }}
-      animate={{ opacity: 1, y: 0 }}
-      transition={{ type: "spring", stiffness: 350, damping: 28 }}
-      className={`flex w-full p-1 rounded-xl transition-colors duration-500 ${isSelf ? "justify-end" : "justify-start"}`}
+      initial={initialAnimation}
+      animate={{ 
+        opacity: shouldRenderHidden ? 0 : 1, 
+        y: shouldRenderHidden ? animationOrigin.y : 0, 
+        x: shouldRenderHidden ? animationOrigin.x : 0, 
+        scale: shouldRenderHidden ? animationOrigin.scale : 1 
+      }}
+      transition={transitionAnimation}
+      className={`flex w-full p-1 rounded-xl transition-colors duration-500 relative ${isSelf ? "justify-end" : "justify-start"}`}
     >
-      <div className={`flex gap-3 max-w-[95%] sm:max-w-[90%] ${isSelf ? "flex-row-reverse" : "flex-row"}`}>
+      {/* Reply Indicator (reveals when dragging row) */}
+      <motion.div
+        style={{
+          opacity: replyIconOpacity,
+          scale: replyIconScale,
+          x: replyIconX,
+        }}
+        className={`absolute top-1/2 -translate-y-1/2 text-primary pointer-events-none flex items-center justify-center z-0 ${
+          isSelf ? "right-4" : "left-4"
+        }`}
+      >
+        <div className="p-1.5 bg-primary/10 border border-primary/20 rounded-full flex items-center justify-center">
+          <ArrowBendUpLeft size={16} weight="bold" />
+        </div>
+      </motion.div>
+
+      {/* Draggable message row content */}
+      <motion.div
+        drag="x"
+        dragConstraints={{ left: 0, right: 0 }}
+        dragElastic={dragElastic}
+        style={{ x: dragX }}
+        onDrag={handleDrag}
+        onDragEnd={handleDragEnd}
+        className={`flex gap-3 max-w-[95%] sm:max-w-[90%] relative z-10 touch-pan-y ${isSelf ? "flex-row-reverse" : "flex-row"}`}
+      >
         {/* Sender Avatar */}
         <Avatar className="w-8 h-8 shrink-0 select-none border border-white/10 shadow-sm mt-auto mb-1">
           {msg.user?.selfie_url && <AvatarImage src={getCachedProfilePhoto(msg.user_id, msg.user.selfie_url)} alt={msg.user.name} className="object-cover" />}
@@ -1313,255 +1430,254 @@ function ChatMessageItem({
               </div>
             ) : (
               (() => {
-                const bubbleContent = (
-                  <DropdownMenu open={dropdownOpen} onOpenChange={(open, eventDetails?: any) => {
-                    if (!open && isTransitioningToMobilePickerRef.current) {
-                      eventDetails?.cancel?.()
-                      return
-                    }
-                    setDropdownOpen(open)
-                    if (!open) {
-                      setShowMobilePicker(false)
-                    }
-                  }}>
-                    <DropdownMenuTrigger render={<div />}>
-                      <div
-                        className={`text-left cursor-pointer sm:cursor-auto px-4 py-2.5 rounded-[20px] text-[14px] leading-relaxed shadow-sm break-words relative overflow-hidden select-text ${isSelf
-                            ? "bg-primary text-primary-foreground rounded-br-sm"
-                            : "bg-white/5 border border-white/10 text-foreground rounded-bl-sm"
-                          }`}
-                      >
-                        {/* Parent Message Reply Quote Block */}
-                        {msg.parent && (
+                    const bubbleContent = (
+                      <DropdownMenu open={dropdownOpen} onOpenChange={(open, eventDetails?: any) => {
+                        if (!open && isTransitioningToMobilePickerRef.current) {
+                          eventDetails?.cancel?.()
+                          return
+                        }
+                        setDropdownOpen(open)
+                        if (!open) {
+                          setShowMobilePicker(false)
+                        }
+                      }}>
+                        <DropdownMenuTrigger render={<div />}>
                           <div
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              const el = document.getElementById(`msg-${msg.parent?.id}`);
-                              if (el) {
-                                el.scrollIntoView({ behavior: "smooth", block: "center" });
-                                el.classList.add("bg-primary/20", "dark:bg-primary/30");
-                                setTimeout(() => {
-                                  el.classList.remove("bg-primary/20", "dark:bg-primary/30");
-                                }, 1500);
-                              }
-                            }}
-                            className={`mb-2 p-2 rounded-lg text-[11px] cursor-pointer select-none transition-colors border-l-[3px] flex flex-col gap-0.5 bg-current/10 hover:bg-current/15 ${isSelf
-                                ? "text-current/80 border-l-current/70"
-                                : "text-current/80 border-l-primary"
+                            className={`text-left cursor-pointer sm:cursor-auto px-4 py-2.5 rounded-[20px] text-[14px] leading-relaxed shadow-sm break-words relative overflow-hidden select-text ${isSelf
+                                ? "bg-primary text-primary-foreground rounded-br-sm"
+                                : "bg-white/5 border border-white/10 text-foreground rounded-bl-sm"
                               }`}
                           >
-                            <span className={`font-bold text-[10px] leading-none ${isSelf ? "text-current" : "text-primary"}`}>
-                              {msg.parent.user?.name || "Guest"}
-                            </span>
-                            <ParentMessageText parentMsg={msg.parent} dek={dek} />
-                          </div>
-                        )}
-
-                        {decrypting ? (
-                          <span className="text-[13px] italic opacity-70 animate-pulse">Decrypting message...</span>
-                        ) : decryptionError ? (
-                          <span className="text-[13px] italic flex items-center gap-1.5 opacity-80 text-rose-300">
-                            <Warning size={16} />
-                            Unable to decrypt
-                          </span>
-                        ) : (
-                          <span className="whitespace-pre-wrap">{decryptedText}</span>
-                        )}
-
-                        {/* Tagged Photos Grid Preview inside Message Bubble */}
-                        {msg.photos && msg.photos.length > 0 && (
-                          <div className={`mt-2.5 grid gap-1 rounded-xl border border-white/10 overflow-hidden shadow-sm max-w-full ${msg.photos.length === 1
-                              ? "grid-cols-1 w-52"
-                              : msg.photos.length === 2 || msg.photos.length === 4
-                                ? "grid-cols-2 w-60"
-                                : "grid-cols-3 w-72"
-                            }`}>
-                            {msg.photos.map((photo) => (
+                            {/* Parent Message Reply Quote Block */}
+                            {msg.parent && (
                               <div
-                                key={photo.id}
                                 onClick={(e) => {
                                   e.stopPropagation();
-                                  onPhotoClick(photo.id, msg.photos)
+                                  const el = document.getElementById(`msg-${msg.parent?.id}`);
+                                  if (el) {
+                                    el.scrollIntoView({ behavior: "smooth", block: "center" });
+                                    el.classList.add("bg-primary/20", "dark:bg-primary/30");
+                                    setTimeout(() => {
+                                      el.classList.remove("bg-primary/20", "dark:bg-primary/30");
+                                    }, 1500);
+                                  }
                                 }}
-                                className={`relative group/photo w-full cursor-pointer overflow-hidden bg-muted ${msg.photos.length === 1 ? "aspect-[4/3]" : "aspect-square"
+                                className={`mb-2 p-2 rounded-lg text-[11px] cursor-pointer select-none transition-colors border-l-[3px] flex flex-col gap-0.5 bg-current/10 hover:bg-current/15 ${isSelf
+                                    ? "text-current/80 border-l-current/70"
+                                    : "text-current/80 border-l-primary"
                                   }`}
                               >
-                                <TaggedPhotoThumbnail photo={photo} dek={dek} isFullFill />
-                                <div className="absolute inset-0 bg-black/40 opacity-0 group-hover/photo:opacity-100 transition-opacity flex items-center justify-center text-white select-none backdrop-blur-[2px]">
-                                  <Eye size={16} />
-                                </div>
+                                <span className={`font-bold text-[10px] leading-none ${isSelf ? "text-current" : "text-primary"}`}>
+                                  {msg.parent.user?.name || "Guest"}
+                                </span>
+                                <ParentMessageText parentMsg={msg.parent} dek={dek} />
                               </div>
-                            ))}
+                            )}
+
+                            {decrypting ? (
+                              <span className="text-[13px] italic opacity-70 animate-pulse">Decrypting message...</span>
+                            ) : decryptionError ? (
+                              <span className="text-[13px] italic flex items-center gap-1.5 opacity-80 text-rose-300">
+                                <Warning size={16} />
+                                Unable to decrypt
+                              </span>
+                            ) : (
+                              <span className="whitespace-pre-wrap">{decryptedText}</span>
+                            )}
+
+                            {/* Tagged Photos Grid Preview inside Message Bubble */}
+                            {msg.photos && msg.photos.length > 0 && (
+                              <div className={`mt-2.5 grid gap-1 rounded-xl border border-white/10 overflow-hidden shadow-sm max-w-full ${msg.photos.length === 1
+                                  ? "grid-cols-1 w-52"
+                                  : msg.photos.length === 2 || msg.photos.length === 4
+                                    ? "grid-cols-2 w-60"
+                                    : "grid-cols-3 w-72"
+                                }`}>
+                                {msg.photos.map((photo) => (
+                                  <div
+                                    key={photo.id}
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      onPhotoClick(photo.id, msg.photos)
+                                    }}
+                                    className={`relative group/photo w-full cursor-pointer overflow-hidden bg-muted ${msg.photos.length === 1 ? "aspect-[4/3]" : "aspect-square"
+                                      }`}
+                                  >
+                                    <TaggedPhotoThumbnail photo={photo} dek={dek} isFullFill />
+                                    <div className="absolute inset-0 bg-black/40 opacity-0 group-hover/photo:opacity-100 transition-opacity flex items-center justify-center text-white select-none backdrop-blur-[2px]">
+                                      <Eye size={16} />
+                                    </div>
+                                  </div>
+                                ))}
+                              </div>
+                            )}
                           </div>
-                        )}
-                      </div>
-                    </DropdownMenuTrigger>
-                    <DropdownMenuContent
-                      align={isSelf ? "end" : "start"}
-                      className="sm:hidden p-0 overflow-hidden bg-transparent border-none ring-0 shadow-none !w-auto !min-w-0 !max-w-none"
-                    >
-                      <AnimatePresence mode="wait">
-                        {!showMobilePicker ? (
-                          <motion.div
-                            key="quick-menu-container"
-                            initial={{ opacity: 0, scale: 0.95 }}
-                            animate={{ opacity: 1, scale: 1 }}
-                            exit={{ opacity: 0, scale: 0.95 }}
-                            transition={{ duration: 0.15 }}
-                            className="bg-card border border-border shadow-xl rounded-xl flex flex-col overflow-hidden w-[230px]"
-                            style={{
-                              height: `${canEdit && canDelete ? 172 : canDelete || canEdit ? 136 : 100}px`
-                            }}
-                          >
-                            <div className="flex items-center justify-between px-3 py-2 mb-1 border-b border-border/50">
-                              {topEmojis.map((emoji) => (
-                                <button
-                                  key={emoji}
-                                  onClick={() => {
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent
+                          align={isSelf ? "end" : "start"}
+                          className="sm:hidden p-0 overflow-hidden bg-transparent border-none ring-0 shadow-none !w-auto !min-w-0 !max-w-none"
+                        >
+                          <AnimatePresence mode="wait">
+                            {!showMobilePicker ? (
+                              <motion.div
+                                key="quick-menu-container"
+                                initial={{ opacity: 0, scale: 0.95 }}
+                                animate={{ opacity: 1, scale: 1 }}
+                                exit={{ opacity: 0, scale: 0.95 }}
+                                transition={{ duration: 0.15 }}
+                                className="bg-card border border-border shadow-xl rounded-xl flex flex-col overflow-hidden w-[230px]"
+                                style={{
+                                  height: `${canEdit && canDelete ? 172 : canDelete || canEdit ? 136 : 100}px`
+                                }}
+                              >
+                                <div className="flex items-center justify-between px-3 py-2 mb-1 border-b border-border/50">
+                                  {topEmojis.map((emoji) => (
+                                    <button
+                                      key={emoji}
+                                      onClick={() => {
+                                        haptic.trigger("light")
+                                        toggleReactionMutation.mutate({ messageId: msg.id, emoji })
+                                        setDropdownOpen(false)
+                                      }}
+                                      className="h-7 w-7 rounded-full flex items-center justify-center text-lg hover:bg-muted transition-colors cursor-pointer"
+                                    >
+                                      {emoji}
+                                    </button>
+                                  ))}
+                                  <button
+                                     onPointerDown={(e) => {
+                                       e.stopPropagation()
+                                       e.nativeEvent.stopImmediatePropagation()
+                                       isTransitioningToMobilePickerRef.current = true
+                                     }}
+                                     onPointerUp={(e) => {
+                                       e.stopPropagation()
+                                       e.nativeEvent.stopImmediatePropagation()
+                                     }}
+                                     onMouseDown={(e) => {
+                                       e.stopPropagation()
+                                       e.nativeEvent.stopImmediatePropagation()
+                                       isTransitioningToMobilePickerRef.current = true
+                                     }}
+                                     onMouseUp={(e) => {
+                                       e.stopPropagation()
+                                       e.nativeEvent.stopImmediatePropagation()
+                                     }}
+                                     onClick={(e) => {
+                                       e.preventDefault()
+                                       e.stopPropagation()
+                                       e.nativeEvent.stopImmediatePropagation()
+                                       haptic.trigger("light")
+                                       isTransitioningToMobilePickerRef.current = true
+                                       setShowMobilePicker(true)
+                                       setTimeout(() => {
+                                         isTransitioningToMobilePickerRef.current = false
+                                       }, 500)
+                                     }}
+                                     className="h-7 w-7 rounded-full flex items-center justify-center hover:bg-muted transition-colors text-muted-foreground cursor-pointer font-bold"
+                                   >
+                                     <Plus size={14} />
+                                   </button>
+                                </div>
+                                <DropdownMenuItem onClick={() => onReply(msg)} className="cursor-pointer">
+                                  <ArrowBendUpLeft size={16} className="mr-2" />
+                                  Reply
+                                </DropdownMenuItem>
+                                {canEdit && (
+                                  <DropdownMenuItem onClick={() => setIsEditing(true)} className="cursor-pointer">
+                                    <Pencil size={16} className="mr-2" />
+                                    Edit
+                                  </DropdownMenuItem>
+                                )}
+                                {canDelete && (
+                                  <DropdownMenuItem
+                                    onClick={() => { haptic.trigger("warning"); setDeleteDialogOpen(true); }}
+                                    disabled={deleteMutation.isPending}
+                                    className="cursor-pointer text-red-500 focus:text-red-500 focus:bg-red-500/10"
+                                  >
+                                    <Trash size={16} className="mr-2" />
+                                    Delete
+                                  </DropdownMenuItem>
+                                )}
+                              </motion.div>
+                            ) : (
+                              <motion.div
+                                key="mobile-picker-container"
+                                initial={{ opacity: 0, scale: 0.95 }}
+                                animate={{ opacity: 1, scale: 1 }}
+                                exit={{ opacity: 0, scale: 0.95 }}
+                                transition={{ duration: 0.2 }}
+                                className="bg-card border border-border shadow-xl rounded-xl flex flex-col overflow-hidden w-[320px] h-[450px] p-2"
+                                onClick={(e) => e.stopPropagation()}
+                                onKeyDown={(e) => e.stopPropagation()}
+                                onPointerDown={(e) => e.stopPropagation()}
+                              >
+                                <div className="flex justify-between items-center mb-2 px-1">
+                                  <span className="text-xs font-semibold text-muted-foreground">Select Reaction</span>
+                                  <button
+                                    onClick={(e) => {
+                                      e.stopPropagation()
+                                      setShowMobilePicker(false)
+                                    }}
+                                    className="text-muted-foreground hover:text-foreground text-xs font-medium cursor-pointer"
+                                  >
+                                    Back
+                                  </button>
+                                </div>
+                                <EmojiPicker
+                                  onEmojiClick={(emojiData) => {
                                     haptic.trigger("light")
-                                    toggleReactionMutation.mutate({ messageId: msg.id, emoji })
+                                    toggleReactionMutation.mutate({ messageId: msg.id, emoji: emojiData.emoji })
+                                    setShowMobilePicker(false)
                                     setDropdownOpen(false)
                                   }}
-                                  className="h-7 w-7 rounded-full flex items-center justify-center text-lg hover:bg-muted transition-colors cursor-pointer"
-                                >
-                                  {emoji}
-                                </button>
-                              ))}
-                              <button
-                                 onPointerDown={(e) => {
-                                   e.stopPropagation()
-                                   e.nativeEvent.stopImmediatePropagation()
-                                   isTransitioningToMobilePickerRef.current = true
-                                 }}
-                                 onPointerUp={(e) => {
-                                   e.stopPropagation()
-                                   e.nativeEvent.stopImmediatePropagation()
-                                 }}
-                                 onMouseDown={(e) => {
-                                   e.stopPropagation()
-                                   e.nativeEvent.stopImmediatePropagation()
-                                   isTransitioningToMobilePickerRef.current = true
-                                 }}
-                                 onMouseUp={(e) => {
-                                   e.stopPropagation()
-                                   e.nativeEvent.stopImmediatePropagation()
-                                 }}
-                                 onClick={(e) => {
-                                   e.preventDefault()
-                                   e.stopPropagation()
-                                   e.nativeEvent.stopImmediatePropagation()
-                                   haptic.trigger("light")
-                                   isTransitioningToMobilePickerRef.current = true
-                                   setShowMobilePicker(true)
-                                   setTimeout(() => {
-                                     isTransitioningToMobilePickerRef.current = false
-                                   }, 500)
-                                 }}
-                                 className="h-7 w-7 rounded-full flex items-center justify-center hover:bg-muted transition-colors text-muted-foreground cursor-pointer font-bold"
-                               >
-                                 <Plus size={14} />
-                               </button>
-                            </div>
-                            <DropdownMenuItem onClick={() => onReply(msg)} className="cursor-pointer">
-                              <ArrowBendUpLeft size={16} className="mr-2" />
-                              Reply
-                            </DropdownMenuItem>
-                            {canEdit && (
-                              <DropdownMenuItem onClick={() => setIsEditing(true)} className="cursor-pointer">
-                                <Pencil size={16} className="mr-2" />
-                                Edit
-                              </DropdownMenuItem>
+                                  theme={resolvedTheme === "dark" ? "dark" : "light"}
+                                  lazyLoadEmojis={true}
+                                  width={304}
+                                  height={380}
+                                  previewConfig={{ showPreview: false }}
+                                  skinTonesDisabled={true}
+                                />
+                              </motion.div>
                             )}
-                            {canDelete && (
-                              <DropdownMenuItem
-                                onClick={() => { haptic.trigger("warning"); setDeleteDialogOpen(true); }}
-                                disabled={deleteMutation.isPending}
-                                className="cursor-pointer text-red-500 focus:text-red-500 focus:bg-red-500/10"
-                              >
-                                <Trash size={16} className="mr-2" />
-                                Delete
-                              </DropdownMenuItem>
-                            )}
-                          </motion.div>
-                        ) : (
-                          <motion.div
-                            key="mobile-picker-container"
-                            initial={{ opacity: 0, scale: 0.95 }}
-                            animate={{ opacity: 1, scale: 1 }}
-                            exit={{ opacity: 0, scale: 0.95 }}
-                            transition={{ duration: 0.2 }}
-                            className="bg-card border border-border shadow-xl rounded-xl flex flex-col overflow-hidden w-[320px] h-[450px] p-2"
-                            onClick={(e) => e.stopPropagation()}
-                            onKeyDown={(e) => e.stopPropagation()}
-                            onPointerDown={(e) => e.stopPropagation()}
-                          >
-                            <div className="flex justify-between items-center mb-2 px-1">
-                              <span className="text-xs font-semibold text-muted-foreground">Select Reaction</span>
-                              <button
-                                onClick={(e) => {
-                                  e.preventDefault()
-                                  e.stopPropagation()
-                                  setShowMobilePicker(false)
-                                }}
-                                className="text-muted-foreground hover:text-foreground text-xs font-medium cursor-pointer"
-                              >
-                                Back
-                              </button>
-                            </div>
-                            <EmojiPicker
-                              onEmojiClick={(emojiData) => {
-                                haptic.trigger("light")
-                                toggleReactionMutation.mutate({ messageId: msg.id, emoji: emojiData.emoji })
-                                setShowMobilePicker(false)
-                                setDropdownOpen(false)
-                              }}
-                              theme={resolvedTheme === "dark" ? "dark" : "light"}
-                              lazyLoadEmojis={true}
-                              width={304}
-                              height={380}
-                              previewConfig={{ showPreview: false }}
-                              skinTonesDisabled={true}
-                            />
-                          </motion.div>
-                        )}
-                      </AnimatePresence>
-                    </DropdownMenuContent>
-                  </DropdownMenu>
-                );
+                          </AnimatePresence>
+                        </DropdownMenuContent>
+                      </DropdownMenu>
+                    );
 
-                return showActionsTooltip ? (
-                  <Popover open={showActionsTooltip} onOpenChange={(open) => {
-                    if (!open && onDismissTooltip) {
-                      onDismissTooltip();
-                    }
-                  }}>
-                    <PopoverTrigger asChild>
-                      <div>
-                        {bubbleContent}
-                      </div>
-                    </PopoverTrigger>
-                    <PopoverContent side="top" align={isSelf ? "end" : "start"} className="w-72 p-3 bg-neutral-900 border border-neutral-800 text-white rounded-xl shadow-xl z-50">
-                      <div className="flex flex-col gap-2">
-                        <p className="text-xs font-semibold">Message Actions</p>
-                        <p className="text-[11px] text-neutral-400">
-                          Hover on desktop or tap on mobile to react, reply, edit, or delete messages!
-                        </p>
-                        <Button 
-                          size="sm" 
-                          onClick={() => {
-                            if (onDismissTooltip) onDismissTooltip();
-                          }}
-                          className="h-6 text-[10px] self-end bg-primary hover:bg-primary/90 text-primary-foreground font-bold rounded-lg px-2 cursor-pointer"
-                        >
-                          Got it
-                        </Button>
-                      </div>
-                    </PopoverContent>
-                  </Popover>
-                ) : (
-                  bubbleContent
-                );
-              })()
+                    return showActionsTooltip ? (
+                      <Popover open={showActionsTooltip} onOpenChange={(open) => {
+                        if (!open && onDismissTooltip) {
+                          onDismissTooltip();
+                        }
+                      }}>
+                        <PopoverTrigger asChild>
+                          <div>
+                            {bubbleContent}
+                          </div>
+                        </PopoverTrigger>
+                        <PopoverContent side="top" align={isSelf ? "end" : "start"} className="w-72 p-3 bg-neutral-900 border border-neutral-800 text-white rounded-xl shadow-xl z-50">
+                          <div className="flex flex-col gap-2">
+                            <p className="text-xs font-semibold">Message Actions</p>
+                            <p className="text-[11px] text-neutral-400">
+                              Hover on desktop or tap on mobile to react, reply, edit, or delete messages!
+                            </p>
+                            <Button 
+                              size="sm" 
+                              onClick={() => {
+                                if (onDismissTooltip) onDismissTooltip();
+                              }}
+                              className="h-6 text-[10px] self-end bg-primary hover:bg-primary/90 text-primary-foreground font-bold rounded-lg px-2 cursor-pointer"
+                            >
+                              Got it
+                            </Button>
+                          </div>
+                        </PopoverContent>
+                      </Popover>
+                    ) : (
+                      bubbleContent
+                    );
+                  })()
             )}
 
             {/* Reactions Display */}
@@ -1813,7 +1929,7 @@ function ChatMessageItem({
             )}
           </div>
         </div>
-      </div>
+      </motion.div>
 
       <AlertDialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
         <AlertDialogContent>
