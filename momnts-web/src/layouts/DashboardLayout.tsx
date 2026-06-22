@@ -119,29 +119,29 @@ const DashboardLayout = () => {
           "top-0 left-0 w-full rounded-none border-b",
           "bg-background/80 backdrop-blur-md",
           "border-neutral-200/50 dark:border-neutral-800/50",
-          // Desktop: Floating Island (unless event details)
+          // Desktop: Floating Island (only at lg+, unless event details)
           !isEventDetailsPage && [
-            "md:top-6 md:left-1/2 md:-translate-x-1/2 md:w-[calc(100%-64px)] md:max-w-[900px]",
-            "md:rounded-full md:border",
-            "md:bg-background/70 md:backdrop-blur-[24px]",
-            "md:shadow-[0_16px_40px_rgba(0,0,0,0.05)] dark:md:shadow-[0_16px_40px_rgba(0,0,0,0.3)]"
+            "lg:top-6 lg:left-1/2 lg:-translate-x-1/2 lg:w-[calc(100%-64px)] lg:max-w-[900px]",
+            "lg:rounded-full lg:border",
+            "lg:bg-background/70 lg:backdrop-blur-[24px]",
+            "lg:shadow-[0_16px_40px_rgba(0,0,0,0.05)] dark:lg:shadow-[0_16px_40px_rgba(0,0,0,0.3)]"
           ]
         )}
       >
-        <motion.div layout transition={smoothTransition} className={cn("px-6 flex items-center justify-between w-full", isEventDetailsPage ? "h-[72px]" : "h-[72px] md:h-16")}>
+        <motion.div layout transition={smoothTransition} className={cn("px-4 lg:px-6 flex items-center justify-between w-full", isEventDetailsPage ? "h-[72px]" : "h-[72px] lg:h-16")}>
           {/* Left: Logo */}
-          <motion.div layout transition={smoothTransition} className="flex-1 flex items-center">
+          <motion.div layout transition={smoothTransition} className="flex-none lg:flex-1 flex items-center min-w-0">
             <Link
               to="/dashboard"
               aria-label="Go to dashboard"
-              className={cn("font-logo select-none cursor-pointer tracking-tight text-neutral-900 dark:text-white", isEventDetailsPage ? "text-3xl" : "text-3xl md:text-2xl")}
+              className={cn("font-logo select-none cursor-pointer tracking-tight text-neutral-900 dark:text-white shrink-0", isEventDetailsPage ? "text-2xl md:text-3xl" : "text-2xl md:text-2xl")}
             >
               Momnts
             </Link>
-            <Badge variant="secondary" className='ml-2 select-none text-neutral-600 dark:text-neutral-300 text-[8px]'>v 1.0</Badge>
+            <Badge variant="secondary" className='ml-2 select-none text-neutral-600 dark:text-neutral-300 text-[8px] hidden lg:inline-flex'>v 1.0</Badge>
             <Link
               to="/pricing"
-              className={`ml-1.5 select-none px-2.5 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider transition-all ${isPro
+              className={`ml-1.5 select-none px-2.5 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider transition-all shrink-0 hidden lg:inline-flex ${isPro
                   ? 'bg-violet-50 text-violet-600 dark:bg-violet-500/10 dark:text-violet-400 hover:bg-violet-100 dark:hover:bg-violet-500/20'
                   : 'bg-neutral-100 text-neutral-500 dark:bg-neutral-800 dark:text-neutral-400 hover:bg-neutral-200 dark:hover:bg-neutral-700'
                 }`}
@@ -156,14 +156,14 @@ const DashboardLayout = () => {
             </Link>
           </motion.div>
 
-          {/* Center: Desktop Navigation */}
-          <motion.nav layout transition={smoothTransition} className={cn("hidden md:flex items-center gap-1 px-1.5 py-1.5", isEventDetailsPage && "border border-neutral-200/30 dark:border-neutral-800/30 rounded-full bg-background/30 backdrop-blur-xl shadow-lg")}>
+          {/* Center: Desktop Navigation (lg+ only) */}
+          <motion.nav layout transition={smoothTransition} className={cn("hidden lg:flex items-center gap-1 px-1.5 py-1.5", isEventDetailsPage && "border border-neutral-200/30 dark:border-neutral-800/30 rounded-full bg-background/30 backdrop-blur-xl shadow-lg")}>
             {navItems.map((item) => (
               <button
                 key={item.title}
                 onClick={() => navigate(item.path)}
                 className={cn(
-                  'relative px-5 py-2 rounded-full transition-all duration-300 text-sm font-semibold flex items-center gap-2 group cursor-pointer',
+                  'relative px-3.5 lg:px-5 py-2 rounded-full transition-all duration-300 text-xs lg:text-sm font-semibold flex items-center gap-1.5 lg:gap-2 group cursor-pointer',
                   item.active
                     ? '!text-primary-foreground'
                     : 'text-neutral-500 hover:text-neutral-900 dark:hover:text-white'
@@ -185,9 +185,9 @@ const DashboardLayout = () => {
           </motion.nav>
 
           {/* Right: Actions */}
-          <motion.div layout transition={smoothTransition} className="flex-1 flex items-center justify-end gap-3">
+          <motion.div layout transition={smoothTransition} className="flex-none lg:flex-1 flex items-center justify-end gap-1.5 lg:gap-3">
             <NotificationsPopover />
-            <div className="h-4 w-px bg-neutral-200 dark:bg-neutral-800 hidden sm:block mx-1" />
+            <div className="h-4 w-px bg-neutral-200 dark:bg-neutral-800 hidden lg:block mx-1" />
             <ThemeToggle />
 
             <div className="ml-1">
@@ -215,9 +215,9 @@ const DashboardLayout = () => {
       <main
         id="dashboard-main"
         className={cn(
-          "flex-1 overflow-x-hidden overflow-y-auto pb-24 md:pb-8 relative",
+          "flex-1 overflow-x-hidden overflow-y-auto pb-24 lg:pb-8 relative",
           "pt-[calc(72px+env(safe-area-inset-top,0px))]",
-          !isEventDetailsPage && "md:pt-[104px]"
+          !isEventDetailsPage && "lg:pt-[104px]"
         )}
       >
         <AnimatePresence initial={false} custom={direction} mode="popLayout">
@@ -252,7 +252,7 @@ const DashboardLayout = () => {
         style={{
           bottom: 'calc(1rem + env(safe-area-inset-bottom, 0px))'
         }}
-        className="fixed left-1/2 -translate-x-1/2 z-50 md:hidden w-[70%] max-w-[360px]"
+        className="fixed left-1/2 -translate-x-1/2 z-50 lg:hidden w-[85%] sm:w-[70%] md:w-[50%] max-w-[360px]"
       >
         <nav className="flex items-center justify-around bg-background/80 backdrop-blur-md border border-neutral-200/50 dark:border-white/10 rounded-[28px] p-2 shadow-2xl ring-1 ring-black/5 dark:ring-white/5">
           {navItems.map((item) => (

@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback, useRef, useMemo } from 'react'
 import { Dialog, DialogContent, DialogClose } from '../../../components/ui/dialog'
 import { Button } from '../../../components/ui/button'
-import { X, CaretLeft, CaretRight, XIcon, Trash, Heart, ChatCircle, Keyboard, Warning, PaperPlaneRight } from '@phosphor-icons/react'
+import { X, CaretLeft, CaretRight, XIcon, Trash, Heart, ChatCircle, Keyboard, Warning, PaperPlaneRight, PaperPlaneTiltIcon } from '@phosphor-icons/react'
 import { PhotoData } from '../../../features/events/services/photos.api'
 import { CommentsSection } from '../../../features/comments/components/CommentsSection'
 import { useComments } from '../../../features/comments/hooks/useComments'
@@ -493,7 +493,7 @@ const PhotoCarousel = ({
                             onTagInChat(currentPhoto);
                           }}
                         >
-                          <PaperPlaneRight size={20} weight="bold" />
+                          <PaperPlaneTiltIcon size={20} weight="bold" />
                         </Button>
                       </TooltipTrigger>
                       <TooltipContent side="bottom" className="hidden md:flex bg-neutral-900 border border-neutral-800 text-neutral-200">
@@ -532,7 +532,6 @@ const PhotoCarousel = ({
                       </TooltipTrigger>
                       <TooltipContent side="bottom" className="hidden md:flex bg-neutral-900 border border-neutral-800 text-neutral-200 items-center gap-1.5">
                         <span>Close</span>
-                        <Kbd>Esc</Kbd>
                       </TooltipContent>
                     </Tooltip>
                   </DialogClose>
@@ -553,7 +552,6 @@ const PhotoCarousel = ({
                     </TooltipTrigger>
                     <TooltipContent side="right" className="hidden md:flex bg-neutral-900 border border-neutral-800 text-neutral-200 items-center gap-1.5">
                       <span>Previous</span>
-                      <Kbd>←</Kbd>
                     </TooltipContent>
                   </Tooltip>
 
@@ -570,7 +568,6 @@ const PhotoCarousel = ({
                     </TooltipTrigger>
                     <TooltipContent side="left" className="hidden md:flex bg-neutral-900 border border-neutral-800 text-neutral-200 items-center gap-1.5">
                       <span>Next</span>
-                      <Kbd>→</Kbd>
                     </TooltipContent>
                   </Tooltip>
                 </div>

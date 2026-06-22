@@ -3,7 +3,7 @@ import { useParams, useNavigate, useSearchParams } from 'react-router'
 import { useAuth } from '../../features/auth/hooks/useAuth'
 import { Button } from '../../components/ui/button'
 import { Badge } from '../../components/ui/badge'
-import { ArrowLeft, X, CaretUp, LockKey, ChatCircle } from '@phosphor-icons/react'
+import { ArrowLeft, X, CaretUp, LockKey, ChatCircle, PaperPlaneTiltIcon } from '@phosphor-icons/react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { eventsApi, EventData } from '../../features/events/services/events.api'
 import { photosApi, PhotoData } from '../../features/events/services/photos.api'
@@ -1172,9 +1172,9 @@ const EventDetails = () => {
             >
               <Button
                 size="icon"
-                className="relative h-14 w-14 rounded-full shadow-2xl bg-primary hover:bg-primary/90 text-primary-foreground flex items-center justify-center cursor-pointer transition-transform hover:scale-105 active:scale-95"
+                className="relative h-14 w-14 rounded-full shadow-2xl text-primary-foreground flex items-center justify-center cursor-pointer transition-transform hover:scale-105 active:scale-95 bg-background/80 backdrop-blur-md border border-neutral-200/50 dark:border-white/10"
               >
-                <ChatCircle size={28} weight="fill" />
+                <PaperPlaneTiltIcon weight='regular' className='text-black dark:text-white' size={32}/>
                 {hasUnreadMessages && (
                   <span className="absolute top-0 right-0 flex h-4 w-4">
                     <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-red-400 opacity-75"></span>
