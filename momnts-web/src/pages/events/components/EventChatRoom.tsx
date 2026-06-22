@@ -664,6 +664,14 @@ export default function EventChatRoom({
       setExplicitMentions([])
       setSelectedPhotos([])
       setReplyingToMessage(null)
+      if (inputRef.current) {
+        inputRef.current.focus()
+      }
+      setTimeout(() => {
+        if (inputRef.current) {
+          inputRef.current.focus()
+        }
+      }, 0)
       setTimeout(() => scrollToBottom("smooth"), 100)
     } catch (err) {
       haptic.trigger("error")
