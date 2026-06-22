@@ -50,8 +50,12 @@ export function initSocketIO(httpServer: HTTPServer) {
         socket.data.userId = decoded.id
       }
       next()
-    } catch (err) {
-      console.error('[WS] Auth middleware error:', err)
+    } catch (err: any) {
+      if (err.name === 'TokenExpiredError') {
+        console.warn(`[WS] Auth token expired for socket ${socket.id}. Connecting as anonymous.`)
+      } else {
+        console.error('[WS] Auth middleware error:', err)
+      }
       next() // Still allow connection, but without userId
     }
   })

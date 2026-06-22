@@ -57,6 +57,7 @@ export interface ChatMessageData {
 export interface ChatMessagesResponse {
   total: number;
   data: ChatMessageData[];
+  nextCursor?: string | null;
 }
 
 export interface SendChatMessagePayload {
@@ -71,16 +72,20 @@ export interface SendChatMessagePayload {
 const BASE = import.meta.env.VITE_SERVER_URL || import.meta.env.VITE_API_URL || "http://localhost:3000";
 
 function getAuthHeaders(): Record<string, string> {
-  const token = localStorage.getItem("token") || localStorage.getItem("accessToken") || "";
-  return {
-    "Authorization": `Bearer ${token}`,
+  const token = localStorage.getItem("token") || localStorage.getItem("accessToken");
+  const headers: Record<string, string> = {
     "Content-Type": "application/json",
   };
+  if (token) {
+    headers["Authorization"] = `Bearer ${token}`;
+  }
+  return headers;
 }
 
 export const chatsApi = {
-  async getChatMessages(eventId: string): Promise<ChatMessagesResponse> {
-    const res = await apiFetch(`${BASE}/api/events/${eventId}/chats`, {
+  async getChatMessages(eventId: string, cursor?: string | null): Promise<ChatMessagesResponse> {
+    const url = cursor ? `${BASE}/api/events/${eventId}/chats?cursor=${cursor}` : `${BASE}/api/events/${eventId}/chats`;
+    const res = await apiFetch(url, {
       headers: getAuthHeaders(),
     });
     if (!res.ok) {

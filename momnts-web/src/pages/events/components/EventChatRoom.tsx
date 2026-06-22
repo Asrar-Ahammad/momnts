@@ -1,7 +1,8 @@
 import { useState, useRef, useEffect, useMemo } from "react"
 import { useAuth } from "@/features/auth/hooks/useAuth"
 import { useChatMessages, useSendChatMessage, useUpdateChatMessage, useDeleteChatMessage, useToggleChatMessageReaction } from "@/features/chats/hooks/useChats"
-import { useEventSocket } from "@/hooks/useEventSocket"
+import { chatsApi } from "@/features/chats/services/chats.api"
+
 import { useEventAttendees } from "@/features/events/hooks/useEvents"
 import { decryptTextMessage, encryptTextMessage } from "@/lib/crypto/e2ee"
 import { useDecryptedPhoto } from "@/features/events/hooks/useDecryptedPhoto"
@@ -44,7 +45,7 @@ interface EventChatRoomProps {
   eventId: string
   dek: CryptoKey | null
   photos: any[]
-  onPhotoClick: (index: number) => void
+  onPhotoClick: (photoId: string) => void
   isOrganizer?: boolean
   onClose?: () => void
 }
@@ -67,6 +68,28 @@ export default function EventChatRoom({
   const [photoPickerOpen, setPhotoPickerOpen] = useState(false)
   const [showScrollBottom, setShowScrollBottom] = useState(false)
   const [replyingToMessage, setReplyingToMessage] = useState<ChatMessageData | null>(null)
+  const [loadingOlder, setLoadingOlder] = useState(false)
+
+  const handleLoadOlder = async () => {
+    if (!chatsData?.nextCursor || loadingOlder) return
+    setLoadingOlder(true)
+    try {
+      const older = await chatsApi.getChatMessages(eventId, chatsData.nextCursor)
+      queryClient.setQueryData(["chats", eventId], (oldData: any) => {
+        if (!oldData) return older;
+        return {
+          ...oldData,
+          total: oldData.total + older.data.length,
+          data: [...older.data, ...oldData.data], // older messages come first
+          nextCursor: older.nextCursor
+        }
+      })
+    } catch (e) {
+      console.error(e)
+    } finally {
+      setLoadingOlder(false)
+    }
+  }
 
   const handleStartReply = (msg: ChatMessageData) => {
     haptic.trigger("light")
@@ -183,21 +206,7 @@ export default function EventChatRoom({
     }
   }
 
-  // WebSocket Listener
-  useEventSocket({
-    eventId,
-    onChatMessage: (newMessage: ChatMessageData) => {
-      // Avoid duplicates
-      queryClient.setQueryData(["chats", eventId], (oldData: any) => {
-        if (!oldData) return { total: 1, data: [newMessage] }
-        if (oldData.data.some((m: any) => m.id === newMessage.id)) return oldData
-        return {
-          total: oldData.total + 1,
-          data: [...oldData.data, newMessage]
-        }
-      })
-    }
-  })
+
 
   // Scroll to bottom helper
   const scrollToBottom = (behavior: ScrollBehavior = "smooth") => {
@@ -243,7 +252,7 @@ export default function EventChatRoom({
       if (!isLoading) {
         localStorage.setItem(`lastReadMsg_${eventId}`, lastMsg.id)
       }
-      const isMyMessage = lastMsg?.user_id === user?.id || (!!lastMsg?.user?.name && lastMsg?.user?.name === user?.username)
+      const isMyMessage = lastMsg?.user_id === user?.id
       if (isMyMessage || !showScrollBottom) {
         setTimeout(() => scrollToBottom("smooth"), 50)
       }
@@ -355,13 +364,26 @@ export default function EventChatRoom({
           </div>
         ) : (
           <div className="flex flex-col gap-4">
+            {chatsData?.nextCursor && (
+              <div className="flex justify-center py-2">
+                <Button 
+                  variant="outline" 
+                  size="sm" 
+                  onClick={handleLoadOlder} 
+                  disabled={loadingOlder}
+                  className="rounded-full text-xs"
+                >
+                  {loadingOlder ? "Loading..." : "Load Older Messages"}
+                </Button>
+              </div>
+            )}
             <AnimatePresence initial={false}>
               {messages.map((msg) => (
                 <ChatMessageItem
                   key={msg.id}
                   msg={msg}
                   dek={dek}
-                  isSelf={msg.user_id === user?.id || (!!msg.user?.name && msg.user?.name === user?.username)}
+                  isSelf={msg.user_id === user?.id}
                   allPhotos={photos}
                   onPhotoClick={onPhotoClick}
                   isOrganizer={isOrganizer}
@@ -624,7 +646,11 @@ function ChatMessageItem({
     let active = true
 
     const decrypt = async () => {
-      if (!dek) return
+      if (!dek) {
+        setDecrypting(false)
+        setDecryptedText("")
+        return
+      }
       try {
         setDecrypting(true)
         const text = await decryptTextMessage(msg.message_text, msg.encryption_iv, msg.encryption_tag, dek)
@@ -864,10 +890,7 @@ function ChatMessageItem({
                             key={photo.id}
                             onClick={(e) => {
                               e.stopPropagation();
-                              const idx = allPhotos.findIndex((p) => p.id === photo.id)
-                              if (idx !== -1) {
-                                onPhotoClick(idx)
-                              }
+                              onPhotoClick(photo.id)
                             }}
                             className={`relative group/photo w-full cursor-pointer overflow-hidden bg-muted ${
                               msg.photos.length === 1 ? "aspect-[4/3]" : "aspect-square"
@@ -1210,7 +1233,11 @@ function ReplyingMessagePreview({ msg, dek }: ReplyingMessagePreviewProps) {
   useEffect(() => {
     let active = true
     const decrypt = async () => {
-      if (!dek) return
+      if (!dek) {
+        setDecrypting(false)
+        setDecryptedText("")
+        return
+      }
       try {
         setDecrypting(true)
         const text = await decryptTextMessage(msg.message_text, msg.encryption_iv, msg.encryption_tag, dek)
@@ -1255,7 +1282,11 @@ function ParentMessageText({ parentMsg, dek }: ParentMessageTextProps) {
   useEffect(() => {
     let active = true
     const decrypt = async () => {
-      if (!dek) return
+      if (!dek) {
+        setDecrypting(false)
+        setDecryptedText("")
+        return
+      }
       try {
         setDecrypting(true)
         const text = await decryptTextMessage(parentMsg.message_text, parentMsg.encryption_iv, parentMsg.encryption_tag, dek)

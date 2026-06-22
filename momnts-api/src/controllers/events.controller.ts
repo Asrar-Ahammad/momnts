@@ -1583,24 +1583,28 @@ async function getEventChatKeyController(req: AuthRequest, res: Response) {
             return res.status(400).json({ message: 'E2EE events use client-side passphrase for chat keys' });
         }
 
-        const jwtSecret = process.env.JWT_SECRET;
-        if (!jwtSecret) {
-            return res.status(500).json({ message: 'Server configuration error' });
+        const chatSecret = process.env.CHAT_ENCRYPTION_SECRET || process.env.JWT_SECRET;
+        if (!chatSecret) {
+            return res.status(500).json({ message: 'Server configuration error: Missing chat encryption secret' });
         }
 
-        // Deterministic symmetric key generation: HMAC-SHA256 of the event ID using the server secret
+        // Deterministic symmetric key generation: HMAC-SHA256 of the event ID using the dedicated server secret
         // This generates exactly 32 bytes of output, perfect for AES-GCM-256.
-        const derivedKeyBase64 = crypto.createHmac('sha256', jwtSecret)
+        const derivedKeyBase64 = crypto.createHmac('sha256', chatSecret)
             .update(`chat_dek_${eventId}`)
             .digest('base64');
 
+        // Prevent caching of raw key material
+        res.set('Cache-Control', 'no-store, no-cache, must-revalidate, private');
+        res.set('Pragma', 'no-cache');
+        
         return res.status(200).json({
             message: "Chat key fetched successfully",
             key: derivedKeyBase64
         });
     } catch (error) {
-        const message = error instanceof Error ? error.message : "Internal server error";
-        return res.status(500).json({ message });
+        console.error('[getEventChatKeyController] Error:', error);
+        return res.status(500).json({ message: "Internal server error" });
     }
 }
 

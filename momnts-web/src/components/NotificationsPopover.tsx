@@ -36,10 +36,14 @@ const NotificationsPopover = () => {
   const [unreadCount, setUnreadCount] = useState(0)
   const [popoverOpen, setPopoverOpen] = useState(false)
   const shownNotificationsRef = useRef<Set<string>>(new Set())
+  const fetchVersionRef = useRef(0)
 
   const fetchNotifications = useCallback(async () => {
+    const version = ++fetchVersionRef.current
     try {
       const data = await notificationsApi.getNotifications()
+      // Guard against stale responses racing with newer fetches or clears
+      if (version !== fetchVersionRef.current) return
       setNotifications(data)
       setUnreadCount(data.filter(n => !n.is_read).length)
       // Seed shownNotificationsRef with existing notification IDs
@@ -116,6 +120,10 @@ const NotificationsPopover = () => {
     try {
       await notificationsApi.clearNotifications()
       haptic.trigger("success")
+      
+      // Increment version to discard any in-flight fetches that might repopulate state
+      fetchVersionRef.current++
+      
       setNotifications([])
       setUnreadCount(0)
       shownNotificationsRef.current.clear()
@@ -290,7 +298,6 @@ const NotificationsPopover = () => {
               <Button 
                 variant="ghost" 
                 onClick={async () => {
-                  haptic.trigger("light");
                   try {
                     await notificationsApi.markAllAsRead();
                     fetchNotifications();

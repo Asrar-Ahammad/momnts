@@ -100,6 +100,16 @@ export function useEventSocket({
 
     socket.on('chat:message', (data: any) => {
       console.log('[WS] Chat message received:', data)
+      queryClient.setQueryData(["chats", eventId], (oldData: any) => {
+        if (!oldData) return undefined
+        // Don't add duplicate if sender already appended it optimistically
+        if (oldData.data.some((m: any) => m.id === data.id)) return oldData
+        return {
+          ...oldData,
+          total: oldData.total + 1,
+          data: [...oldData.data, data]
+        }
+      })
       onChatMessageRef.current?.(data)
     })
 

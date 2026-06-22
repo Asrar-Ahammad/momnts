@@ -32,9 +32,14 @@ export async function getChatMessagesController(req: AuthRequest, res: Response)
       return res.status(403).json({ message: "You do not have access to this event" });
     }
 
-    // 2. Fetch messages ordered chronologically
+    const cursor = req.query.cursor as string | undefined;
+    const limit = 50;
+
+    // 2. Fetch messages (newest first for pagination)
     const messages = await prisma.chatMessage.findMany({
       where: { event_id: eventId },
+      take: limit + 1,
+      ...(cursor ? { cursor: { id: cursor }, skip: 1 } : {}),
       include: {
         user: { select: { id: true, name: true, selfie_url: true } },
         photos: { select: { id: true, thumb_url: true, display_url: true, encryption_iv: true, encryption_tag: true } },
@@ -49,8 +54,17 @@ export async function getChatMessagesController(req: AuthRequest, res: Response)
           }
         }
       },
-      orderBy: { created_at: "asc" },
+      orderBy: { created_at: "desc" },
     });
+
+    let nextCursor: string | null = null;
+    if (messages.length > limit) {
+      const nextMessage = messages.pop();
+      nextCursor = nextMessage!.id;
+    }
+
+    // Restore chronological order (oldest first) for the client
+    messages.reverse();
 
     // 3. Presign URLs for user selfies & tagged photos (optimized with memoization)
     const presignCache = new Map<string, string>();
@@ -105,6 +119,7 @@ export async function getChatMessagesController(req: AuthRequest, res: Response)
     return res.status(200).json({
       total: signedMessages.length,
       data: signedMessages,
+      nextCursor,
     });
   } catch (error) {
     console.error("[getChatMessagesController] Error:", error);
@@ -142,8 +157,11 @@ export async function sendChatMessageController(req: AuthRequest, res: Response)
     }
 
     // 2. Validate input parameters
-    if (!message_text || !encryption_iv || !encryption_tag) {
-      return res.status(400).json({ message: "message_text, encryption_iv, and encryption_tag are required." });
+    if (typeof message_text !== 'string' || !message_text.trim() || message_text.length > 2000) {
+      return res.status(400).json({ message: "Invalid message_text. Must be a string up to 2000 characters." });
+    }
+    if (typeof encryption_iv !== 'string' || !encryption_iv.trim() || typeof encryption_tag !== 'string' || !encryption_tag.trim()) {
+      return res.status(400).json({ message: "Invalid encryption parameters. Must be non-empty strings." });
     }
 
     // 3. Verify tagged photos belong to this event
@@ -189,7 +207,7 @@ export async function sendChatMessageController(req: AuthRequest, res: Response)
         },
         reactions: {
           include: {
-            user: { select: { id: true, name: true } }
+            user: { select: { id: true, name: true, selfie_url: true } }
           }
         }
       },
@@ -235,19 +253,22 @@ export async function sendChatMessageController(req: AuthRequest, res: Response)
       try {
         const io = getIO();
         const authorName = req.user.name;
-        const authorSelfie = (req.user as any).selfie_url;
+        const authorSelfie = message.user.selfie_url;
+
+        // Deduplicate mentions to prevent duplicate notifications
+        const uniqueMentions = [...new Set(mentions)];
 
         // Fetch user event roles in bulk to check for ATTENDEE status
         const userAccesses = await prisma.eventAccess.findMany({
           where: {
             event_id: eventId,
-            user_id: { in: mentions },
+            user_id: { in: uniqueMentions },
           },
         });
         const userRoleMap = new Map(userAccesses.map((ua) => [ua.user_id, ua.role]));
 
-        for (const userId of mentions) {
-          if (userId === req.user.id) continue;
+        for (const userId of uniqueMentions) {
+          if (userId === req.user.id || !userRoleMap.has(userId)) continue;
 
           // Create DB notification
           const notification = await prisma.notification.create({
@@ -343,8 +364,11 @@ export async function updateChatMessageController(req: AuthRequest, res: Respons
       return res.status(403).json({ message: "You do not have access to this event" });
     }
 
-    if (!message_text || !encryption_iv || !encryption_tag) {
-      return res.status(400).json({ message: "message_text, encryption_iv, and encryption_tag are required." });
+    if (typeof message_text !== 'string' || !message_text.trim() || message_text.length > 2000) {
+      return res.status(400).json({ message: "Invalid message_text. Must be a string up to 2000 characters." });
+    }
+    if (typeof encryption_iv !== 'string' || !encryption_iv.trim() || typeof encryption_tag !== 'string' || !encryption_tag.trim()) {
+      return res.status(400).json({ message: "Invalid encryption parameters. Must be non-empty strings." });
     }
 
     // 2. Fetch message and verify ownership
@@ -384,7 +408,7 @@ export async function updateChatMessageController(req: AuthRequest, res: Respons
         },
         reactions: {
           include: {
-            user: { select: { id: true, name: true } }
+            user: { select: { id: true, name: true, selfie_url: true } }
           }
         }
       },
@@ -516,8 +540,8 @@ export async function toggleMessageReactionController(req: AuthRequest, res: Res
     const { eventId, messageId } = req.params as { eventId: string; messageId: string };
     const { emoji } = req.body;
 
-    if (!emoji) {
-      return res.status(400).json({ message: "Emoji is required." });
+    if (typeof emoji !== 'string' || !emoji.trim() || emoji.length > 20) {
+      return res.status(400).json({ message: "Invalid emoji format or length." });
     }
 
     // 1. Verify user event access
@@ -543,41 +567,59 @@ export async function toggleMessageReactionController(req: AuthRequest, res: Res
       return res.status(404).json({ message: "Chat message not found." });
     }
 
-    // 3. Check if any reaction by this user on this message already exists
-    const existingReaction = await prisma.messageReaction.findUnique({
-      where: {
-        chat_message_id_user_id: {
-          chat_message_id: messageId,
-          user_id: req.user.id,
-        },
-      },
-    });
-
+    // 3. Toggle reaction with catch-and-retry to handle concurrent race conditions
     let action = "added";
-    if (existingReaction) {
-      if (existingReaction.emoji === emoji) {
-        // Toggle off: user clicked the same emoji
-        await prisma.messageReaction.delete({
-          where: { id: existingReaction.id },
+    let retryCount = 0;
+    
+    while (retryCount < 2) {
+      try {
+        const existingReaction = await prisma.messageReaction.findUnique({
+          where: {
+            chat_message_id_user_id: {
+              chat_message_id: messageId,
+              user_id: req.user.id,
+            },
+          },
         });
-        action = "removed";
-      } else {
-        // Replace with new emoji
-        await prisma.messageReaction.update({
-          where: { id: existingReaction.id },
-          data: { emoji },
-        });
-        action = "replaced";
+
+        if (existingReaction) {
+          if (existingReaction.emoji === emoji) {
+            // Toggle off: user clicked the same emoji
+            await prisma.messageReaction.delete({
+              where: { id: existingReaction.id },
+            });
+            action = "removed";
+          } else {
+            // Replace with new emoji
+            await prisma.messageReaction.update({
+              where: { id: existingReaction.id },
+              data: { emoji },
+            });
+            action = "replaced";
+          }
+        } else {
+          // Add reaction
+          await prisma.messageReaction.create({
+            data: {
+              chat_message_id: messageId,
+              user_id: req.user.id,
+              emoji,
+            },
+          });
+          action = "added";
+        }
+        break; // Success, break out of retry loop
+      } catch (err: any) {
+        // P2002: Unique constraint failed (racing creates)
+        // P2025: Record to update/delete not found (racing deletes)
+        if (err.code === 'P2002' || err.code === 'P2025') {
+          retryCount++;
+          if (retryCount >= 2) throw err; // Give up after retrying
+          // Loop continues and retries the read-then-write flow
+        } else {
+          throw err;
+        }
       }
-    } else {
-      // Add reaction
-      await prisma.messageReaction.create({
-        data: {
-          chat_message_id: messageId,
-          user_id: req.user.id,
-          emoji,
-        },
-      });
     }
 
     // 4. Broadcast updated reaction via Socket.IO

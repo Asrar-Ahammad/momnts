@@ -271,13 +271,15 @@ model ChatMessage {
   parent  ChatMessage? @relation("ChatReplies", fields: [parent_id], references: [id], onDelete: SetNull)
   replies ChatMessage[] @relation("ChatReplies")
   reactions MessageReaction[] @relation("MessageReactions")
+
+  @@index([event_id, created_at])
 }
 
 model MessageReaction {
   id               String      @id @default(uuid())
   chat_message_id  String
   user_id          String
-  emoji            String
+  emoji            String      @db.VarChar(20)
   created_at       DateTime    @default(now())
 
   chat_message     ChatMessage @relation("MessageReactions", fields: [chat_message_id], references: [id], onDelete: Cascade)

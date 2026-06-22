@@ -165,9 +165,12 @@ const EventDetails = () => {
   }, [])
 
   useEffect(() => {
+    let active = true
+
     if (event?.encryption_mode === 'E2EE') {
       const checkLockStatus = async () => {
         const cachedDek = await getDEK(event.id)
+        if (!active) return
         if (cachedDek) {
           setDek(cachedDek)
           setChatDek(cachedDek)
@@ -186,6 +189,7 @@ const EventDetails = () => {
       const fetchChatKey = async () => {
         try {
           const base64Key = await eventsApi.getEventChatKey(event.id)
+          if (!active) return
           const binaryString = atob(base64Key)
           const rawKey = new Uint8Array(binaryString.length)
           for (let i = 0; i < binaryString.length; i++) {
@@ -198,9 +202,9 @@ const EventDetails = () => {
             false,
             ['encrypt', 'decrypt']
           )
-          setChatDek(importedKey)
+          if (active) setChatDek(importedKey)
         } catch (err) {
-          console.error("Failed to fetch chat key", err)
+          if (active) console.error("Failed to fetch chat key", err)
         }
       }
       fetchChatKey()
@@ -208,6 +212,10 @@ const EventDetails = () => {
       setDek(null)
       setChatDek(null)
       setIsPassphrasePromptOpen(false)
+    }
+
+    return () => {
+      active = false
     }
   }, [event?.id, event?.encryption_mode])
 
@@ -279,7 +287,11 @@ const EventDetails = () => {
       if (!isChatOpen) {
         setHasUnreadMessages(true)
       }
-    }, [isChatOpen]),
+      // Invalidate chats query cache to ensure fresh history when panel is opened
+      if (eventId) {
+        queryClient.invalidateQueries({ queryKey: ["chats", eventId] })
+      }
+    }, [isChatOpen, eventId, queryClient]),
   })
 
   // Sync favorites
@@ -729,6 +741,14 @@ const EventDetails = () => {
     }
   }
 
+  const handleChatPhotoClick = (photoId: string) => {
+    const idx = filteredPhotos.findIndex((p) => p.id === photoId)
+    if (idx !== -1) {
+      setCurrentPhotoIndex(idx)
+      setCarouselOpen(true)
+    }
+  }
+
   const handleDeletePhoto = async (photoId: string) => {
     if (!eventId) return
     try {
@@ -1150,6 +1170,7 @@ const EventDetails = () => {
           </SheetTrigger>
           <SheetContent 
             side="right" 
+            showCloseButton={false}
             className="w-full p-0 flex flex-col h-[100dvh] border-l-0 sm:border-l shadow-2xl bg-background overflow-hidden z-50"
             style={isDesktop ? { width: `${chatWidth}px`, maxWidth: '100vw', transitionProperty: 'translate, transform, opacity' } : { width: '100vw', maxWidth: '100vw' }}
           >
@@ -1169,7 +1190,7 @@ const EventDetails = () => {
               eventId={event.id}
               dek={chatDek}
               photos={photos}
-              onPhotoClick={handlePhotoClick}
+              onPhotoClick={handleChatPhotoClick}
               isOrganizer={event.user_role === 'ORGANIZER'}
               onClose={() => setIsChatOpen(false)}
             />

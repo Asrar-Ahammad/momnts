@@ -62,8 +62,12 @@ export const useDeleteChatMessage = (eventId: string) => {
 };
 
 export const useToggleChatMessageReaction = (eventId: string) => {
+  const queryClient = useQueryClient();
   return useMutation({
     mutationFn: ({ messageId, emoji }: { messageId: string; emoji: string }) =>
       chatsApi.toggleChatMessageReaction(eventId, messageId, emoji),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["chats", eventId] });
+    },
   });
 };
