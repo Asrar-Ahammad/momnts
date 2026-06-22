@@ -965,6 +965,8 @@ export default function EventChatRoom({
           <Button
             type="submit"
             disabled={(!inputText.trim() && selectedPhotos.length === 0) || sendMutation.isPending}
+            onMouseDown={(e) => e.preventDefault()}
+            onPointerDown={(e) => e.preventDefault()}
             className="rounded-full h-[42px] w-[42px] p-0 flex items-center justify-center shrink-0 cursor-pointer shadow-lg hover:scale-105 active:scale-95 transition-all"
           >
             <PaperPlaneRight size={18} weight="fill" />
