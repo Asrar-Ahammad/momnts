@@ -72,16 +72,36 @@ const E2EESection = () => {
         trigger: visualRef.current,
         start: 'top 75%',
         toggleActions: 'play none none none',
-      }
+      },
+      repeat: -1,
+      repeatDelay: 3.5,
     })
 
     const fragments = svgRef.current.querySelectorAll('.e2ee-fragment')
     const pixels = svgRef.current.querySelectorAll('.fragment-pixel')
     const ciphers = svgRef.current.querySelectorAll('.fragment-cipher')
 
-    // Phase 1 & 2: Show scanning line and sweep down
+    // Reset initial states at the beginning of each loop run
+    tl.set(photoFrameRef.current, {
+      stroke: 'var(--lp-border)',
+      strokeDasharray: 'none',
+      fill: 'rgba(255, 255, 255, 0.01)'
+    })
+    tl.set(lockBadgeRef.current, { opacity: 0, scale: 0.5 })
+    tl.set(ciphers, { opacity: 0 })
     tl.set(scanLineRef.current, { opacity: 0, y: 0 })
-      .to(scanLineRef.current, { opacity: 1, duration: 0.1 })
+    
+    fragments.forEach((fragment) => {
+      tl.set(fragment, { x: 0, y: 0, rotation: 0, scale: 1 })
+    })
+
+    pixels.forEach((pixel) => {
+      const origColor = pixel.getAttribute('data-original-color') || '#ffffff'
+      tl.set(pixel, { opacity: 1, fill: origColor })
+    })
+
+    // Phase 1 & 2: Show scanning line and sweep down
+    tl.to(scanLineRef.current, { opacity: 1, duration: 0.1 })
       .to(scanLineRef.current, {
         y: 240, // Height of the photo area
         duration: 0.8,
@@ -257,6 +277,7 @@ const E2EESection = () => {
                         {/* High-res picture pixel blocks */}
                         <rect
                           className="fragment-pixel"
+                          data-original-color={color}
                           x={cx - 19}
                           y={cy - 19}
                           width="38"

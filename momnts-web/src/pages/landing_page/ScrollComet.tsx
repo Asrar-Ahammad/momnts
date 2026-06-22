@@ -85,28 +85,35 @@ const ScrollComet = () => {
       </a>
       <a 
         href="#features" 
-        style={{ top: '20%' }}
+        style={{ top: '16.6%' }}
         className="lp-comet-nav absolute left-[44px] text-[8px] font-mono uppercase tracking-[0.18em] text-[var(--lp-text-secondary)] hover:text-violet-400 select-none pointer-events-auto transition-colors duration-250 -translate-y-1/2 whitespace-nowrap cursor-pointer"
       >
         Capabilities
       </a>
       <a 
         href="#e2ee" 
-        style={{ top: '40%' }}
+        style={{ top: '33.3%' }}
         className="lp-comet-nav absolute left-[44px] text-[8px] font-mono uppercase tracking-[0.18em] text-[var(--lp-text-secondary)] hover:text-violet-400 select-none pointer-events-auto transition-colors duration-250 -translate-y-1/2 whitespace-nowrap cursor-pointer"
       >
         Security
       </a>
       <a 
+        href="#chats" 
+        style={{ top: '50%' }}
+        className="lp-comet-nav absolute left-[44px] text-[8px] font-mono uppercase tracking-[0.18em] text-[var(--lp-text-secondary)] hover:text-violet-400 select-none pointer-events-auto transition-colors duration-250 -translate-y-1/2 whitespace-nowrap cursor-pointer"
+      >
+        Chats
+      </a>
+      <a 
         href="#how-it-works" 
-        style={{ top: '60%' }}
+        style={{ top: '66.6%' }}
         className="lp-comet-nav absolute left-[44px] text-[8px] font-mono uppercase tracking-[0.18em] text-[var(--lp-text-secondary)] hover:text-violet-400 select-none pointer-events-auto transition-colors duration-250 -translate-y-1/2 whitespace-nowrap cursor-pointer"
       >
         Workflow
       </a>
       <a 
         href="#vision" 
-        style={{ top: '80%' }}
+        style={{ top: '83.3%' }}
         className="lp-comet-nav absolute left-[44px] text-[8px] font-mono uppercase tracking-[0.18em] text-[var(--lp-text-secondary)] hover:text-violet-400 select-none pointer-events-auto transition-colors duration-250 -translate-y-1/2 whitespace-nowrap cursor-pointer"
       >
         Philosophy

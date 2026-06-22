@@ -1,6 +1,8 @@
-import { useState, useRef, useEffect, useMemo } from "react"
+import React, { useState, useRef, useEffect, useMemo, Suspense } from "react"
 import { useAuth } from "@/features/auth/hooks/useAuth"
 import { useChatMessages, useSendChatMessage, useUpdateChatMessage, useDeleteChatMessage, useToggleChatMessageReaction } from "@/features/chats/hooks/useChats"
+import { cn } from "@/lib/utils"
+import { useTheme } from "next-themes"
 import { chatsApi } from "@/features/chats/services/chats.api"
 
 import { useEventAttendees } from "@/features/events/hooks/useEvents"
@@ -23,6 +25,7 @@ import {
   PopoverContent,
   PopoverTrigger,
 } from "@/components/ui/popover"
+import { Popover as PopoverPrimitive } from "@base-ui/react/popover"
 import {
   AlertDialog,
   AlertDialogAction,
@@ -50,7 +53,8 @@ import {
   Check,
   Checks,
   Clock,
-  Smiley
+  Smiley,
+  Plus
 } from "@phosphor-icons/react"
 import { toast } from "sonner"
 import { ChatMessageData, ChatMessageParent } from "@/features/chats/services/chats.api"
@@ -62,6 +66,8 @@ interface CachedPhoto {
 }
 
 const profilePhotoCache: Record<string, CachedPhoto> = {}
+
+import EmojiPicker from "emoji-picker-react"
 
 export const getCachedProfilePhoto = (userId: string, incomingUrl: string | null | undefined): string | undefined => {
   if (!incomingUrl) return undefined
@@ -104,11 +110,49 @@ export default function EventChatRoom({
   const scrollRef = useRef<HTMLDivElement>(null)
 
   const [inputText, setInputText] = useState("")
+  const [viewportStyle, setViewportStyle] = useState<React.CSSProperties>({})
+
+  useEffect(() => {
+    if (typeof window === "undefined" || !window.visualViewport) return
+
+    const handleResize = () => {
+      const isMobile = window.innerWidth < 640
+      if (isMobile) {
+        const vv = window.visualViewport
+        if (!vv) return
+        setViewportStyle({
+          height: `${vv.height}px`,
+          transform: `translate3d(0, ${vv.offsetTop}px, 0)`,
+          position: "fixed",
+          top: 0,
+          left: 0,
+          right: 0,
+          zIndex: 50,
+        })
+      } else {
+        setViewportStyle({})
+      }
+    }
+
+    const vv = window.visualViewport
+    vv.addEventListener("resize", handleResize)
+    vv.addEventListener("scroll", handleResize)
+    window.addEventListener("resize", handleResize)
+
+    handleResize()
+
+    return () => {
+      vv.removeEventListener("resize", handleResize)
+      vv.removeEventListener("scroll", handleResize)
+      window.removeEventListener("resize", handleResize)
+    }
+  }, [])
   const [photoPickerOpen, setPhotoPickerOpen] = useState(false)
   const [showScrollBottom, setShowScrollBottom] = useState(false)
   const [replyingToMessage, setReplyingToMessage] = useState<ChatMessageData | null>(null)
   const [loadingOlder, setLoadingOlder] = useState(false)
   const [explicitMentions, setExplicitMentions] = useState<{ name: string; id: string }[]>([])
+  const [onlineCount, setOnlineCount] = useState(1)
 
   const [isFirstTimeChat, setIsFirstTimeChat] = useState(() => {
     return localStorage.getItem("momnts_chat_first_time") === null
@@ -220,6 +264,27 @@ export default function EventChatRoom({
       .slice(0, 3)
   }, [typingUsers])
 
+  // Listen for online presence count updates
+  useEffect(() => {
+    const socket = socketRef?.current
+    if (!socket) return
+
+    const handlePresence = (data: { eventId: string; onlineCount: number }) => {
+      if (data.eventId === eventId) {
+        setOnlineCount(data.onlineCount)
+      }
+    }
+
+    socket.on("chat:presence", handlePresence)
+    
+    // Request current presence count immediately on mount
+    socket.emit("chat:get-presence", { eventId })
+
+    return () => {
+      socket.off("chat:presence", handlePresence)
+    }
+  }, [socketRef, eventId])
+
 
 
   const handleLoadOlder = async () => {
@@ -256,6 +321,28 @@ export default function EventChatRoom({
   const { data: attendees = [] } = useEventAttendees(eventId)
 
   const messages = chatsData?.data || []
+
+  const topEmojis = useMemo(() => {
+    const counts: Record<string, number> = {}
+    messages.forEach((msg) => {
+      msg.reactions?.forEach((r) => {
+        counts[r.emoji] = (counts[r.emoji] || 0) + 1
+      })
+    })
+    const sorted = Object.entries(counts)
+      .sort((a, b) => b[1] - a[1])
+      .map(([emoji]) => emoji)
+
+    const defaults = ["👍", "❤️", "😂", "😮", "😢"]
+    const result = [...sorted]
+    for (const emoji of defaults) {
+      if (result.length >= 5) break
+      if (!result.includes(emoji)) {
+        result.push(emoji)
+      }
+    }
+    return result.slice(0, 5)
+  }, [messages])
 
   // Emit read events for loaded/received messages
   useEffect(() => {
@@ -586,20 +673,25 @@ export default function EventChatRoom({
   }
 
   return (
-    <div className="flex flex-col h-full w-full bg-background relative overflow-hidden">
+    <div 
+      className="flex flex-col h-full w-full bg-background relative overflow-hidden"
+      style={viewportStyle}
+    >
 
       {/* E2EE Header Banner */}
-      <div className="flex items-center justify-between px-5 py-4 border-b border-border bg-card/40 backdrop-blur-xl shrink-0 z-10">
-        <div className="flex items-center gap-3">
-          <div className="p-2 bg-primary/20 rounded-full text-primary">
-            <ChatCircle size={20} weight="fill" />
-          </div>
-          <div>
-            <h3 className="font-semibold text-[15px] leading-tight">Event Chat</h3>
-            <p className="text-[11px] text-muted-foreground flex items-center gap-1 mt-0.5">
-              <Lock size={10} weight="fill" className="text-purple-400" />
+      <div className="flex items-center justify-between px-5 py-3.5 border-b border-border bg-card/40 backdrop-blur-xl shrink-0 z-10">
+        <div>
+          <h3 className="font-semibold text-[14px] leading-tight text-foreground">Event Chat</h3>
+          <div className="flex items-center gap-2 mt-1.5 text-[10px] text-muted-foreground font-medium select-none">
+            <span className="flex items-center gap-1">
+              <span className="h-1.5 w-1.5 rounded-full bg-emerald-500 shrink-0" />
+              {onlineCount} {onlineCount === 1 ? 'online' : 'online'}
+            </span>
+            <span className="text-muted-foreground/30">•</span>
+            <span className="flex items-center gap-1 text-muted-foreground/80">
+              <Lock size={10} className="shrink-0" />
               End-to-End Encrypted
-            </p>
+            </span>
           </div>
         </div>
         {onClose && (
@@ -662,6 +754,7 @@ export default function EventChatRoom({
                     index={index}
                     showActionsTooltip={isFirstTimeChat && index === messages.length - 1}
                     onDismissTooltip={handleDismissTooltip}
+                    topEmojis={topEmojis}
                   />
                 ))}
               </AnimatePresence>
@@ -905,6 +998,7 @@ interface ChatMessageItemProps {
   index: number
   showActionsTooltip?: boolean
   onDismissTooltip?: () => void
+  topEmojis: string[]
 }
 
 function ChatMessageItem({
@@ -919,8 +1013,10 @@ function ChatMessageItem({
   messages,
   index,
   showActionsTooltip,
-  onDismissTooltip
+  onDismissTooltip,
+  topEmojis
 }: ChatMessageItemProps) {
+  const { resolvedTheme } = useTheme()
   const [decryptedText, setDecryptedText] = useState("")
   const [decryptionError, setDecryptionError] = useState(false)
   const [decrypting, setDecrypting] = useState(true)
@@ -929,9 +1025,26 @@ function ChatMessageItem({
   const [editText, setEditText] = useState("")
   const [isWithinEditWindow, setIsWithinEditWindow] = useState(true)
   const [popoverOpen, setPopoverOpen] = useState(false)
+  const [dropdownOpen, setDropdownOpen] = useState(false)
   const [reactionDetailsOpen, setReactionDetailsOpen] = useState(false)
   const [activeReactionTab, setActiveReactionTab] = useState("All")
+  const [showFullPicker, setShowFullPicker] = useState(false)
+  const [showMobilePicker, setShowMobilePicker] = useState(false)
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false)
+  const isTransitioningToFullPickerRef = useRef(false)
+  const isTransitioningToMobilePickerRef = useRef(false)
+
+  useEffect(() => {
+    if (!popoverOpen) {
+      setShowFullPicker(false)
+    }
+  }, [popoverOpen])
+
+  useEffect(() => {
+    if (!dropdownOpen) {
+      setShowMobilePicker(false)
+    }
+  }, [dropdownOpen])
   const updateMutation = useUpdateChatMessage(msg.event_id)
   const deleteMutation = useDeleteChatMessage(msg.event_id)
   const toggleReactionMutation = useToggleChatMessageReaction(msg.event_id)
@@ -1193,7 +1306,16 @@ function ChatMessageItem({
             ) : (
               (() => {
                 const bubbleContent = (
-                  <DropdownMenu>
+                  <DropdownMenu open={dropdownOpen} onOpenChange={(open, eventDetails?: any) => {
+                    if (!open && isTransitioningToMobilePickerRef.current) {
+                      eventDetails?.cancel?.()
+                      return
+                    }
+                    setDropdownOpen(open)
+                    if (!open) {
+                      setShowMobilePicker(false)
+                    }
+                  }}>
                     <DropdownMenuTrigger render={<div />}>
                       <div
                         className={`text-left cursor-pointer sm:cursor-auto px-4 py-2.5 rounded-[20px] text-[14px] leading-relaxed shadow-sm break-words relative overflow-hidden select-text ${isSelf
@@ -1266,41 +1388,135 @@ function ChatMessageItem({
                         )}
                       </div>
                     </DropdownMenuTrigger>
-                    <DropdownMenuContent align={isSelf ? "end" : "start"} className="sm:hidden w-auto min-w-[200px]">
-                      <div className="flex items-center gap-1 px-2 py-2 mb-1 border-b">
-                        {["👍", "❤️", "😂", "😮", "😢", "🙏"].map((emoji) => (
-                          <button
-                            key={emoji}
-                            onClick={() => {
-                              haptic.trigger("light");
-                              toggleReactionMutation.mutate({ messageId: msg.id, emoji });
+                    <DropdownMenuContent
+                      align={isSelf ? "end" : "start"}
+                      className="sm:hidden p-0 overflow-hidden bg-transparent border-none ring-0 shadow-none !w-auto !min-w-0 !max-w-none"
+                    >
+                      <AnimatePresence mode="wait">
+                        {!showMobilePicker ? (
+                          <motion.div
+                            key="quick-menu-container"
+                            initial={{ opacity: 0, scale: 0.95 }}
+                            animate={{ opacity: 1, scale: 1 }}
+                            exit={{ opacity: 0, scale: 0.95 }}
+                            transition={{ duration: 0.15 }}
+                            className="bg-card border border-border shadow-xl rounded-xl flex flex-col overflow-hidden w-[230px]"
+                            style={{
+                              height: `${canEdit && canDelete ? 172 : canDelete || canEdit ? 136 : 100}px`
                             }}
-                            className="h-7 w-7 rounded-full flex items-center justify-center text-lg hover:bg-muted transition-colors"
                           >
-                            {emoji}
-                          </button>
-                        ))}
-                      </div>
-                      <DropdownMenuItem onClick={() => onReply(msg)} className="cursor-pointer">
-                        <ArrowBendUpLeft size={16} className="mr-2" />
-                        Reply
-                      </DropdownMenuItem>
-                      {canEdit && (
-                        <DropdownMenuItem onClick={() => setIsEditing(true)} className="cursor-pointer">
-                          <Pencil size={16} className="mr-2" />
-                          Edit
-                        </DropdownMenuItem>
-                      )}
-                      {canDelete && (
-                        <DropdownMenuItem
-                          onClick={() => { haptic.trigger("warning"); setDeleteDialogOpen(true); }}
-                          disabled={deleteMutation.isPending}
-                          className="cursor-pointer text-red-500 focus:text-red-500 focus:bg-red-500/10"
-                        >
-                          <Trash size={16} className="mr-2" />
-                          Delete
-                        </DropdownMenuItem>
-                      )}
+                            <div className="flex items-center justify-between px-3 py-2 mb-1 border-b border-border/50">
+                              {topEmojis.map((emoji) => (
+                                <button
+                                  key={emoji}
+                                  onClick={() => {
+                                    haptic.trigger("light")
+                                    toggleReactionMutation.mutate({ messageId: msg.id, emoji })
+                                    setDropdownOpen(false)
+                                  }}
+                                  className="h-7 w-7 rounded-full flex items-center justify-center text-lg hover:bg-muted transition-colors cursor-pointer"
+                                >
+                                  {emoji}
+                                </button>
+                              ))}
+                              <button
+                                 onPointerDown={(e) => {
+                                   e.stopPropagation()
+                                   e.nativeEvent.stopImmediatePropagation()
+                                   isTransitioningToMobilePickerRef.current = true
+                                 }}
+                                 onPointerUp={(e) => {
+                                   e.stopPropagation()
+                                   e.nativeEvent.stopImmediatePropagation()
+                                 }}
+                                 onMouseDown={(e) => {
+                                   e.stopPropagation()
+                                   e.nativeEvent.stopImmediatePropagation()
+                                   isTransitioningToMobilePickerRef.current = true
+                                 }}
+                                 onMouseUp={(e) => {
+                                   e.stopPropagation()
+                                   e.nativeEvent.stopImmediatePropagation()
+                                 }}
+                                 onClick={(e) => {
+                                   e.preventDefault()
+                                   e.stopPropagation()
+                                   e.nativeEvent.stopImmediatePropagation()
+                                   haptic.trigger("light")
+                                   isTransitioningToMobilePickerRef.current = true
+                                   setShowMobilePicker(true)
+                                   setTimeout(() => {
+                                     isTransitioningToMobilePickerRef.current = false
+                                   }, 500)
+                                 }}
+                                 className="h-7 w-7 rounded-full flex items-center justify-center hover:bg-muted transition-colors text-muted-foreground cursor-pointer font-bold"
+                               >
+                                 <Plus size={14} />
+                               </button>
+                            </div>
+                            <DropdownMenuItem onClick={() => onReply(msg)} className="cursor-pointer">
+                              <ArrowBendUpLeft size={16} className="mr-2" />
+                              Reply
+                            </DropdownMenuItem>
+                            {canEdit && (
+                              <DropdownMenuItem onClick={() => setIsEditing(true)} className="cursor-pointer">
+                                <Pencil size={16} className="mr-2" />
+                                Edit
+                              </DropdownMenuItem>
+                            )}
+                            {canDelete && (
+                              <DropdownMenuItem
+                                onClick={() => { haptic.trigger("warning"); setDeleteDialogOpen(true); }}
+                                disabled={deleteMutation.isPending}
+                                className="cursor-pointer text-red-500 focus:text-red-500 focus:bg-red-500/10"
+                              >
+                                <Trash size={16} className="mr-2" />
+                                Delete
+                              </DropdownMenuItem>
+                            )}
+                          </motion.div>
+                        ) : (
+                          <motion.div
+                            key="mobile-picker-container"
+                            initial={{ opacity: 0, scale: 0.95 }}
+                            animate={{ opacity: 1, scale: 1 }}
+                            exit={{ opacity: 0, scale: 0.95 }}
+                            transition={{ duration: 0.2 }}
+                            className="bg-card border border-border shadow-xl rounded-xl flex flex-col overflow-hidden w-[320px] h-[450px] p-2"
+                            onClick={(e) => e.stopPropagation()}
+                            onKeyDown={(e) => e.stopPropagation()}
+                            onPointerDown={(e) => e.stopPropagation()}
+                          >
+                            <div className="flex justify-between items-center mb-2 px-1">
+                              <span className="text-xs font-semibold text-muted-foreground">Select Reaction</span>
+                              <button
+                                onClick={(e) => {
+                                  e.preventDefault()
+                                  e.stopPropagation()
+                                  setShowMobilePicker(false)
+                                }}
+                                className="text-muted-foreground hover:text-foreground text-xs font-medium cursor-pointer"
+                              >
+                                Back
+                              </button>
+                            </div>
+                            <EmojiPicker
+                              onEmojiClick={(emojiData) => {
+                                haptic.trigger("light")
+                                toggleReactionMutation.mutate({ messageId: msg.id, emoji: emojiData.emoji })
+                                setShowMobilePicker(false)
+                                setDropdownOpen(false)
+                              }}
+                              theme={resolvedTheme === "dark" ? "dark" : "light"}
+                              lazyLoadEmojis={true}
+                              width={304}
+                              height={380}
+                              previewConfig={{ showPreview: false }}
+                              skinTonesDisabled={true}
+                            />
+                          </motion.div>
+                        )}
+                      </AnimatePresence>
                     </DropdownMenuContent>
                   </DropdownMenu>
                 );
@@ -1461,38 +1677,128 @@ function ChatMessageItem({
                     </Tooltip>
                   )}
 
-                  <Popover open={popoverOpen} onOpenChange={setPopoverOpen}>
-                    <Tooltip>
-                      <TooltipTrigger asChild>
-                        <PopoverTrigger asChild>
-                          <Button
-                            variant="ghost"
-                            size="icon"
-                            className="h-8 w-8 rounded-full text-muted-foreground hover:text-foreground hover:bg-white/10 cursor-pointer"
-                          >
-                            <Smiley size={15} />
-                          </Button>
-                        </PopoverTrigger>
-                      </TooltipTrigger>
-                      <TooltipContent>
-                        React
-                      </TooltipContent>
-                    </Tooltip>
-                    <PopoverContent side="top" align={isSelf ? "end" : "start"} className="w-auto p-2 flex flex-row items-center gap-1 rounded-full shadow-xl">
-                      {["👍", "❤️", "😂", "😮", "😢", "🙏"].map((emoji) => (
-                        <button
-                          key={emoji}
-                          onClick={() => {
-                            haptic.trigger("light");
-                            toggleReactionMutation.mutate({ messageId: msg.id, emoji });
-                            setPopoverOpen(false);
-                          }}
-                          className="h-8 w-8 rounded-full flex items-center justify-center text-lg hover:bg-muted transition-colors"
-                        >
-                          {emoji}
-                        </button>
-                      ))}
-                    </PopoverContent>
+                    <Popover open={popoverOpen} onOpenChange={(open, eventDetails?: any) => {
+                      if (!open && isTransitioningToFullPickerRef.current) {
+                        eventDetails?.cancel?.()
+                        return
+                      }
+                      setPopoverOpen(open)
+                      if (!open) {
+                        setShowFullPicker(false)
+                      }
+                    }}>
+                    <PopoverTrigger asChild>
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className="h-8 w-8 rounded-full text-muted-foreground hover:text-foreground hover:bg-white/10 cursor-pointer"
+                        title="React"
+                      >
+                        <Smiley size={15} />
+                      </Button>
+                    </PopoverTrigger>
+                    <PopoverPrimitive.Portal>
+                      <PopoverPrimitive.Positioner
+                        side="top"
+                        align={isSelf ? "end" : "start"}
+                        sideOffset={4}
+                        className="isolate z-50 outline-none"
+                      >
+                        <PopoverPrimitive.Popup className="outline-none border-none bg-transparent shadow-none">
+                          <AnimatePresence mode="wait">
+                            {!showFullPicker ? (
+                              <motion.div
+                                key="quick-reactions-container"
+                                initial={{ opacity: 0, scale: 0.95 }}
+                                animate={{ opacity: 1, scale: 1 }}
+                                exit={{ opacity: 0, scale: 0.95 }}
+                                transition={{ duration: 0.15 }}
+                                className="bg-card border border-border shadow-xl p-2 flex flex-col justify-center items-center overflow-hidden w-[228px] h-[48px] rounded-full"
+                              >
+                                <div className="flex items-center gap-1">
+                                  {topEmojis.map((emoji) => (
+                                    <button
+                                      key={emoji}
+                                      onClick={() => {
+                                        haptic.trigger("light")
+                                        toggleReactionMutation.mutate({ messageId: msg.id, emoji })
+                                        setPopoverOpen(false)
+                                      }}
+                                      className="h-8 w-8 rounded-full flex items-center justify-center text-lg hover:bg-muted transition-colors cursor-pointer"
+                                    >
+                                      {emoji}
+                                    </button>
+                                  ))}
+                                  <button
+                                     onPointerDown={(e) => {
+                                       e.stopPropagation()
+                                       e.nativeEvent.stopImmediatePropagation()
+                                       isTransitioningToFullPickerRef.current = true
+                                     }}
+                                     onPointerUp={(e) => {
+                                       e.stopPropagation()
+                                       e.nativeEvent.stopImmediatePropagation()
+                                     }}
+                                     onMouseDown={(e) => {
+                                       e.stopPropagation()
+                                       e.nativeEvent.stopImmediatePropagation()
+                                       isTransitioningToFullPickerRef.current = true
+                                     }}
+                                     onMouseUp={(e) => {
+                                       e.stopPropagation()
+                                       e.nativeEvent.stopImmediatePropagation()
+                                     }}
+                                     onClick={(e) => {
+                                       e.preventDefault()
+                                       e.stopPropagation()
+                                       e.nativeEvent.stopImmediatePropagation()
+                                       haptic.trigger("light")
+                                       isTransitioningToFullPickerRef.current = true
+                                       setShowFullPicker(true)
+                                       setTimeout(() => {
+                                         isTransitioningToFullPickerRef.current = false
+                                       }, 500)
+                                     }}
+                                     className="h-8 w-8 rounded-full flex items-center justify-center hover:bg-muted transition-colors text-muted-foreground cursor-pointer"
+                                   >
+                                     <Plus size={16} />
+                                   </button>
+                                </div>
+                              </motion.div>
+                            ) : (
+                              <motion.div
+                                key="full-picker-container"
+                                initial={{ opacity: 0, scale: 0.95 }}
+                                animate={{ opacity: 1, scale: 1 }}
+                                exit={{ opacity: 0, scale: 0.95 }}
+                                transition={{ duration: 0.2 }}
+                                className="bg-card border border-border shadow-xl p-2 flex flex-col justify-center items-center overflow-hidden w-[350px] h-[400px] rounded-2xl"
+                                onClick={(e) => e.stopPropagation()}
+                                onKeyDown={(e) => e.stopPropagation()}
+                                onPointerDown={(e) => e.stopPropagation()}
+                              >
+                                <div className="w-[334px] h-[384px] flex flex-col">
+                                  <EmojiPicker
+                                      onEmojiClick={(emojiData) => {
+                                        haptic.trigger("light")
+                                        toggleReactionMutation.mutate({ messageId: msg.id, emoji: emojiData.emoji })
+                                        setShowFullPicker(false)
+                                        setPopoverOpen(false)
+                                      }}
+                                      theme={resolvedTheme === "dark" ? "dark" : "light"}
+                                      lazyLoadEmojis={true}
+                                      width={334}
+                                      height={384}
+                                      previewConfig={{ showPreview: false }}
+                                      skinTonesDisabled={true}
+                                    />
+                                </div>
+                              </motion.div>
+                            )}
+                          </AnimatePresence>
+                        </PopoverPrimitive.Popup>
+                      </PopoverPrimitive.Positioner>
+                    </PopoverPrimitive.Portal>
                   </Popover>
                 </div>
               </TooltipProvider>

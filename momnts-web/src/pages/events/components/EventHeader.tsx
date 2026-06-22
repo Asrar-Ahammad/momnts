@@ -58,6 +58,7 @@ import {
   ChatCircle,
   Globe,
   SquareIcon,
+  PaperPlaneTiltIcon,
 } from '@phosphor-icons/react'
 import { EventData } from '../../../features/events/services/events.api'
 import { toast } from 'sonner'
@@ -97,6 +98,8 @@ interface EventHeaderProps {
   onShareClick?: () => void
   pendingRequestCount?: number
   onForgetDeviceKeys?: () => void
+  onChatClick?: () => void
+  hasUnreadMessages?: boolean
 }
 
 const EventHeader = ({
@@ -126,7 +129,9 @@ const EventHeader = ({
   onSelectAll,
   isAllSelected = false,
   onShareClick,
-  onForgetDeviceKeys
+  onForgetDeviceKeys,
+  onChatClick,
+  hasUnreadMessages = false
 }: EventHeaderProps) => {
   const [showLeaveConfirm, setShowLeaveConfirm] = useState(false)
   const [leaving, setLeaving] = useState(false)
@@ -310,7 +315,7 @@ const EventHeader = ({
     <>
       <div className={`sticky top-0 z-30 bg-background/80 backdrop-blur-md border-b border-border transition-all duration-300 ease-in-out ${visible ? 'translate-y-0 opacity-100' : '-translate-y-full opacity-0 pointer-events-none'
         }`}>
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4 flex flex-col gap-4">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-3 sm:py-4 flex flex-col gap-2 sm:gap-4">
 
           {/* Row 1: Title Section (Left) & Actions Section (Right) */}
           <div className="flex flex-wrap items-center justify-between gap-4 w-full">
@@ -343,13 +348,26 @@ const EventHeader = ({
                   )}
                 </h1>
 
+                {/* Container for metadata & invite code */}
                 <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-[12px] sm:text-sm text-neutral-500">
-                  <div className="flex items-center gap-1.5 min-w-0">
-                    <MapPin size={14} className="shrink-0" />
-                    <span className="capitalize truncate">{event?.location}</span>
+                  {/* Desktop: Metadata with icons */}
+                  <div className="hidden sm:flex items-center gap-3">
+                    <div className="flex items-center gap-1.5 min-w-0">
+                      <MapPin size={14} className="shrink-0" />
+                      <span className="capitalize truncate">{event?.location}</span>
+                    </div>
+                    <div className="flex items-center gap-1.5 shrink-0">
+                      <Calendar size={14} />
+                      <span>{event?.date ? formatDate(event.date) : ''}</span>
+                    </div>
                   </div>
-                  <div className="flex items-center gap-1.5 shrink-0">
-                    <Calendar size={14} />
+
+                  {/* Mobile: Minimalist metadata without icons */}
+                  <div className="sm:hidden flex flex-wrap items-center gap-x-2 gap-y-0.5 text-[11px] text-neutral-400 dark:text-neutral-500 font-medium">
+                    <span className="capitalize">{event?.location}</span>
+                    {event?.location && event?.date && (
+                      <span className="text-neutral-300 dark:text-neutral-700">•</span>
+                    )}
                     <span>{event?.date ? formatDate(event.date) : ''}</span>
                   </div>
 
@@ -450,7 +468,22 @@ const EventHeader = ({
                       className="flex items-center gap-2 shrink-0 order-2 sm:order-none"
                     >
                       {/* ═══ MOBILE: Consolidated menu ═══ */}
-                      <div className="sm:hidden">
+                      <div className="sm:hidden flex items-center gap-2">
+                        {event && (
+                          <Button
+                            variant="outline"
+                            onClick={() => { haptic.trigger("light"); onChatClick?.(); }}
+                            className="relative h-8 w-8 sm:h-9 sm:w-9 lg:h-10 lg:w-10 flex items-center justify-center rounded-xl cursor-pointer"
+                          >
+                            <PaperPlaneTiltIcon size={18} weight="bold" className="w-4 h-4 sm:w-[18px] sm:h-[18px] lg:w-5 lg:h-5 text-neutral-600 dark:text-neutral-300" />
+                            {hasUnreadMessages && (
+                              <span className="absolute -top-0.5 -right-0.5 flex h-2 w-2">
+                                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-red-400 opacity-75"></span>
+                                <span className="relative inline-flex rounded-full h-2 w-2 bg-red-500"></span>
+                              </span>
+                            )}
+                          </Button>
+                        )}
                         <DropdownMenu>
                           <DropdownMenuTrigger asChild>
                             <Button
@@ -490,6 +523,16 @@ const EventHeader = ({
                                   >
                                     <DownloadSimpleIcon size={16} className="mr-2.5 text-neutral-500" />
                                     Download Photos
+                                  </DropdownMenuItem>
+                                )}
+
+                                {event && event._count.photos >= 5 && (
+                                  <DropdownMenuItem
+                                    onClick={() => { haptic.trigger("light"); onMemoryLaneClick?.(); }}
+                                    className="cursor-pointer py-2.5 px-2.5 rounded-lg"
+                                  >
+                                    <MusicNotes size={16} className="mr-2.5 text-rose-500" />
+                                    <span>Memory Lane</span>
                                   </DropdownMenuItem>
                                 )}
 
@@ -748,10 +791,26 @@ const EventHeader = ({
 
                   {/* Desktop CTA actions */}
                   <motion.div layout className="flex-none order-1 sm:order-none flex items-center gap-2">
+                    {event && (
+                      <Button
+                        variant="outline"
+                        onClick={() => { haptic.trigger("light"); onChatClick?.(); }}
+                        className="hidden sm:flex relative h-9 lg:h-10 px-3 lg:px-4 items-center gap-1.5 lg:gap-2 rounded-xl border-neutral-200 dark:border-neutral-800 hover:bg-neutral-100 dark:hover:bg-neutral-850 cursor-pointer text-xs lg:text-sm font-semibold transition-all shrink-0 whitespace-nowrap"
+                      >
+                        <PaperPlaneTiltIcon size={18} weight="bold" className="text-primary w-4 h-4 lg:w-[18px] lg:h-[18px]" />
+                        <span>Chat</span>
+                        {hasUnreadMessages && (
+                          <span className="absolute -top-1 -right-1 flex h-3 w-3">
+                            <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-red-400 opacity-75"></span>
+                            <span className="relative inline-flex rounded-full h-3 w-3 bg-red-500"></span>
+                          </span>
+                        )}
+                      </Button>
+                    )}
                     {event && event._count.photos >= 5 && (
                       <Button
                         variant="outline"
-                        className="h-9 lg:h-10 px-3 lg:px-6 flex items-center justify-center gap-1.5 lg:gap-2 rounded-xl border-neutral-200 dark:border-neutral-800 hover:bg-neutral-100 dark:hover:bg-neutral-850 cursor-pointer text-xs lg:text-sm font-semibold transition-colors shrink-0 whitespace-nowrap"
+                        className="hidden sm:flex h-9 lg:h-10 px-3 lg:px-6 items-center justify-center gap-1.5 lg:gap-2 rounded-xl border-neutral-200 dark:border-neutral-800 hover:bg-neutral-100 dark:hover:bg-neutral-850 cursor-pointer text-xs lg:text-sm font-semibold transition-colors shrink-0 whitespace-nowrap"
                         onClick={() => { haptic.trigger("light"); onMemoryLaneClick?.(); }}
                       >
                         <MusicNotes size={18} weight="bold" className="text-rose-500 w-4 h-4 lg:w-[18px] lg:h-[18px]" />

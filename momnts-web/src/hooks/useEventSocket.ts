@@ -137,7 +137,6 @@ export function useEventSocket({
     })
 
     socket.on('chat:reaction-updated', (data: any) => {
-      console.log('[WS] Chat reaction updated:', data)
       queryClient.setQueryData(["chats", eventId], (oldData: any) => {
         if (!oldData) return undefined
         return {

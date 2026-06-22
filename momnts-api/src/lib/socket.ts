@@ -8,6 +8,37 @@ import { prisma } from './prisma'
 let io: SocketIOServer | null = null
 
 /**
+ * Calculates and broadcasts the number of online attendees in an event room.
+ * Multi-tabs for the same logged-in user are counted as 1 online user.
+ * Anonymous connections (if any) are counted by socket.
+ */
+async function broadcastOnlineCount(eventId: string) {
+  if (!io) return
+  try {
+    const sockets = await io.in(`event:${eventId}`).fetchSockets()
+    const uniqueUserIds = new Set<string>()
+    let anonymousCount = 0
+
+    for (const s of sockets) {
+      if (s.data?.userId) {
+        uniqueUserIds.add(s.data.userId)
+      } else {
+        anonymousCount++
+      }
+    }
+
+    const onlineCount = uniqueUserIds.size + anonymousCount
+    
+    io.to(`event:${eventId}`).emit('chat:presence', {
+      eventId,
+      onlineCount
+    })
+  } catch (err) {
+    console.error(`[WS] Error broadcasting online count for event ${eventId}:`, err)
+  }
+}
+
+/**
  * Initializes Socket.IO on the existing HTTP server.
  * Clients join a room named after the eventId they're viewing.
  */
@@ -65,14 +96,21 @@ export function initSocketIO(httpServer: HTTPServer) {
     console.log(`[WS] Client connected: ${socket.id}`)
 
     // Client sends { eventId } to join that event's room
-    socket.on('join-event', (eventId: string) => {
+    socket.on('join-event', async (eventId: string) => {
       socket.join(`event:${eventId}`)
       console.log(`[WS] ${socket.id} joined room event:${eventId}`)
+      await broadcastOnlineCount(eventId)
     })
 
-    socket.on('leave-event', (eventId: string) => {
+    socket.on('leave-event', async (eventId: string) => {
       socket.leave(`event:${eventId}`)
       console.log(`[WS] ${socket.id} left room event:${eventId}`)
+      await broadcastOnlineCount(eventId)
+    })
+
+    socket.on('chat:get-presence', async (data: { eventId: string }) => {
+      if (!data?.eventId) return
+      await broadcastOnlineCount(data.eventId)
     })
 
     socket.on('chat:typing', (data: { eventId: string; isTyping: boolean; user: { name: string; selfie_url: string | null } }) => {
@@ -131,6 +169,18 @@ export function initSocketIO(httpServer: HTTPServer) {
 
       socket.join(`user:${authUserId}`)
       console.log(`[WS] ${socket.id} joined private room user:${authUserId}`)
+    })
+
+    socket.on('disconnecting', () => {
+      const rooms = Array.from(socket.rooms)
+      for (const room of rooms) {
+        if (room.startsWith('event:')) {
+          const eventId = room.substring(6) // 'event:'.length === 6
+          setTimeout(() => {
+            broadcastOnlineCount(eventId)
+          }, 50)
+        }
+      }
     })
 
     socket.on('disconnect', () => {

@@ -4,7 +4,7 @@ import { useAuth } from '../../features/auth/hooks/useAuth'
 import { Button } from '../../components/ui/button'
 import { Badge } from '../../components/ui/badge'
 import { ArrowLeft, X, CaretUp, LockKey, ChatCircle, PaperPlaneTiltIcon } from '@phosphor-icons/react'
-import { motion, AnimatePresence } from 'framer-motion'
+import { motion, AnimatePresence, useAnimation } from 'framer-motion'
 import { eventsApi, EventData } from '../../features/events/services/events.api'
 import { photosApi, PhotoData } from '../../features/events/services/photos.api'
 import { toast } from 'sonner'
@@ -108,6 +108,7 @@ const EventDetails = () => {
     setCarouselOpen(false)
   }
   const [isPassphrasePromptOpen, setIsPassphrasePromptOpen] = useState(false)
+
 
   // Resizable Chat Sheet state
   const [chatWidth, setChatWidth] = useState(448) // default max-w-md (448px)
@@ -984,6 +985,8 @@ const EventDetails = () => {
           toast.success('Keys forgotten on this device')
           haptic.trigger("light")
         }}
+        onChatClick={() => setIsChatOpen(true)}
+        hasUnreadMessages={hasUnreadMessages}
       />
 
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
@@ -1160,30 +1163,9 @@ const EventDetails = () => {
         />
       )}
 
-      {/* Floating Chat Button & Sheet */}
+      {/* Event Chat Sheet */}
       {event && (
         <Sheet open={isChatOpen} onOpenChange={setIsChatOpen}>
-          <SheetTrigger asChild>
-            <motion.div
-              initial={{ scale: 0, opacity: 0 }}
-              animate={{ scale: 1, opacity: 1 }}
-              transition={{ type: "spring", stiffness: 260, damping: 20 }}
-              className="fixed bottom-[calc(5.5rem+env(safe-area-inset-bottom,0px))] right-6 md:bottom-8 md:right-8 z-50"
-            >
-              <Button
-                size="icon"
-                className="relative h-14 w-14 rounded-full shadow-2xl text-primary-foreground flex items-center justify-center cursor-pointer transition-transform hover:scale-105 active:scale-95 bg-background/80 backdrop-blur-md border border-neutral-200/50 dark:border-white/10"
-              >
-                <PaperPlaneTiltIcon weight='regular' className='text-black dark:text-white' size={32}/>
-                {hasUnreadMessages && (
-                  <span className="absolute top-0 right-0 flex h-4 w-4">
-                    <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-red-400 opacity-75"></span>
-                    <span className="relative inline-flex rounded-full h-4 w-4 bg-red-500 border-2 border-background"></span>
-                  </span>
-                )}
-              </Button>
-            </motion.div>
-          </SheetTrigger>
           <SheetContent 
             side="right" 
             showCloseButton={false}

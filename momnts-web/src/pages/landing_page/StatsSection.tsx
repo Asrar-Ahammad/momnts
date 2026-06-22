@@ -43,20 +43,22 @@ const StatsSection = () => {
   }, [])
 
   return (
-    <div ref={containerRef} className="lp-section-inner" style={{ opacity: 0 }}>
-      <div className="lp-stats">
-        {stats.map((s, i) => (
-          <div
-            key={s.label}
-            ref={el => { statsRef.current[i] = el }}
-            className="lp-stat"
-          >
-            <div className="lp-stat-value">{s.value}</div>
-            <div className="lp-stat-label">{s.label}</div>
-          </div>
-        ))}
+    <section className="lp-section" style={{ paddingTop: 0, paddingBottom: 0 }}>
+      <div ref={containerRef} className="lp-section-inner" style={{ opacity: 0 }}>
+        <div className="lp-stats">
+          {stats.map((s, i) => (
+            <div
+              key={s.label}
+              ref={el => { statsRef.current[i] = el }}
+              className="lp-stat"
+            >
+              <div className="lp-stat-value">{s.value}</div>
+              <div className="lp-stat-label">{s.label}</div>
+            </div>
+          ))}
+        </div>
       </div>
-    </div>
+    </section>
   )
 }
 
