@@ -43,6 +43,8 @@ interface EventSettingsModalProps {
   encryptionMode?: 'AI' | 'E2EE'
 }
 
+const PHOTOS_PER_PAGE = 15
+
 const EventSettingsModal = ({
   open,
   onOpenChange,
@@ -56,7 +58,7 @@ const EventSettingsModal = ({
   photos,
   encryptionMode,
 }: EventSettingsModalProps) => {
-  const [activeTab, setActiveTab] = useState<'general' | 'permissions' | 'danger'>('general')
+  const [activeTab, setActiveTab] = useState<'general' | 'permissions' | 'danger' | 'background'>('general')
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false)
   const [showRegenerateConfirm, setShowRegenerateConfirm] = useState(false)
   const [deleting, setDeleting] = useState(false)
@@ -65,12 +67,29 @@ const EventSettingsModal = ({
   const haptic = useWebHaptics()
   const { isPro } = useSubscription()
   const navigate = useNavigate()
+  const [visiblePhotosCount, setVisiblePhotosCount] = useState(PHOTOS_PER_PAGE)
 
   useEffect(() => {
     if (open) {
       setActiveTab('general')
+      setVisiblePhotosCount(PHOTOS_PER_PAGE)
     }
   }, [open])
+
+  useEffect(() => {
+    if (activeTab === 'background') {
+      setVisiblePhotosCount(PHOTOS_PER_PAGE)
+    }
+  }, [activeTab])
+
+  const handlePhotosScroll = (e: React.UIEvent<HTMLDivElement>) => {
+    const target = e.currentTarget
+    if (target.scrollHeight - target.scrollTop <= target.clientHeight + 30) {
+      if (photos && visiblePhotosCount < photos.length) {
+        setVisiblePhotosCount((prev) => Math.min(prev + PHOTOS_PER_PAGE, photos.length))
+      }
+    }
+  }
 
   const handleDelete = async () => {
     if (deletingRef.current) return
@@ -246,7 +265,10 @@ const EventSettingsModal = ({
                   </div>
 
                   {photos && photos.length > 0 ? (
-                    <div className="grid grid-cols-3 gap-3 max-h-[280px] overflow-y-auto pr-2 custom-scrollbar p-1">
+                    <div 
+                      onScroll={handlePhotosScroll}
+                      className="grid grid-cols-3 gap-3 max-h-[280px] overflow-y-auto pr-2 custom-scrollbar p-1"
+                    >
                       {/* Default Option (Reset) */}
                       <button
                         type="button"
@@ -266,7 +288,7 @@ const EventSettingsModal = ({
                       </button>
 
                       {/* Photo Options */}
-                      {photos.map((photo) => {
+                      {photos.slice(0, visiblePhotosCount).map((photo) => {
                         const isSelected = settingsForm.coverPhotoId === photo.id
                         return (
                           <button
