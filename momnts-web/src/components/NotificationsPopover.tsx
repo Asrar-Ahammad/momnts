@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback, useRef } from 'react'
-import { Bell, UserPlus, Calendar, Info, Check, X, LockKey, Trash } from '@phosphor-icons/react'
+import { Bell, UserPlus, Calendar, Info, Check, X, LockKey, Trash, ChatCircle } from '@phosphor-icons/react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { formatDistanceToNow } from 'date-fns'
 import { useNavigate } from 'react-router'
@@ -146,6 +146,9 @@ const NotificationsPopover = () => {
         return <X size={20} className="text-red-500" />
       case 'EVENT_UPDATE':
         return <Calendar size={20} className="text-amber-500" />
+      case 'COMMENT':
+      case 'MENTION':
+        return <ChatCircle size={20} className="text-sky-500" />
       default:
         return <Info size={20} className="text-neutral-500" />
     }

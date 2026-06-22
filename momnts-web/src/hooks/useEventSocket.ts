@@ -104,6 +104,18 @@ export function useEventSocket({
         if (!oldData) return undefined
         // Don't add duplicate if sender already appended it optimistically
         if (oldData.data.some((m: any) => m.id === data.id)) return oldData
+
+        // If there's a temporary message from the same user, replace it to avoid duplicate/flicker
+        const tempIdx = oldData.data.findIndex((m: any) => m.id.startsWith("temp-") && m.user_id === data.user_id)
+        if (tempIdx !== -1) {
+          const newData = [...oldData.data]
+          newData[tempIdx] = data
+          return {
+            ...oldData,
+            data: newData
+          }
+        }
+
         return {
           ...oldData,
           total: oldData.total + 1,
@@ -144,6 +156,16 @@ export function useEventSocket({
           total: filtered.length,
           data: filtered
         }
+      })
+    })
+
+    socket.on('chat:read', (data: any) => {
+      console.log('[WS] Chat message read:', data)
+      queryClient.setQueryData(["attendees", eventId], (oldData: any) => {
+        if (!oldData) return undefined
+        return oldData.map((a: any) =>
+          a.user_id === data.userId ? { ...a, last_read_message_id: data.messageId } : a
+        )
       })
     })
 

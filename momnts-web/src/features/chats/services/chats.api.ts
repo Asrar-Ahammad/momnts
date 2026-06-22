@@ -52,6 +52,7 @@ export interface ChatMessageData {
   photos?: ChatMessagePhoto[] | null;
   parent?: ChatMessageParent | null;
   reactions?: MessageReaction[];
+  status?: "sending" | "delivered" | "seen";
 }
 
 export interface ChatMessagesResponse {

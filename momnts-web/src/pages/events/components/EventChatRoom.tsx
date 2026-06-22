@@ -24,30 +24,67 @@ import {
   PopoverTrigger,
 } from "@/components/ui/popover"
 import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog"
+import { Tooltip, TooltipTrigger, TooltipContent, TooltipProvider } from "@/components/ui/tooltip"
+import {
   Lock,
   PaperPlaneRight,
   Image as ImageIcon,
   X,
   ArrowDown,
   ChatCircle,
+  Users,
   Warning,
   Eye,
   Pencil,
   Trash,
   ArrowBendUpLeft,
   Check,
+  Checks,
+  Clock,
   Smiley
 } from "@phosphor-icons/react"
 import { toast } from "sonner"
 import { ChatMessageData, ChatMessageParent } from "@/features/chats/services/chats.api"
 
+interface CachedPhoto {
+  cleanPath: string
+  presignedUrl: string
+  timestamp: number
+}
+
+const profilePhotoCache: Record<string, CachedPhoto> = {}
+
+export const getCachedProfilePhoto = (userId: string, incomingUrl: string | null | undefined): string | undefined => {
+  if (!incomingUrl) return undefined
+  const cleanPath = incomingUrl.split("?")[0]
+  const cached = profilePhotoCache[userId]
+  const now = Date.now()
+  if (!cached || cached.cleanPath !== cleanPath || (now - cached.timestamp > 60 * 60 * 1000)) {
+    profilePhotoCache[userId] = { cleanPath, presignedUrl: incomingUrl, timestamp: now }
+    return incomingUrl
+  }
+  return cached.presignedUrl
+}
+
 interface EventChatRoomProps {
   eventId: string
   dek: CryptoKey | null
   photos: any[]
-  onPhotoClick: (photoId: string) => void
+  onPhotoClick: (photoId: string, messagePhotos?: any[]) => void
   isOrganizer?: boolean
   onClose?: () => void
+  socketRef?: React.MutableRefObject<any>
+  selectedPhotos: any[]
+  setSelectedPhotos: React.Dispatch<React.SetStateAction<any[]>>
 }
 
 export default function EventChatRoom({
@@ -56,7 +93,10 @@ export default function EventChatRoom({
   photos,
   onPhotoClick,
   isOrganizer = false,
-  onClose
+  onClose,
+  socketRef,
+  selectedPhotos,
+  setSelectedPhotos
 }: EventChatRoomProps) {
   const { user } = useAuth()
   const queryClient = useQueryClient()
@@ -64,11 +104,123 @@ export default function EventChatRoom({
   const scrollRef = useRef<HTMLDivElement>(null)
 
   const [inputText, setInputText] = useState("")
-  const [selectedPhotos, setSelectedPhotos] = useState<any[]>([])
   const [photoPickerOpen, setPhotoPickerOpen] = useState(false)
   const [showScrollBottom, setShowScrollBottom] = useState(false)
   const [replyingToMessage, setReplyingToMessage] = useState<ChatMessageData | null>(null)
   const [loadingOlder, setLoadingOlder] = useState(false)
+  const [explicitMentions, setExplicitMentions] = useState<{ name: string; id: string }[]>([])
+
+  const [isFirstTimeChat, setIsFirstTimeChat] = useState(() => {
+    return localStorage.getItem("momnts_chat_first_time") === null
+  })
+
+  const handleDismissTooltip = () => {
+    localStorage.setItem("momnts_chat_first_time", "false")
+    setIsFirstTimeChat(false)
+  }
+
+  // Real-time typing indicators state
+  interface TypingUser {
+    id: string
+    name: string
+    selfie_url: string | null
+    timestamp: number
+  }
+  const [typingUsers, setTypingUsers] = useState<Record<string, TypingUser>>({})
+  const typingTimeoutRef = useRef<NodeJS.Timeout | null>(null)
+  const isTypingRef = useRef(false)
+  const isAutoScrollingRef = useRef(false)
+  const autoScrollTimeoutRef = useRef<NodeJS.Timeout | null>(null)
+
+  const sendTypingStatus = (isTyping: boolean) => {
+    if (!socketRef?.current || !eventId || !user) return
+    socketRef.current.emit("chat:typing", {
+      eventId,
+      isTyping,
+      user: {
+        name: user.username || "Guest",
+        selfie_url: user.selfie_url || null
+      }
+    })
+  }
+
+  // Socket listener for typing events
+  useEffect(() => {
+    const socket = socketRef?.current
+    if (!socket) return
+
+    const handleTyping = (data: {
+      userId: string
+      user: { id: string; name: string; selfie_url: string | null }
+      isTyping: boolean
+      timestamp: number
+    }) => {
+      if (data.userId === user?.id) return
+      setTypingUsers((prev) => {
+        const next = { ...prev }
+        if (data.isTyping) {
+          next[data.userId] = {
+            id: data.user.id,
+            name: data.user.name,
+            selfie_url: data.user.selfie_url,
+            timestamp: data.timestamp
+          }
+        } else {
+          delete next[data.userId]
+        }
+        return next
+      })
+    }
+
+    socket.on("chat:typing", handleTyping)
+    return () => {
+      socket.off("chat:typing", handleTyping)
+    }
+  }, [socketRef, user?.id])
+
+  // Periodic cleanup of stale typing users (e.g. offline/tab closed)
+  useEffect(() => {
+    const interval = setInterval(() => {
+      const now = Date.now()
+      setTypingUsers((prev) => {
+        let changed = false
+        const next = { ...prev }
+        for (const userId in next) {
+          if (now - next[userId].timestamp > 6000) {
+            delete next[userId]
+            changed = true
+          }
+        }
+        return changed ? next : prev
+      })
+    }, 3000)
+
+    return () => clearInterval(interval)
+  }, [])
+
+  // Clean up own typing indicator when component unmounts
+  useEffect(() => {
+    return () => {
+      if (isTypingRef.current) {
+        sendTypingStatus(false)
+      }
+      if (typingTimeoutRef.current) {
+        clearTimeout(typingTimeoutRef.current)
+      }
+      if (autoScrollTimeoutRef.current) {
+        clearTimeout(autoScrollTimeoutRef.current)
+      }
+    }
+  }, [])
+
+  // Get up to 3 most recent typing users sorted by timestamp descending
+  const recentTypingUsers = useMemo(() => {
+    return Object.values(typingUsers)
+      .sort((a, b) => b.timestamp - a.timestamp)
+      .slice(0, 3)
+  }, [typingUsers])
+
+
 
   const handleLoadOlder = async () => {
     if (!chatsData?.nextCursor || loadingOlder) return
@@ -105,17 +257,52 @@ export default function EventChatRoom({
 
   const messages = chatsData?.data || []
 
+  // Emit read events for loaded/received messages
+  useEffect(() => {
+    if (messages.length > 0 && socketRef?.current && eventId && user) {
+      const lastMsg = messages[messages.length - 1];
+      const myAccess = attendees.find((a: any) => a.user_id === user.id);
+      const currentReadId = myAccess?.last_read_message_id;
+
+      if (lastMsg.id !== currentReadId && !lastMsg.id.startsWith("temp-")) {
+        socketRef.current.emit("chat:read", {
+          eventId,
+          messageId: lastMsg.id,
+        });
+      }
+    }
+  }, [messages, socketRef, eventId, user, attendees]);
+
   // Mentions logic
   const [activeSuggestionIndex, setActiveSuggestionIndex] = useState(0)
   const [mentionState, setMentionState] = useState<{ query: string; startIdx: number; endIdx: number } | null>(null)
   const inputRef = useRef<HTMLInputElement>(null)
 
-  const filteredAttendees = (mentionState && eventId)
-    ? attendees.filter((a: any) => {
-        const name = a.user?.name || ""
-        return name.toLowerCase().includes(mentionState.query.toLowerCase())
+  const suggestions = useMemo(() => {
+    if (!mentionState || !eventId) return []
+    const q = mentionState.query.toLowerCase()
+    const list: any[] = []
+
+    // Add virtual "everyone" suggestion if matching query
+    if ("everyone".startsWith(q)) {
+      list.push({
+        id: "everyone",
+        isEveryone: true,
+        user: {
+          name: "everyone",
+          selfie_url: null,
+        }
       })
-    : []
+    }
+
+    const filtered = attendees.filter((a: any) => {
+      const name = a.user?.name || ""
+      return name.toLowerCase().includes(q)
+    })
+
+    list.push(...filtered)
+    return list
+  }, [mentionState, attendees, eventId])
 
   const getMentionQuery = (val: string, cursorIndex: number) => {
     const textBeforeCursor = val.slice(0, cursorIndex)
@@ -147,7 +334,37 @@ export default function EventChatRoom({
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const val = e.target.value
     setInputText(val)
+    setExplicitMentions(prev => {
+      const escapeRegExp = (str: string) => str.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
+      return prev.filter(m => {
+        const regex = new RegExp(`@${escapeRegExp(m.name)}`, 'i')
+        return regex.test(val)
+      })
+    })
     handleTextChangeOrCursorMove(val, e.target.selectionStart || val.length)
+
+    // Trigger typing state
+    if (val.trim().length > 0) {
+      if (!isTypingRef.current) {
+        isTypingRef.current = true
+        sendTypingStatus(true)
+      }
+      if (typingTimeoutRef.current) {
+        clearTimeout(typingTimeoutRef.current)
+      }
+      typingTimeoutRef.current = setTimeout(() => {
+        isTypingRef.current = false
+        sendTypingStatus(false)
+      }, 3000)
+    } else {
+      if (isTypingRef.current) {
+        isTypingRef.current = false
+        sendTypingStatus(false)
+        if (typingTimeoutRef.current) {
+          clearTimeout(typingTimeoutRef.current)
+        }
+      }
+    }
   }
 
   const handleInputKeyUp = (e: React.KeyboardEvent<HTMLInputElement>) => {
@@ -163,11 +380,13 @@ export default function EventChatRoom({
 
   const selectAttendee = (attendee: any) => {
     if (!mentionState) return
-    const name = attendee.user?.name || ""
+    const name = attendee.isEveryone ? "everyone" : (attendee.user?.name || "")
+    const id = attendee.isEveryone ? "everyone" : (attendee.user?.id || attendee.id)
     const before = inputText.slice(0, mentionState.startIdx)
     const after = inputText.slice(mentionState.endIdx)
     const newText = `${before}@${name} ${after}`
     setInputText(newText)
+    setExplicitMentions(prev => [...prev, { name, id }])
     setMentionState(null)
 
     setTimeout(() => {
@@ -180,22 +399,22 @@ export default function EventChatRoom({
   }
 
   const handleInputKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
-    if (mentionState && filteredAttendees.length > 0) {
+    if (mentionState && suggestions.length > 0) {
       if (e.key === "ArrowDown") {
         e.preventDefault()
-        setActiveSuggestionIndex((prev) => (prev + 1) % filteredAttendees.length)
+        setActiveSuggestionIndex((prev) => (prev + 1) % suggestions.length)
         return
       }
       if (e.key === "ArrowUp") {
         e.preventDefault()
         setActiveSuggestionIndex(
-          (prev) => (prev - 1 + filteredAttendees.length) % filteredAttendees.length
+          (prev) => (prev - 1 + suggestions.length) % suggestions.length
         )
         return
       }
       if (e.key === "Enter") {
         e.preventDefault()
-        selectAttendee(filteredAttendees[activeSuggestionIndex])
+        selectAttendee(suggestions[activeSuggestionIndex])
         return
       }
       if (e.key === "Escape") {
@@ -211,6 +430,15 @@ export default function EventChatRoom({
   // Scroll to bottom helper
   const scrollToBottom = (behavior: ScrollBehavior = "smooth") => {
     if (scrollRef.current) {
+      if (behavior === "smooth") {
+        isAutoScrollingRef.current = true
+        if (autoScrollTimeoutRef.current) {
+          clearTimeout(autoScrollTimeoutRef.current)
+        }
+        autoScrollTimeoutRef.current = setTimeout(() => {
+          isAutoScrollingRef.current = false
+        }, 500)
+      }
       scrollRef.current.scrollTo({
         top: scrollRef.current.scrollHeight,
         behavior
@@ -239,7 +467,7 @@ export default function EventChatRoom({
         if (!scrolled) {
           scrollToBottom("auto");
         }
-        
+
         const lastMsg = messages[messages.length - 1];
         localStorage.setItem(`lastReadMsg_${eventId}`, lastMsg.id);
       }, 100)
@@ -264,7 +492,11 @@ export default function EventChatRoom({
     const target = e.currentTarget
     const diff = target.scrollHeight - target.scrollTop - target.clientHeight
     // Show button if user scrolled up more than 100px
-    setShowScrollBottom(diff > 100)
+    const shouldShow = diff > 100
+    if (shouldShow && isAutoScrollingRef.current) {
+      return
+    }
+    setShowScrollBottom(shouldShow)
   }
 
   const handleSend = async (e: React.FormEvent) => {
@@ -272,20 +504,51 @@ export default function EventChatRoom({
     const text = inputText.trim()
     if ((!text && selectedPhotos.length === 0) || !dek || sendMutation.isPending) return
 
+    // Immediately stop typing indicator on send
+    if (isTypingRef.current) {
+      isTypingRef.current = false
+      sendTypingStatus(false)
+      if (typingTimeoutRef.current) {
+        clearTimeout(typingTimeoutRef.current)
+      }
+    }
+
     try {
       // Extract mentioned user IDs before encryption
       const mentionedUserIds: string[] = []
       let textToSearch = text
-      
-      const sortedAttendees = [...attendees].sort((a, b) => (b.user?.name?.length || 0) - (a.user?.name?.length || 0))
       const escapeRegExp = (str: string) => str.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
-      
+
+      // 1. First extract explicit mentions selected via suggestions dropdown
+      const sortedExplicit = [...explicitMentions].sort((a, b) => b.name.length - a.name.length)
+      for (const explicit of sortedExplicit) {
+        const namePattern = escapeRegExp(explicit.name)
+        const regex = new RegExp(`(?:^|\\s)@(${namePattern})(?:$|\\s|[.,!?;:])`, 'i')
+        if (regex.test(textToSearch)) {
+          mentionedUserIds.push(explicit.id)
+          textToSearch = textToSearch.replace(new RegExp(`@${namePattern}`, 'gi'), '')
+        }
+      }
+
+      // 2. Parse any remaining typed mentions that weren't explicitly captured from the dropdown
+      // (e.g. typing @everyone or @username directly)
+      const everyoneRegex = /(?:^|\s)@everyone(?:$|\s|[.,!?;:])/i
+      if (everyoneRegex.test(textToSearch)) {
+        mentionedUserIds.push("everyone")
+        textToSearch = textToSearch.replace(/@everyone/gi, '')
+      }
+
+      const sortedAttendees = [...attendees].sort((a, b) => (b.user?.name?.length || 0) - (a.user?.name?.length || 0))
+
       for (const attendee of sortedAttendees) {
         if (!attendee.user?.name || attendee.user.id === user?.id) continue
-        
+
+        // Skip if already matched
+        if (mentionedUserIds.includes(attendee.user.id)) continue
+
         const namePattern = escapeRegExp(attendee.user.name)
         const regex = new RegExp(`(?:^|\\s)@(${namePattern})(?:$|\\s|[.,!?;:])`, 'i')
-        
+
         if (regex.test(textToSearch)) {
           mentionedUserIds.push(attendee.user.id)
           textToSearch = textToSearch.replace(new RegExp(`@${namePattern}`, 'gi'), '')
@@ -294,18 +557,24 @@ export default function EventChatRoom({
 
       // Encrypt the message text client-side
       const encrypted = await encryptTextMessage(text || `Tagged ${selectedPhotos.length} photo${selectedPhotos.length === 1 ? "" : "s"}`, dek)
-      
+
       await sendMutation.mutateAsync({
         message_text: encrypted.ciphertext,
         encryption_iv: encrypted.iv,
         encryption_tag: encrypted.tag,
         photo_ids: selectedPhotos.map(p => p.id),
         mentions: mentionedUserIds,
-        parent_id: replyingToMessage?.id || undefined
+        parent_id: replyingToMessage?.id || undefined,
+        optimisticUser: user ? {
+          id: user.id,
+          name: user.username,
+          selfie_url: user.selfie_url
+        } : undefined
       })
 
       haptic.trigger("success")
       setInputText("")
+      setExplicitMentions([])
       setSelectedPhotos([])
       setReplyingToMessage(null)
       setTimeout(() => scrollToBottom("smooth"), 100)
@@ -318,7 +587,7 @@ export default function EventChatRoom({
 
   return (
     <div className="flex flex-col h-full w-full bg-background relative overflow-hidden">
-      
+
       {/* E2EE Header Banner */}
       <div className="flex items-center justify-between px-5 py-4 border-b border-border bg-card/40 backdrop-blur-xl shrink-0 z-10">
         <div className="flex items-center gap-3">
@@ -347,52 +616,57 @@ export default function EventChatRoom({
         className="flex-1 overflow-y-auto px-3.5 py-5 sm:px-5 min-h-0"
       >
         <div className="flex flex-col gap-6">
-        {isLoading ? (
-          <div className="flex-1 flex flex-col items-center justify-center text-sm text-muted-foreground gap-2">
-            <div className="h-6 w-6 border-2 border-t-transparent border-primary rounded-full animate-spin" />
-            <span>Loading encrypted message history...</span>
-          </div>
-        ) : messages.length === 0 ? (
-          <div className="flex-1 flex flex-col items-center justify-center text-center p-8 text-muted-foreground mt-20">
-            <div className="w-16 h-16 rounded-full bg-white/5 flex items-center justify-center mb-4">
-              <Lock size={28} className="text-muted-foreground/50" />
+          {isLoading ? (
+            <div className="flex-1 flex flex-col items-center justify-center text-sm text-muted-foreground gap-2">
+              <div className="h-6 w-6 border-2 border-t-transparent border-primary rounded-full animate-spin" />
+              <span>Loading encrypted message history...</span>
             </div>
-            <p className="text-sm font-semibold text-foreground/80">No messages yet</p>
-            <p className="text-xs max-w-[240px] mt-2 leading-relaxed">
-              Be the first to say hello! Your chat messages are securely encrypted on your device.
-            </p>
-          </div>
-        ) : (
-          <div className="flex flex-col gap-4">
-            {chatsData?.nextCursor && (
-              <div className="flex justify-center py-2">
-                <Button 
-                  variant="outline" 
-                  size="sm" 
-                  onClick={handleLoadOlder} 
-                  disabled={loadingOlder}
-                  className="rounded-full text-xs"
-                >
-                  {loadingOlder ? "Loading..." : "Load Older Messages"}
-                </Button>
+          ) : messages.length === 0 ? (
+            <div className="flex-1 flex flex-col items-center justify-center text-center p-8 text-muted-foreground mt-20">
+              <div className="w-16 h-16 rounded-full bg-white/5 flex items-center justify-center mb-4">
+                <Lock size={28} className="text-muted-foreground/50" />
               </div>
-            )}
-            <AnimatePresence initial={false}>
-              {messages.map((msg) => (
-                <ChatMessageItem
-                  key={msg.id}
-                  msg={msg}
-                  dek={dek}
-                  isSelf={msg.user_id === user?.id}
-                  allPhotos={photos}
-                  onPhotoClick={onPhotoClick}
-                  isOrganizer={isOrganizer}
-                  onReply={handleStartReply}
-                />
-              ))}
-            </AnimatePresence>
-          </div>
-        )}
+              <p className="text-sm font-semibold text-foreground/80">No messages yet</p>
+              <p className="text-xs max-w-[240px] mt-2 leading-relaxed">
+                Be the first to say hello! Your chat messages are securely encrypted on your device.
+              </p>
+            </div>
+          ) : (
+            <div className="flex flex-col gap-4">
+              {chatsData?.nextCursor && (
+                <div className="flex justify-center py-2">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={handleLoadOlder}
+                    disabled={loadingOlder}
+                    className="rounded-full text-xs"
+                  >
+                    {loadingOlder ? "Loading..." : "Load Older Messages"}
+                  </Button>
+                </div>
+              )}
+              <AnimatePresence initial={false}>
+                {messages.map((msg, index) => (
+                  <ChatMessageItem
+                    key={msg.id}
+                    msg={msg}
+                    dek={dek}
+                    isSelf={msg.user_id === user?.id}
+                    allPhotos={photos}
+                    onPhotoClick={onPhotoClick}
+                    isOrganizer={isOrganizer}
+                    onReply={handleStartReply}
+                    attendees={attendees}
+                    messages={messages}
+                    index={index}
+                    showActionsTooltip={isFirstTimeChat && index === messages.length - 1}
+                    onDismissTooltip={handleDismissTooltip}
+                  />
+                ))}
+              </AnimatePresence>
+            </div>
+          )}
         </div>
       </div>
 
@@ -400,11 +674,11 @@ export default function EventChatRoom({
       <AnimatePresence>
         {showScrollBottom && (
           <motion.button
-            initial={{ opacity: 0, scale: 0.8, y: 10 }}
-            animate={{ opacity: 1, scale: 1, y: 0 }}
-            exit={{ opacity: 0, scale: 0.8, y: 10 }}
+            initial={{ opacity: 0, scale: 0.8, x: "-50%", y: 10 }}
+            animate={{ opacity: 1, scale: 1, x: "-50%", y: 0 }}
+            exit={{ opacity: 0, scale: 0.8, x: "-50%", y: 10 }}
             onClick={() => scrollToBottom("smooth")}
-            className="absolute bottom-[90px] right-6 bg-primary text-primary-foreground h-10 w-10 rounded-full flex items-center justify-center shadow-xl hover:scale-105 transition-all cursor-pointer z-50"
+            className="absolute bottom-[90px] left-1/2 bg-primary text-primary-foreground h-10 w-10 rounded-full flex items-center justify-center shadow-xl hover:scale-105 transition-all cursor-pointer z-50"
           >
             <ArrowDown size={20} weight="bold" />
           </motion.button>
@@ -413,7 +687,7 @@ export default function EventChatRoom({
 
       {/* Send Message Panel */}
       <form onSubmit={handleSend} className="p-4 bg-card/60 backdrop-blur-xl border-t border-border flex flex-col gap-3 relative shrink-0 z-10">
-        
+
         {/* Selected Tagged Photos Attachment Overlay */}
         <AnimatePresence>
           {selectedPhotos.length > 0 && (
@@ -482,36 +756,81 @@ export default function EventChatRoom({
         </AnimatePresence>
 
         {/* Mentions dropdown list */}
-        {mentionState && filteredAttendees.length > 0 && (
+        {mentionState && suggestions.length > 0 && (
           <div className="absolute bottom-full left-0 mb-2 w-full max-h-48 overflow-y-auto bg-card/95 backdrop-blur-xl border border-border rounded-xl shadow-xl z-50 p-1 flex flex-col gap-0.5 custom-scrollbar">
-            {filteredAttendees.map((attendee: any, index: number) => {
+            {suggestions.map((item: any, index: number) => {
               const isSelected = index === activeSuggestionIndex
               return (
                 <button
-                  key={attendee.id}
+                  key={item.id}
                   type="button"
-                  onClick={() => selectAttendee(attendee)}
+                  onClick={() => selectAttendee(item)}
                   onMouseEnter={() => setActiveSuggestionIndex(index)}
-                  className={`flex items-center justify-between px-3 py-2 rounded-lg text-left text-sm cursor-pointer transition-colors w-full ${
-                    isSelected
+                  className={`flex items-center justify-between px-3 py-2 rounded-lg text-left text-sm cursor-pointer transition-colors w-full ${isSelected
                       ? "bg-primary/20 text-foreground border border-primary/30"
                       : "text-muted-foreground hover:bg-white/10 hover:text-foreground"
-                  }`}
+                    }`}
                 >
                   <div className="flex items-center gap-2">
-                    <Avatar className="w-6 h-6 shrink-0 border border-white/10">
-                      {attendee.user?.selfie_url && <AvatarImage src={attendee.user.selfie_url} className="object-cover" />}
-                      <AvatarFallback className="bg-muted text-[10px] font-bold text-foreground">
-                        {attendee.user?.name ? attendee.user.name.substring(0, 2).toUpperCase() : "?"}
-                      </AvatarFallback>
+                    <Avatar className="w-6 h-6 shrink-0 border border-white/10 rounded-full overflow-hidden">
+                      {item.isEveryone ? (
+                        <div className="bg-primary/20 text-primary w-full h-full flex items-center justify-center rounded-full">
+                          <Users size={12} weight="bold" />
+                        </div>
+                      ) : (
+                        <>
+                          {item.user?.selfie_url && <AvatarImage src={getCachedProfilePhoto(item.user.id || item.id, item.user.selfie_url)} className="object-cover" />}
+                          <AvatarFallback className="bg-muted text-[10px] font-bold text-foreground">
+                            {item.user?.name ? item.user.name.substring(0, 2).toUpperCase() : "?"}
+                          </AvatarFallback>
+                        </>
+                      )}
                     </Avatar>
-                    <span className="font-medium capitalize">{attendee.user?.name}</span>
+                    <span className="font-medium capitalize">{item.user?.name}</span>
                   </div>
                 </button>
               )
             })}
           </div>
         )}
+
+        {/* Typing Indicator */}
+        <AnimatePresence>
+          {recentTypingUsers.length > 0 && (
+            <motion.div
+              initial={{ opacity: 0, y: 5, height: 0 }}
+              animate={{ opacity: 1, y: 0, height: 'auto' }}
+              exit={{ opacity: 0, y: 5, height: 0 }}
+              className="flex items-center gap-2.5 px-1 py-1 overflow-hidden"
+            >
+              {/* Avatar Stack */}
+              <div className="flex -space-x-2 shrink-0">
+                {recentTypingUsers.map((u, i) => (
+                  <Avatar
+                    key={u.id}
+                    className="w-5 h-5 border border-background shadow-sm rounded-full overflow-hidden select-none"
+                    style={{ zIndex: recentTypingUsers.length - i }}
+                  >
+                    {u.selfie_url && <AvatarImage src={getCachedProfilePhoto(u.id, u.selfie_url)} alt={u.name} className="object-cover" />}
+                    <AvatarFallback className="bg-muted text-[8px] font-bold text-foreground">
+                      {u.name ? u.name.substring(0, 2).toUpperCase() : "?"}
+                    </AvatarFallback>
+                  </Avatar>
+                ))}
+              </div>
+
+              {/* Text & Bouncing Dots */}
+              <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                <span className="font-medium">typing</span>
+                <div className="flex gap-1 items-center h-3">
+                  <span className="w-1 h-1 bg-muted-foreground/60 rounded-full animate-bounce" style={{ animationDelay: '0ms' }} />
+                  <span className="w-1 h-1 bg-muted-foreground/60 rounded-full animate-bounce" style={{ animationDelay: '150ms' }} />
+                  <span className="w-1 h-1 bg-muted-foreground/60 rounded-full animate-bounce" style={{ animationDelay: '300ms' }} />
+                </div>
+              </div>
+            </motion.div>
+          )}
+        </AnimatePresence>
 
         {/* Input Textbox & Buttons */}
         <div className="flex items-end gap-2.5">
@@ -578,9 +897,14 @@ interface ChatMessageItemProps {
   dek: CryptoKey | null
   isSelf: boolean
   allPhotos: any[]
-  onPhotoClick: (index: number) => void
+  onPhotoClick: (photoId: string, messagePhotos: any[]) => void
   isOrganizer: boolean
   onReply: (msg: ChatMessageData) => void
+  attendees: any[]
+  messages: ChatMessageData[]
+  index: number
+  showActionsTooltip?: boolean
+  onDismissTooltip?: () => void
 }
 
 function ChatMessageItem({
@@ -590,7 +914,12 @@ function ChatMessageItem({
   allPhotos,
   onPhotoClick,
   isOrganizer,
-  onReply
+  onReply,
+  attendees,
+  messages,
+  index,
+  showActionsTooltip,
+  onDismissTooltip
 }: ChatMessageItemProps) {
   const [decryptedText, setDecryptedText] = useState("")
   const [decryptionError, setDecryptionError] = useState(false)
@@ -602,6 +931,7 @@ function ChatMessageItem({
   const [popoverOpen, setPopoverOpen] = useState(false)
   const [reactionDetailsOpen, setReactionDetailsOpen] = useState(false)
   const [activeReactionTab, setActiveReactionTab] = useState("All")
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false)
   const updateMutation = useUpdateChatMessage(msg.event_id)
   const deleteMutation = useDeleteChatMessage(msg.event_id)
   const toggleReactionMutation = useToggleChatMessageReaction(msg.event_id)
@@ -617,6 +947,41 @@ function ChatMessageItem({
       return acc;
     }, {} as Record<string, { count: number; hasReacted: boolean }>);
   }, [msg.reactions, currentUserId]);
+
+  // Determine sending status / seen status
+  const statusIcon = useMemo(() => {
+    // Only show ticks/clock for self (sender) messages
+    if (!isSelf) return null
+
+    if (msg.id.startsWith("temp-") || msg.status === "sending") {
+      return <Clock size={11} className="text-black dark:text-white animate-pulse" />
+    }
+
+    // Check if seen by all other attendees
+    const otherAttendees = attendees.filter((a) => a.user_id !== msg.user_id)
+
+    if (otherAttendees.length === 0) {
+      // If there's no one else in the event, show single tick
+      return <Check size={12} className="text-black dark:text-white" />
+    }
+
+    const seenByAll = otherAttendees.every((attendee) => {
+      const attendeeLastReadId = attendee.last_read_message_id
+      if (!attendeeLastReadId) return false
+
+      // Find index of attendee's last read message
+      const readIdx = messages.findIndex((m) => m.id === attendeeLastReadId)
+      if (readIdx === -1) return false
+
+      return readIdx >= index
+    })
+
+    if (seenByAll) {
+      return <Checks size={14} className="text-black dark:text-white font-bold" />
+    }
+
+    return <Check size={12} className="text-black dark:text-white" />
+  }, [msg.id, msg.status, msg.user_id, isSelf, attendees, messages, index])
 
   // Track the 15-minute edit window dynamically
   useEffect(() => {
@@ -718,15 +1083,13 @@ function ChatMessageItem({
 
   const handleDelete = async () => {
     if (deleteMutation.isPending) return
-    haptic.trigger("warning")
-    if (window.confirm("Are you sure you want to delete this message?")) {
-      try {
-        await deleteMutation.mutateAsync(msg.id)
-        haptic.trigger("success")
-      } catch (err) {
-        haptic.trigger("error")
-        toast.error("Failed to delete message.")
-      }
+    try {
+      await deleteMutation.mutateAsync(msg.id)
+      haptic.trigger("success")
+      setDeleteDialogOpen(false)
+    } catch (err) {
+      haptic.trigger("error")
+      toast.error("Failed to delete message.")
     }
   }
 
@@ -744,7 +1107,7 @@ function ChatMessageItem({
       <div className={`flex gap-3 max-w-[95%] sm:max-w-[90%] ${isSelf ? "flex-row-reverse" : "flex-row"}`}>
         {/* Sender Avatar */}
         <Avatar className="w-8 h-8 shrink-0 select-none border border-white/10 shadow-sm mt-auto mb-1">
-          {msg.user?.selfie_url && <AvatarImage src={msg.user.selfie_url} alt={msg.user.name} className="object-cover" />}
+          {msg.user?.selfie_url && <AvatarImage src={getCachedProfilePhoto(msg.user_id, msg.user.selfie_url)} alt={msg.user.name} className="object-cover" />}
           <AvatarFallback className="bg-white/10 text-foreground text-[10px] font-bold">
             {msg.user?.name ? msg.user.name.substring(0, 2).toUpperCase() : "?"}
           </AvatarFallback>
@@ -752,25 +1115,25 @@ function ChatMessageItem({
 
         {/* Bubble & Actions Wrapper */}
         <div className={`flex flex-col gap-1.5 ${isSelf ? "items-end" : "items-start"}`}>
-          
+
           {/* Name and Time Header */}
-          <div className={`flex items-baseline gap-2 text-[11px] px-1`}>
+          <div className={`flex items-center gap-1.5 text-[11px] px-1`}>
             <span className="font-medium text-foreground/80 capitalize">{msg.user?.name || "Guest"}</span>
             <span className="text-muted-foreground/60 font-medium">{formatTime(msg.created_at)}</span>
             {msg.updated_at && new Date(msg.updated_at).getTime() - new Date(msg.created_at).getTime() > 1000 && (
               <span className="text-[10px] text-muted-foreground/50 italic" title={`Edited at ${formatTime(msg.updated_at)}`}>(edited)</span>
             )}
+            {statusIcon}
           </div>
 
           <div className={`group relative flex items-end gap-2 ${isSelf ? "flex-row-reverse" : "flex-row"}`}>
-            
+
             {isEditing ? (
               <div
-                className={`px-4 py-2.5 rounded-[20px] text-[14px] leading-relaxed shadow-sm break-words relative overflow-hidden select-text ${
-                  isSelf
+                className={`px-4 py-2.5 rounded-[20px] text-[14px] leading-relaxed shadow-sm break-words relative overflow-hidden select-text ${isSelf
                     ? "bg-primary text-primary-foreground rounded-br-sm"
                     : "bg-white/5 border border-white/10 text-foreground rounded-bl-sm"
-                }`}
+                  }`}
               >
                 {/* Parent Message Reply Quote Block */}
                 {msg.parent && (
@@ -785,11 +1148,10 @@ function ChatMessageItem({
                         }, 1500);
                       }
                     }}
-                    className={`mb-2 p-2 rounded-lg text-[11px] cursor-pointer select-none transition-colors border-l-[3px] flex flex-col gap-0.5 bg-current/10 hover:bg-current/15 ${
-                      isSelf 
-                        ? "text-current/80 border-l-current/70" 
+                    className={`mb-2 p-2 rounded-lg text-[11px] cursor-pointer select-none transition-colors border-l-[3px] flex flex-col gap-0.5 bg-current/10 hover:bg-current/15 ${isSelf
+                        ? "text-current/80 border-l-current/70"
                         : "text-current/80 border-l-primary"
-                    }`}
+                      }`}
                   >
                     <span className={`font-bold text-[10px] leading-none ${isSelf ? "text-current" : "text-primary"}`}>
                       {msg.parent.user?.name || "Guest"}
@@ -829,120 +1191,153 @@ function ChatMessageItem({
                 </form>
               </div>
             ) : (
-              <DropdownMenu>
-                <DropdownMenuTrigger render={<div />}>
-                  <div
-                    className={`text-left cursor-pointer sm:cursor-auto px-4 py-2.5 rounded-[20px] text-[14px] leading-relaxed shadow-sm break-words relative overflow-hidden select-text ${
-                      isSelf
-                        ? "bg-primary text-primary-foreground rounded-br-sm"
-                        : "bg-white/5 border border-white/10 text-foreground rounded-bl-sm"
-                    }`}
-                  >
-                    {/* Parent Message Reply Quote Block */}
-                    {msg.parent && (
+              (() => {
+                const bubbleContent = (
+                  <DropdownMenu>
+                    <DropdownMenuTrigger render={<div />}>
                       <div
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          const el = document.getElementById(`msg-${msg.parent?.id}`);
-                          if (el) {
-                            el.scrollIntoView({ behavior: "smooth", block: "center" });
-                            el.classList.add("bg-primary/20", "dark:bg-primary/30");
-                            setTimeout(() => {
-                              el.classList.remove("bg-primary/20", "dark:bg-primary/30");
-                            }, 1500);
-                          }
-                        }}
-                        className={`mb-2 p-2 rounded-lg text-[11px] cursor-pointer select-none transition-colors border-l-[3px] flex flex-col gap-0.5 bg-current/10 hover:bg-current/15 ${
-                          isSelf 
-                            ? "text-current/80 border-l-current/70" 
-                            : "text-current/80 border-l-primary"
-                        }`}
+                        className={`text-left cursor-pointer sm:cursor-auto px-4 py-2.5 rounded-[20px] text-[14px] leading-relaxed shadow-sm break-words relative overflow-hidden select-text ${isSelf
+                            ? "bg-primary text-primary-foreground rounded-br-sm"
+                            : "bg-white/5 border border-white/10 text-foreground rounded-bl-sm"
+                          }`}
                       >
-                        <span className={`font-bold text-[10px] leading-none ${isSelf ? "text-current" : "text-primary"}`}>
-                          {msg.parent.user?.name || "Guest"}
-                        </span>
-                        <ParentMessageText parentMsg={msg.parent} dek={dek} />
-                      </div>
-                    )}
-
-                    {decrypting ? (
-                      <span className="text-[13px] italic opacity-70 animate-pulse">Decrypting message...</span>
-                    ) : decryptionError ? (
-                      <span className="text-[13px] italic flex items-center gap-1.5 opacity-80 text-rose-300">
-                        <Warning size={16} />
-                        Unable to decrypt
-                      </span>
-                    ) : (
-                      <span className="whitespace-pre-wrap">{decryptedText}</span>
-                    )}
-
-                    {/* Tagged Photos Grid Preview inside Message Bubble */}
-                    {msg.photos && msg.photos.length > 0 && (
-                      <div className={`mt-2.5 grid gap-1 rounded-xl border border-white/10 overflow-hidden shadow-sm max-w-full ${
-                        msg.photos.length === 1 
-                          ? "grid-cols-1 w-52" 
-                          : msg.photos.length === 2 || msg.photos.length === 4
-                            ? "grid-cols-2 w-60" 
-                            : "grid-cols-3 w-72"
-                      }`}>
-                        {msg.photos.map((photo) => (
+                        {/* Parent Message Reply Quote Block */}
+                        {msg.parent && (
                           <div
-                            key={photo.id}
                             onClick={(e) => {
                               e.stopPropagation();
-                              onPhotoClick(photo.id)
+                              const el = document.getElementById(`msg-${msg.parent?.id}`);
+                              if (el) {
+                                el.scrollIntoView({ behavior: "smooth", block: "center" });
+                                el.classList.add("bg-primary/20", "dark:bg-primary/30");
+                                setTimeout(() => {
+                                  el.classList.remove("bg-primary/20", "dark:bg-primary/30");
+                                }, 1500);
+                              }
                             }}
-                            className={`relative group/photo w-full cursor-pointer overflow-hidden bg-muted ${
-                              msg.photos.length === 1 ? "aspect-[4/3]" : "aspect-square"
-                            }`}
+                            className={`mb-2 p-2 rounded-lg text-[11px] cursor-pointer select-none transition-colors border-l-[3px] flex flex-col gap-0.5 bg-current/10 hover:bg-current/15 ${isSelf
+                                ? "text-current/80 border-l-current/70"
+                                : "text-current/80 border-l-primary"
+                              }`}
                           >
-                            <TaggedPhotoThumbnail photo={photo} dek={dek} isFullFill />
-                            <div className="absolute inset-0 bg-black/40 opacity-0 group-hover/photo:opacity-100 transition-opacity flex items-center justify-center text-white select-none backdrop-blur-[2px]">
-                              <Eye size={16} />
-                            </div>
+                            <span className={`font-bold text-[10px] leading-none ${isSelf ? "text-current" : "text-primary"}`}>
+                              {msg.parent.user?.name || "Guest"}
+                            </span>
+                            <ParentMessageText parentMsg={msg.parent} dek={dek} />
                           </div>
+                        )}
+
+                        {decrypting ? (
+                          <span className="text-[13px] italic opacity-70 animate-pulse">Decrypting message...</span>
+                        ) : decryptionError ? (
+                          <span className="text-[13px] italic flex items-center gap-1.5 opacity-80 text-rose-300">
+                            <Warning size={16} />
+                            Unable to decrypt
+                          </span>
+                        ) : (
+                          <span className="whitespace-pre-wrap">{decryptedText}</span>
+                        )}
+
+                        {/* Tagged Photos Grid Preview inside Message Bubble */}
+                        {msg.photos && msg.photos.length > 0 && (
+                          <div className={`mt-2.5 grid gap-1 rounded-xl border border-white/10 overflow-hidden shadow-sm max-w-full ${msg.photos.length === 1
+                              ? "grid-cols-1 w-52"
+                              : msg.photos.length === 2 || msg.photos.length === 4
+                                ? "grid-cols-2 w-60"
+                                : "grid-cols-3 w-72"
+                            }`}>
+                            {msg.photos.map((photo) => (
+                              <div
+                                key={photo.id}
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  onPhotoClick(photo.id, msg.photos)
+                                }}
+                                className={`relative group/photo w-full cursor-pointer overflow-hidden bg-muted ${msg.photos.length === 1 ? "aspect-[4/3]" : "aspect-square"
+                                  }`}
+                              >
+                                <TaggedPhotoThumbnail photo={photo} dek={dek} isFullFill />
+                                <div className="absolute inset-0 bg-black/40 opacity-0 group-hover/photo:opacity-100 transition-opacity flex items-center justify-center text-white select-none backdrop-blur-[2px]">
+                                  <Eye size={16} />
+                                </div>
+                              </div>
+                            ))}
+                          </div>
+                        )}
+                      </div>
+                    </DropdownMenuTrigger>
+                    <DropdownMenuContent align={isSelf ? "end" : "start"} className="sm:hidden w-auto min-w-[200px]">
+                      <div className="flex items-center gap-1 px-2 py-2 mb-1 border-b">
+                        {["👍", "❤️", "😂", "😮", "😢", "🙏"].map((emoji) => (
+                          <button
+                            key={emoji}
+                            onClick={() => {
+                              haptic.trigger("light");
+                              toggleReactionMutation.mutate({ messageId: msg.id, emoji });
+                            }}
+                            className="h-7 w-7 rounded-full flex items-center justify-center text-lg hover:bg-muted transition-colors"
+                          >
+                            {emoji}
+                          </button>
                         ))}
                       </div>
-                    )}
-                  </div>
-                </DropdownMenuTrigger>
-                <DropdownMenuContent align={isSelf ? "end" : "start"} className="sm:hidden w-auto min-w-[200px]">
-                  <div className="flex items-center gap-1 px-2 py-2 mb-1 border-b">
-                    {["👍", "❤️", "😂", "😮", "😢", "🙏"].map((emoji) => (
-                      <button
-                        key={emoji}
-                        onClick={() => {
-                          haptic.trigger("light");
-                          toggleReactionMutation.mutate({ messageId: msg.id, emoji });
-                        }}
-                        className="h-7 w-7 rounded-full flex items-center justify-center text-lg hover:bg-muted transition-colors"
-                      >
-                        {emoji}
-                      </button>
-                    ))}
-                  </div>
-                  <DropdownMenuItem onClick={() => onReply(msg)} className="cursor-pointer">
-                    <ArrowBendUpLeft size={16} className="mr-2" />
-                    Reply
-                  </DropdownMenuItem>
-                  {canEdit && (
-                    <DropdownMenuItem onClick={() => setIsEditing(true)} className="cursor-pointer">
-                      <Pencil size={16} className="mr-2" />
-                      Edit
-                    </DropdownMenuItem>
-                  )}
-                  {canDelete && (
-                    <DropdownMenuItem 
-                      onClick={handleDelete}
-                      disabled={deleteMutation.isPending}
-                      className="cursor-pointer text-red-500 focus:text-red-500 focus:bg-red-500/10"
-                    >
-                      <Trash size={16} className="mr-2" />
-                      Delete
-                    </DropdownMenuItem>
-                  )}
-                </DropdownMenuContent>
-              </DropdownMenu>
+                      <DropdownMenuItem onClick={() => onReply(msg)} className="cursor-pointer">
+                        <ArrowBendUpLeft size={16} className="mr-2" />
+                        Reply
+                      </DropdownMenuItem>
+                      {canEdit && (
+                        <DropdownMenuItem onClick={() => setIsEditing(true)} className="cursor-pointer">
+                          <Pencil size={16} className="mr-2" />
+                          Edit
+                        </DropdownMenuItem>
+                      )}
+                      {canDelete && (
+                        <DropdownMenuItem
+                          onClick={() => { haptic.trigger("warning"); setDeleteDialogOpen(true); }}
+                          disabled={deleteMutation.isPending}
+                          className="cursor-pointer text-red-500 focus:text-red-500 focus:bg-red-500/10"
+                        >
+                          <Trash size={16} className="mr-2" />
+                          Delete
+                        </DropdownMenuItem>
+                      )}
+                    </DropdownMenuContent>
+                  </DropdownMenu>
+                );
+
+                return showActionsTooltip ? (
+                  <Popover open={showActionsTooltip} onOpenChange={(open) => {
+                    if (!open && onDismissTooltip) {
+                      onDismissTooltip();
+                    }
+                  }}>
+                    <PopoverTrigger asChild>
+                      <div>
+                        {bubbleContent}
+                      </div>
+                    </PopoverTrigger>
+                    <PopoverContent side="top" align={isSelf ? "end" : "start"} className="w-72 p-3 bg-neutral-900 border border-neutral-800 text-white rounded-xl shadow-xl z-50">
+                      <div className="flex flex-col gap-2">
+                        <p className="text-xs font-semibold">Message Actions</p>
+                        <p className="text-[11px] text-neutral-400">
+                          Hover on desktop or tap on mobile to react, reply, edit, or delete messages!
+                        </p>
+                        <Button 
+                          size="sm" 
+                          onClick={() => {
+                            if (onDismissTooltip) onDismissTooltip();
+                          }}
+                          className="h-6 text-[10px] self-end bg-primary hover:bg-primary/90 text-primary-foreground font-bold rounded-lg px-2 cursor-pointer"
+                        >
+                          Got it
+                        </Button>
+                      </div>
+                    </PopoverContent>
+                  </Popover>
+                ) : (
+                  bubbleContent
+                );
+              })()
             )}
 
             {/* Reactions Display */}
@@ -953,11 +1348,10 @@ function ChatMessageItem({
                     {Object.entries(reactionsByEmoji).map(([emoji, data]) => (
                       <div
                         key={emoji}
-                        className={`flex items-center gap-1 text-[11px] px-1.5 py-0.5 rounded-full border shadow-sm transition-colors ${
-                          data.hasReacted 
-                            ? "bg-card border-primary text-primary" 
-                            : "bg-card border-border text-foreground hover:bg-muted"
-                        }`}
+                        className={`flex items-center gap-1 text-[11px] px-1.5 py-0.5 rounded-full shadow-sm transition-colors ${data.hasReacted
+                            ? "bg-card text-primary"
+                            : "bg-card text-foreground hover:bg-muted"
+                          }`}
                       >
                         <span>{emoji}</span>
                         <span className="font-medium">{data.count}</span>
@@ -978,20 +1372,20 @@ function ChatMessageItem({
                   </div>
                   <div className="flex flex-col max-h-48 overflow-y-auto gap-1 pr-1 scrollbar-thin">
                     {msg.reactions.filter(r => activeReactionTab === "All" || r.emoji === activeReactionTab).map(r => (
-                      <div 
-                        key={r.id} 
-                        className={`flex items-center justify-between p-2 rounded-lg group transition-colors ${r.user_id === currentUserId ? "cursor-pointer hover:bg-muted" : "hover:bg-muted/50"}`} 
-                        onClick={() => { 
-                          if (r.user_id === currentUserId) { 
-                            haptic.trigger('light'); 
-                            toggleReactionMutation.mutate({ messageId: msg.id, emoji: r.emoji }); 
-                            setReactionDetailsOpen(false); 
-                          } 
+                      <div
+                        key={r.id}
+                        className={`flex items-center justify-between p-2 rounded-lg group transition-colors ${r.user_id === currentUserId ? "cursor-pointer hover:bg-muted" : "hover:bg-muted/50"}`}
+                        onClick={() => {
+                          if (r.user_id === currentUserId) {
+                            haptic.trigger('light');
+                            toggleReactionMutation.mutate({ messageId: msg.id, emoji: r.emoji });
+                            setReactionDetailsOpen(false);
+                          }
                         }}
                       >
                         <div className="flex items-center gap-3">
                           <Avatar className="w-8 h-8">
-                            <AvatarImage src={r.user?.selfie_url || undefined} />
+                            <AvatarImage src={getCachedProfilePhoto(r.user_id, r.user?.selfie_url || undefined)} />
                             <AvatarFallback className="text-[10px]">{r.user?.name?.[0]}</AvatarFallback>
                           </Avatar>
                           <div className="flex flex-col">
@@ -1009,76 +1403,124 @@ function ChatMessageItem({
 
             {/* Action Buttons (Reply / Pencil / Trash / React) */}
             {!isEditing && (
-              <div className={`hidden sm:flex opacity-0 group-hover:opacity-100 transition-opacity items-center gap-1 absolute z-20 bottom-1.5 ${
-                isSelf 
-                  ? "right-full pr-3 flex-row-reverse" 
-                  : "left-full pl-3 flex-row"
-              }`}>
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  onClick={() => onReply(msg)}
-                  className="h-8 w-8 rounded-full text-muted-foreground hover:text-foreground hover:bg-white/10 cursor-pointer"
-                  title="Reply to message"
-                >
-                  <ArrowBendUpLeft size={15} />
-                </Button>
-                {canEdit && (
-                  <Button
-                    variant="ghost"
-                    size="icon"
-                    onClick={() => setIsEditing(true)}
-                    className="h-8 w-8 rounded-full text-muted-foreground hover:text-foreground hover:bg-white/10 cursor-pointer"
-                    title="Edit message"
-                  >
-                    <Pencil size={15} />
-                  </Button>
-                )}
-                {canDelete && (
-                  <Button
-                    variant="ghost"
-                    size="icon"
-                    onClick={handleDelete}
-                    className="h-8 w-8 rounded-full text-muted-foreground hover:text-red-400 hover:bg-red-400/10 cursor-pointer"
-                    title="Delete message"
-                    disabled={deleteMutation.isPending}
-                  >
-                    <Trash size={15} />
-                  </Button>
-                )}
-
-                <Popover open={popoverOpen} onOpenChange={setPopoverOpen}>
-                  <PopoverTrigger asChild>
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      className="h-8 w-8 rounded-full text-muted-foreground hover:text-foreground hover:bg-white/10 cursor-pointer"
-                      title="React"
-                    >
-                      <Smiley size={15} />
-                    </Button>
-                  </PopoverTrigger>
-                  <PopoverContent side="top" align={isSelf ? "end" : "start"} className="w-auto p-2 flex flex-row items-center gap-1 rounded-full shadow-xl">
-                    {["👍", "❤️", "😂", "😮", "😢", "🙏"].map((emoji) => (
-                      <button
-                        key={emoji}
-                        onClick={() => {
-                          haptic.trigger("light");
-                          toggleReactionMutation.mutate({ messageId: msg.id, emoji });
-                          setPopoverOpen(false);
-                        }}
-                        className="h-8 w-8 rounded-full flex items-center justify-center text-lg hover:bg-muted transition-colors"
+              <TooltipProvider>
+                <div className={`hidden sm:flex opacity-0 group-hover:opacity-100 transition-opacity items-center gap-1 absolute z-20 bottom-1.5 ${isSelf
+                    ? "right-full pr-3 flex-row-reverse"
+                    : "left-full pl-3 flex-row"
+                  }`}>
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        onClick={() => onReply(msg)}
+                        className="h-8 w-8 rounded-full text-muted-foreground hover:text-foreground hover:bg-white/10 cursor-pointer"
                       >
-                        {emoji}
-                      </button>
-                    ))}
-                  </PopoverContent>
-                </Popover>
-              </div>
+                        <ArrowBendUpLeft size={15} />
+                      </Button>
+                    </TooltipTrigger>
+                    <TooltipContent>
+                      Reply to message
+                    </TooltipContent>
+                  </Tooltip>
+
+                  {canEdit && (
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          onClick={() => setIsEditing(true)}
+                          className="h-8 w-8 rounded-full text-muted-foreground hover:text-foreground hover:bg-white/10 cursor-pointer"
+                        >
+                          <Pencil size={15} />
+                        </Button>
+                      </TooltipTrigger>
+                      <TooltipContent>
+                        Edit message
+                      </TooltipContent>
+                    </Tooltip>
+                  )}
+
+                  {canDelete && (
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          onClick={() => { haptic.trigger("warning"); setDeleteDialogOpen(true); }}
+                          className="h-8 w-8 rounded-full text-muted-foreground hover:text-red-400 hover:bg-red-400/10 cursor-pointer"
+                          disabled={deleteMutation.isPending}
+                        >
+                          <Trash size={15} />
+                        </Button>
+                      </TooltipTrigger>
+                      <TooltipContent>
+                        Delete message
+                      </TooltipContent>
+                    </Tooltip>
+                  )}
+
+                  <Popover open={popoverOpen} onOpenChange={setPopoverOpen}>
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <PopoverTrigger asChild>
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            className="h-8 w-8 rounded-full text-muted-foreground hover:text-foreground hover:bg-white/10 cursor-pointer"
+                          >
+                            <Smiley size={15} />
+                          </Button>
+                        </PopoverTrigger>
+                      </TooltipTrigger>
+                      <TooltipContent>
+                        React
+                      </TooltipContent>
+                    </Tooltip>
+                    <PopoverContent side="top" align={isSelf ? "end" : "start"} className="w-auto p-2 flex flex-row items-center gap-1 rounded-full shadow-xl">
+                      {["👍", "❤️", "😂", "😮", "😢", "🙏"].map((emoji) => (
+                        <button
+                          key={emoji}
+                          onClick={() => {
+                            haptic.trigger("light");
+                            toggleReactionMutation.mutate({ messageId: msg.id, emoji });
+                            setPopoverOpen(false);
+                          }}
+                          className="h-8 w-8 rounded-full flex items-center justify-center text-lg hover:bg-muted transition-colors"
+                        >
+                          {emoji}
+                        </button>
+                      ))}
+                    </PopoverContent>
+                  </Popover>
+                </div>
+              </TooltipProvider>
             )}
           </div>
         </div>
       </div>
+
+      <AlertDialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete Message</AlertDialogTitle>
+            <AlertDialogDescription>
+              Are you sure you want to delete this message? This action cannot be undone.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel onClick={() => haptic.trigger("light")}>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={handleDelete}
+              disabled={deleteMutation.isPending}
+              className="bg-red-600 hover:bg-red-700 text-white"
+            >
+              Delete
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </motion.div>
   )
 }
@@ -1147,6 +1589,7 @@ function PhotoPickerModal({
   onClose
 }: PhotoPickerModalProps) {
   const [selected, setSelected] = useState<any[]>(initialSelected)
+  const [visibleLimit, setVisibleLimit] = useState(24)
 
   const toggleSelect = (photo: any) => {
     if (selected.some((p) => p.id === photo.id)) {
@@ -1155,6 +1598,17 @@ function PhotoPickerModal({
       setSelected((prev) => [...prev, photo])
     }
   }
+
+  const handleScroll = (e: React.UIEvent<HTMLDivElement>) => {
+    const target = e.currentTarget
+    if (visibleLimit >= photos.length) return
+    // Check if scrolled near the bottom (within 100px)
+    if (target.scrollHeight - target.scrollTop - target.clientHeight < 100) {
+      setVisibleLimit((prev) => Math.min(prev + 24, photos.length))
+    }
+  }
+
+  const visiblePhotos = photos.slice(0, visibleLimit)
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-background/80 backdrop-blur-sm animate-in fade-in duration-200">
@@ -1184,34 +1638,40 @@ function PhotoPickerModal({
         </div>
 
         {/* Photos Grid List */}
-        <div className="flex-1 overflow-y-auto p-4">
+        <div className="flex-1 overflow-y-auto p-4" onScroll={handleScroll}>
           {photos.length === 0 ? (
             <div className="text-center py-8 text-xs text-muted-foreground">
               No photos have been uploaded to this event yet.
             </div>
           ) : (
-            <div className="grid grid-cols-3 gap-3">
-              {photos.map((photo) => {
-                const isSelected = selected.some((p) => p.id === photo.id)
-                return (
-                  <div
-                    key={photo.id}
-                    onClick={() => toggleSelect(photo)}
-                    className={`rounded-lg overflow-hidden aspect-square border cursor-pointer hover:scale-[1.02] active:scale-[0.98] transition-all relative group bg-muted ${
-                      isSelected ? "border-primary border-2" : "border-border"
-                    }`}
-                  >
-                    <TaggedPhotoThumbnail photo={photo} dek={dek} isFullFill />
-                    {isSelected && (
-                      <div className="absolute inset-0 bg-primary/10 flex items-center justify-center">
-                        <div className="bg-primary text-primary-foreground rounded-full p-1 shadow-lg">
-                          <Check size={12} weight="bold" />
+            <div className="space-y-4">
+              <div className="grid grid-cols-3 gap-3">
+                {visiblePhotos.map((photo) => {
+                  const isSelected = selected.some((p) => p.id === photo.id)
+                  return (
+                    <div
+                      key={photo.id}
+                      onClick={() => toggleSelect(photo)}
+                      className={`rounded-lg overflow-hidden aspect-square border cursor-pointer hover:scale-[1.02] active:scale-[0.98] transition-all relative group bg-muted ${isSelected ? "border-primary border-2" : "border-border"
+                        }`}
+                    >
+                      <TaggedPhotoThumbnail photo={photo} dek={dek} isFullFill />
+                      {isSelected && (
+                        <div className="absolute inset-0 bg-primary/10 flex items-center justify-center">
+                          <div className="bg-primary text-primary-foreground rounded-full p-1 shadow-lg">
+                            <Check size={12} weight="bold" />
+                          </div>
                         </div>
-                      </div>
-                    )}
-                  </div>
-                )
-              })}
+                      )}
+                    </div>
+                  )
+                })}
+              </div>
+              {visibleLimit < photos.length && (
+                <div className="text-center py-2 text-xs text-muted-foreground animate-pulse">
+                  Loading more photos...
+                </div>
+              )}
             </div>
           )}
         </div>

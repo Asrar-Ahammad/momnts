@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback, useRef, useMemo } from 'react'
 import { Dialog, DialogContent, DialogClose } from '../../../components/ui/dialog'
 import { Button } from '../../../components/ui/button'
-import { X, CaretLeft, CaretRight, XIcon, Trash, Heart, ChatCircle, Keyboard, Warning } from '@phosphor-icons/react'
+import { X, CaretLeft, CaretRight, XIcon, Trash, Heart, ChatCircle, Keyboard, Warning, PaperPlaneRight } from '@phosphor-icons/react'
 import { PhotoData } from '../../../features/events/services/photos.api'
 import { CommentsSection } from '../../../features/comments/components/CommentsSection'
 import { useComments } from '../../../features/comments/hooks/useComments'
@@ -35,6 +35,7 @@ interface PhotoCarouselProps {
   onToggleFavourite?: (photoId: string) => void
   highlightCommentId?: string
   dek?: CryptoKey | null
+  onTagInChat?: (photo: PhotoData) => void
 }
 
 // Preload an image and return a promise
@@ -59,7 +60,8 @@ const PhotoCarousel = ({
   isFavourite,
   onToggleFavourite,
   highlightCommentId,
-  dek
+  dek,
+  onTagInChat
 }: PhotoCarouselProps) => {
   const [currentIndex, setCurrentIndex] = useState(initialIndex)
   const [isLoading, setIsLoading] = useState(false)
@@ -478,6 +480,26 @@ const PhotoCarousel = ({
                         </span>
                       )}
                     </div>
+                  )}
+                  {currentPhoto && onTagInChat && (
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="bg-black/40 backdrop-blur-md px-3 py-1.5 rounded-full border border-white/10 flex items-center justify-center cursor-pointer transition-all duration-200 text-white/80 hover:text-purple-400 hover:bg-black/80 hover:scale-105"
+                          onClick={() => {
+                            haptic.trigger("light");
+                            onTagInChat(currentPhoto);
+                          }}
+                        >
+                          <PaperPlaneRight size={20} weight="bold" />
+                        </Button>
+                      </TooltipTrigger>
+                      <TooltipContent side="bottom" className="hidden md:flex bg-neutral-900 border border-neutral-800 text-neutral-200">
+                        Tag Photo in Chat
+                      </TooltipContent>
+                    </Tooltip>
                   )}
                   {canDelete && (
                     <Tooltip>

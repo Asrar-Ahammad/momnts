@@ -80,6 +80,7 @@ const EventDetails = () => {
   const uploadAbortControllerRef = useRef<AbortController | null>(null)
   const lastInvalidatedPhotoIdRef = useRef<string | null>(null)
   const [carouselOpen, setCarouselOpen] = useState(false)
+  const [customCarouselPhotos, setCustomCarouselPhotos] = useState<any[] | null>(null)
   const [highlightCommentId, setHighlightCommentId] = useState<string | undefined>(undefined)
   const [currentPhotoIndex, setCurrentPhotoIndex] = useState(0)
   const [isSelectMode, setIsSelectMode] = useState(false)
@@ -97,6 +98,15 @@ const EventDetails = () => {
   const [dek, setDek] = useState<CryptoKey | null>(null)
   const [chatDek, setChatDek] = useState<CryptoKey | null>(null)
   const [isChatOpen, setIsChatOpen] = useState(false)
+  const [selectedPhotosForChat, setSelectedPhotosForChat] = useState<any[]>([])
+  const handleTagPhotoInChat = (photo: any) => {
+    setSelectedPhotosForChat((prev) => {
+      if (prev.some((p) => p.id === photo.id)) return prev
+      return [...prev, photo]
+    })
+    setIsChatOpen(true)
+    setCarouselOpen(false)
+  }
   const [isPassphrasePromptOpen, setIsPassphrasePromptOpen] = useState(false)
 
   // Resizable Chat Sheet state
@@ -225,7 +235,7 @@ const EventDetails = () => {
   }
 
   // ── Real-time WebSocket updates ──
-  useEventSocket({
+  const socketRef = useEventSocket({
     eventId,
     onPhotoProcessed: useCallback((data) => {
       // Update the photo's processed flag and URLs in the query cache
@@ -286,10 +296,10 @@ const EventDetails = () => {
       // If chat is not open, show the unread indicator
       if (!isChatOpen) {
         setHasUnreadMessages(true)
-      }
-      // Invalidate chats query cache to ensure fresh history when panel is opened
-      if (eventId) {
-        queryClient.invalidateQueries({ queryKey: ["chats", eventId] })
+        // Invalidate chats query cache to ensure fresh history when panel is opened
+        if (eventId) {
+          queryClient.invalidateQueries({ queryKey: ["chats", eventId] })
+        }
       }
     }, [isChatOpen, eventId, queryClient]),
   })
@@ -511,6 +521,7 @@ const EventDetails = () => {
 
         const idx = filteredPhotos.findIndex((p) => p.id === pId)
         if (idx !== -1) {
+          setCustomCarouselPhotos(null)
           setCurrentPhotoIndex(idx)
           setCarouselOpen(true)
           if (cId) {
@@ -736,14 +747,17 @@ const EventDetails = () => {
       const photoId = filteredPhotos[index].id
       handleToggleSelect(photoId)
     } else {
+      setCustomCarouselPhotos(null)
       setCurrentPhotoIndex(index)
       setCarouselOpen(true)
     }
   }
 
-  const handleChatPhotoClick = (photoId: string) => {
-    const idx = filteredPhotos.findIndex((p) => p.id === photoId)
+  const handleChatPhotoClick = (photoId: string, messagePhotos?: any[]) => {
+    const photosList = messagePhotos || photos
+    const idx = photosList.findIndex((p) => p.id === photoId)
     if (idx !== -1) {
+      setCustomCarouselPhotos(photosList)
       setCurrentPhotoIndex(idx)
       setCarouselOpen(true)
     }
@@ -1097,9 +1111,10 @@ const EventDetails = () => {
           if (!isOpen) {
             setHighlightCommentId(undefined)
             lastInvalidatedPhotoIdRef.current = null
+            setCustomCarouselPhotos(null)
           }
         }}
-        photos={filteredPhotos}
+        photos={customCarouselPhotos || filteredPhotos}
         initialIndex={currentPhotoIndex}
         onDelete={handleDeletePhoto}
         currentUserId={user?.id}
@@ -1109,6 +1124,7 @@ const EventDetails = () => {
         onToggleFavourite={handleToggleFavourite}
         highlightCommentId={highlightCommentId}
         dek={dek}
+        onTagInChat={handleTagPhotoInChat}
       />
 
       <AnimatePresence>
@@ -1193,6 +1209,9 @@ const EventDetails = () => {
               onPhotoClick={handleChatPhotoClick}
               isOrganizer={event.user_role === 'ORGANIZER'}
               onClose={() => setIsChatOpen(false)}
+              socketRef={socketRef}
+              selectedPhotos={selectedPhotosForChat}
+              setSelectedPhotos={setSelectedPhotosForChat}
             />
           </SheetContent>
         </Sheet>

@@ -238,6 +238,53 @@ export async function addCommentController(req: AuthRequest, res: Response) {
           });
         }
       }
+
+      // Notify the photo owner if they are not the commenter and not already mentioned
+      if (photo.user_id !== req.user.id && !mentionedUserIds.includes(photo.user_id)) {
+        // Create DB notification
+        const notification = await prisma.notification.create({
+          data: {
+            user_id: photo.user_id,
+            title: "New Comment",
+            message: `${authorName} commented on your photo`,
+            type: "COMMENT",
+            link: `/events/${photo.event_id}?photoId=${photoId}&commentId=${comment.id}`,
+            image_url: authorSelfie || null
+          }
+        });
+
+        // Real-time socket emit
+        try {
+          const io = getIO();
+          io.to(`user:${photo.user_id}`).emit('notification:new', notification);
+        } catch (socketErr) {
+          console.error("[comments.controller] Socket emit failed for photo owner:", socketErr);
+        }
+
+        // Webhook dispatch
+        const webhookUrl = process.env.NOTIFICATION_WEBHOOK_URL;
+        if (webhookUrl) {
+          fetch(webhookUrl, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              event: 'notification.created',
+              data: {
+                notificationId: notification.id,
+                userId: notification.user_id,
+                title: notification.title,
+                message: notification.message,
+                type: notification.type,
+                link: notification.link,
+                image_url: notification.image_url,
+                created_at: notification.created_at
+              }
+            })
+          }).catch(webhookErr => {
+            console.error("[comments.controller] Webhook call failed for photo owner:", webhookErr);
+          });
+        }
+      }
     } catch (notifErr) {
       console.error("[comments.controller] Failed to process mentions/notifications:", notifErr);
     }
