@@ -10,13 +10,13 @@ The application supports two distinct operational modes:
 
 ## Key System Features
 
-*   👤 **AI-Driven Selfie Photo Retrieval:** Automatic face detection using **RetinaFace** and 512-dimension vector embedding generation using the **ArcFace** model.
-*   ⚡ **Asynchronous Background Processing:** Seamless non-blocking uploads via a dual-worker queue architecture powered by **BullMQ** and **Redis**.
-*   🔒 **End-to-End Encryption (E2EE):** High-grade client-side encryption using AES-256-GCM with Key Encryption Keys (KEKs) derived via PBKDF2 (600,000 iterations). Includes a 24-character alphanumeric recovery key system.
-*   💬 **Real-Time Interactive Chat & Reactions:** In-event chat messaging with file attachments, nested replies, real-time Socket.IO notifications, and custom emoji reactions.
-*   🛡️ **Strict Multi-Tenant Isolation:** Database and service level scoping. Data access is authorized strictly using event-based junction tables (`EventAccess`) to prevent cross-tenant data leaks.
-*   📦 **Cloud-Native Storage & Assets:** Direct-to-storage uploads of original, display-optimized, and thumbnail WebP variants using **Cloudflare R2** (S3 compatible) storage.
-*   💳 **Subscription Tiers:** Custom plan-limited restrictions (Free vs. Pro) controlling upload limits and event scopes.
+*   **AI-Driven Selfie Photo Retrieval:** Automatic face detection using **RetinaFace** and 512-dimension vector embedding generation using the **ArcFace** model.
+*   **Asynchronous Background Processing:** Seamless non-blocking uploads via a dual-worker queue architecture powered by **BullMQ** and **Redis**.
+*   **End-to-End Encryption (E2EE):** High-grade client-side encryption using AES-256-GCM with Key Encryption Keys (KEKs) derived via PBKDF2 (600,000 iterations). Includes a 24-character alphanumeric recovery key system.
+*   **Real-Time Interactive Chat & Reactions:** In-event chat messaging with file attachments, nested replies, real-time Socket.IO notifications, and custom emoji reactions.
+*   **Strict Multi-Tenant Isolation:** Database and service level scoping. Data access is authorized strictly using event-based junction tables (`EventAccess`) to prevent cross-tenant data leaks.
+*   **Cloud-Native Storage & Assets:** Direct-to-storage uploads of original, display-optimized, and thumbnail WebP variants using **Cloudflare R2** (S3 compatible) storage.
+*   **Subscription Tiers:** Custom plan-limited restrictions (Free vs. Pro) controlling upload limits and event scopes.
 
 ---
 
@@ -29,21 +29,18 @@ Momnts is built on a distributed microservices architecture comprised of a React
 ```mermaid
 graph TD
     %% Styling definitions
-    classDef web fill:#0f172a,stroke:#38bdf8,stroke-width:2px,color:#f8fafc;
-    classDef api fill:#0f172a,stroke:#6366f1,stroke-width:2px,color:#f8fafc;
-    classDef vision fill:#0f172a,stroke:#ec4899,stroke-width:2px,color:#f8fafc;
-    classDef database fill:#022c22,stroke:#10b981,stroke-width:2px,color:#f8fafc;
-    classDef storage fill:#451a03,stroke:#f59e0b,stroke-width:2px,color:#f8fafc;
-    classDef queue fill:#2e1065,stroke:#8b5cf6,stroke-width:2px,color:#f8fafc;
+    classDef client fill:#1e293b,stroke:#3b82f6,stroke-width:1.5px,color:#f8fafc;
+    classDef app fill:#1e293b,stroke:#6366f1,stroke-width:1.5px,color:#f8fafc;
+    classDef infra fill:#0f172a,stroke:#475569,stroke-width:1.5px,color:#cbd5e1;
 
     %% Nodes
-    Web("🎨 momnts-web<br/>(React 19 / Vite / Tailwind)"):::web
-    API("⚙️ momnts-api<br/>(Express.js / Bun / Prisma)"):::api
-    Vision("🧠 momnts-vision<br/>(FastAPI / DeepFace / TensorFlow)"):::vision
-    DB[("🐘 PostgreSQL + pgvector<br/>(Metadata & Embeddings)")]:::database
-    R2("📦 Cloudflare R2<br/>(Object Storage)"):::storage
-    Redis[("⚡ Redis / BullMQ<br/>(Queue Broker)")]:::queue
-    Worker("👷 Background Workers<br/>(photo.worker & match.worker)"):::queue
+    Web("momnts-web<br/>(React 19 / Vite / Tailwind)"):::client
+    API("momnts-api<br/>(Express.js / Bun / Prisma)"):::app
+    Vision("momnts-vision<br/>(FastAPI / DeepFace / TensorFlow)"):::app
+    DB[("PostgreSQL + pgvector<br/>(Metadata & Embeddings)")]:::infra
+    R2("Cloudflare R2<br/>(Object Storage)"):::infra
+    Redis[("Redis / BullMQ<br/>(Queue Broker)")]:::infra
+    Worker("Background Workers<br/>(photo.worker & match.worker)"):::app
 
     %% Connections
     Web -->|HTTP API Requests| API
@@ -153,27 +150,27 @@ This diagram illustrates how client-side cryptographic keys are created, wrapped
 ```mermaid
 graph TD
     %% Styling
-    classDef client fill:#1E293B,stroke:#38BDF8,stroke-width:2px,color:#F8FAFC;
-    classDef server fill:#0F172A,stroke:#6366F1,stroke-width:2px,color:#F8FAFC;
-    classDef crypto fill:#78350F,stroke:#F59E0B,stroke-width:2px,color:#F8FAFC;
+    classDef client fill:#1e293b,stroke:#3b82f6,stroke-width:1.5px,color:#f8fafc;
+    classDef server fill:#0f172a,stroke:#475569,stroke-width:1.5px,color:#cbd5e1;
+    classDef crypto fill:#1e293b,stroke:#d97706,stroke-width:1.5px,color:#f8fafc;
 
     %% Client Operations
     subgraph ClientWorkspace [Client Web Browser]
-        Pass[("🔑 Passphrase")]:::client
-        Salt[("🧂 Salt")]:::client
-        PBKDF2["⚙️ PBKDF2 (600k iter)"]:::crypto
-        KEK[("🗝️ KEK <br/> (Key Encryption Key)")]:::crypto
-        DEK[("🔐 DEK <br/> (Data Encryption Key)")]:::crypto
-        ImgBytes["📷 Raw Image Bytes"]:::client
-        AES["⚙️ AES-256-GCM"]:::crypto
-        EncBytes["🔒 Ciphertext + IV + Tag"]:::client
+        Pass[("Passphrase")]:::client
+        Salt[("Salt")]:::client
+        PBKDF2["PBKDF2 (600k iter)"]:::crypto
+        KEK[("KEK <br/> (Key Encryption Key)")]:::crypto
+        DEK[("DEK <br/> (Data Encryption Key)")]:::crypto
+        ImgBytes["Raw Image Bytes"]:::client
+        AES["AES-256-GCM"]:::crypto
+        EncBytes["Ciphertext + IV + Tag"]:::client
     end
 
     %% Server Storage
     subgraph ServerStorage [Backend Server]
-        API_Srv["⚙️ momnts-api"]:::server
-        Postgres[("🐘 PostgreSQL DB")]:::server
-        R2_Store[("📦 Cloudflare R2")]:::server
+        API_Srv["momnts-api"]:::server
+        Postgres[("PostgreSQL DB")]:::server
+        R2_Store[("Cloudflare R2")]:::server
     end
 
     %% Key Derivation Flow
@@ -316,11 +313,11 @@ Momnts relies on PostgreSQL with the native extensions `vector` (pgvector) enabl
 
 ## Critical Security & Architectural Constraints
 
-1.  🔒 **Strict Event Isolation:** All database transactions touching `Photo`, `FaceProfile`, `PhotoFace`, `ChatMessage`, or `Favourite` tables **must** filter on `event_id`. This prevents cross-tenant and cross-event data exposure.
-2.  🔑 **EventAccess Authorization checks:** Do not verify permissions by querying `Event.user_id` (since events can have multiple organizers and attendees). Instead, always check security constraints against the [schema.prisma](file:///Users/shaikmohammadasrarahammad/Downloads/MyProjects/momnt-dep/momnts-api/prisma/schema.prisma) `EventAccess` junction table.
-3.  ⚙️ **Non-Blocking API Architecture:** Heavy computation, image compression, and AI vision inference **must never** be run synchronously inside Express request/response cycles. Offload all intensive operations to BullMQ queues.
-4.  🧬 **Vector Dimension Consistency:** Face vectors are constrained to exactly 512 dimensions. The PostgreSQL table columns (managed via `pgvector`), the FastAPI model endpoints (`/detect` & `/embed`), and the background workers must remain configured to this vector size.
-5.  🚫 **E2EE Event Isolation:** E2EE event photos and chat messages do not have vector embeddings. Face processing workers (`photo.worker` / `match.worker`) must immediately exit if triggered on E2EE photos to avoid processing unreadable encrypted buffers.
+1.  **Strict Event Isolation:** All database transactions touching `Photo`, `FaceProfile`, `PhotoFace`, `ChatMessage`, or `Favourite` tables **must** filter on `event_id`. This prevents cross-tenant and cross-event data exposure.
+2.  **EventAccess Authorization checks:** Do not verify permissions by querying `Event.user_id` (since events can have multiple organizers and attendees). Instead, always check security constraints against the [schema.prisma](file:///Users/shaikmohammadasrarahammad/Downloads/MyProjects/momnt-dep/momnts-api/prisma/schema.prisma) `EventAccess` junction table.
+3.  **Non-Blocking API Architecture:** Heavy computation, image compression, and AI vision inference **must never** be run synchronously inside Express request/response cycles. Offload all intensive operations to BullMQ queues.
+4.  **Vector Dimension Consistency:** Face vectors are constrained to exactly 512 dimensions. The PostgreSQL table columns (managed via `pgvector`), the FastAPI model endpoints (`/detect` & `/embed`), and the background workers must remain configured to this vector size.
+5.  **E2EE Event Isolation:** E2EE event photos and chat messages do not have vector embeddings. Face processing workers (`photo.worker` / `match.worker`) must immediately exit if triggered on E2EE photos to avoid processing unreadable encrypted buffers.
 
 ---
 
