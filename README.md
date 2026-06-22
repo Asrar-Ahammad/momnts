@@ -309,6 +309,23 @@ Momnts relies on PostgreSQL with the native extensions `vector` (pgvector) enabl
     The ciphertext is uploaded to R2, and the IV & Authentication Tag are saved as strings in PostgreSQL.
 8. **Decryption:** Browsers fetch the ciphertext and decrypt it locally using the cached DEK, rendering the image dynamically in the browser via `URL.createObjectURL(blob)`.
 
+### 5. Security-Hardened Authentication & OTP Workflows
+All verification processes (handled via [auth.controller.ts](file:///Users/shaikmohammadasrarahammad/Downloads/MyProjects/momnt-dep/momnts-api/src/controllers/auth.controller.ts)) utilize cryptographically secure 6-digit one-time passwords (OTPs) with multi-level rate-limiting, timing attack protections, and brute-force lockouts stored in Redis.
+
+*   **Email Verification Flow:**
+    1. **Request Verification:** Logged-in users request an OTP via `POST /api/auth/send-otp`. The API checks if the email is already verified. If not, it generates a secure 6-digit OTP, bcrypt-hashes it, stores the hash in Redis (`otp:userId`), and emails the code using SMTP.
+    2. **Verification Rate Limit:** OTP sends are rate-limited to a maximum of 3 requests per 15-minute window (`otp_rate:userId`).
+    3. **Submit Code:** The user submits the code via `POST /api/auth/verify-otp`.
+    4. **Brute-Force & Timing Protection:** The system compares the code using `bcrypt.compare` (constant-time check). To prevent brute-forcing, verification is capped at 5 attempts (`otp_attempts:userId`), after which a 30-minute lockout key (`otp_lockout:userId`) is enforced.
+    5. **Activation:** Upon successful match, `User.email_verified` is updated to `true`, verification keys are flushed from Redis, and a welcome email is sent asynchronously.
+
+*   **Forgot Password & Reset Flow:**
+    1. **Request Reset:** Users request a password reset via `POST /api/auth/forgot-password` (Public).
+    2. **IP and User Rate Limiting:** Capped at 3 requests per 15-minute window per IP + Email combination to prevent targeted account lockouts and DoS attacks.
+    3. **Timing Attack Mitigations:** If the input email does not match an existing user, the system executes a dummy bcrypt hashing calculation before returning a unified generic success response. This ensures response times are identical, preventing attackers from checking registered emails via timing analysis.
+    4. **Code Submission:** The user inputs their email, 6-digit OTP, and new password via `POST /api/auth/reset-password`.
+    5. **Reset & Session Revocation:** Once the OTP is verified, the new password is hashed with bcrypt (10 rounds) and saved to the database. For security, all active sessions and refresh tokens for the user are immediately deleted from PostgreSQL, forcing a re-authentication on all logged-in devices.
+
 ---
 
 ## Critical Security & Architectural Constraints
