@@ -258,66 +258,104 @@ export async function sendChatMessageController(req: AuthRequest, res: Response)
         // Deduplicate mentions to prevent duplicate notifications
         const uniqueMentions = [...new Set(mentions)];
 
-        // Fetch user event roles in bulk to check for ATTENDEE status
-        const userAccesses = await prisma.eventAccess.findMany({
-          where: {
-            event_id: eventId,
-            user_id: { in: uniqueMentions },
-          },
-        });
-        const userRoleMap = new Map(userAccesses.map((ua) => [ua.user_id, ua.role]));
+        const everyoneUserIds = new Set<string>();
+        const hasEveryone = uniqueMentions.includes("everyone");
 
-        for (const userId of uniqueMentions) {
-          if (userId === req.user.id || !userRoleMap.has(userId)) continue;
-
-          // Create DB notification
-          const notification = await prisma.notification.create({
-            data: {
-              user_id: userId,
-              title: "New Mention",
-              message: `${authorName} mentioned you in a chat`,
-              type: "MENTION",
-              link: `/events/${eventId}`,
-              image_url: authorSelfie || null
-            }
+        if (hasEveryone) {
+          const allAccesses = await prisma.eventAccess.findMany({
+            where: {
+              event_id: eventId,
+              user_id: { not: req.user.id }
+            },
+            select: { user_id: true }
           });
+          allAccesses.forEach(a => everyoneUserIds.add(a.user_id));
+        }
 
-          // Check if recipient is an ATTENDEE in this event
-          const role = userRoleMap.get(userId);
-          const isAttendee = role === "ATTENDEE";
+        const directMentions = uniqueMentions.filter(m => m !== "everyone");
+        const targets = new Map<string, { isEveryone: boolean }>();
 
-          // Real-time socket emit with skipToast flag
-          try {
-            io.to(`user:${userId}`).emit('notification:new', {
-              ...notification,
-              skipToast: isAttendee,
-            });
-          } catch (socketErr) {
-            console.error("[sendChatMessageController] Notification Socket emit failed:", socketErr);
+        for (const uid of directMentions) {
+          if (uid !== req.user.id) {
+            targets.set(uid, { isEveryone: false });
           }
+        }
 
-          // Webhook dispatch
-          const webhookUrl = process.env.NOTIFICATION_WEBHOOK_URL;
-          if (webhookUrl) {
-            fetch(webhookUrl, {
-              method: 'POST',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({
-                event: 'notification.created',
-                data: {
-                  notificationId: notification.id,
-                  userId: notification.user_id,
-                  title: notification.title,
-                  message: notification.message,
-                  type: notification.type,
-                  link: notification.link,
-                  image_url: notification.image_url,
-                  created_at: notification.created_at
-                }
-              })
-            }).catch(webhookErr => {
-              console.error("[sendChatMessageController] Webhook call failed:", webhookErr);
+        for (const uid of everyoneUserIds) {
+          if (!targets.has(uid)) {
+            targets.set(uid, { isEveryone: true });
+          }
+        }
+
+        if (targets.size > 0) {
+          const targetUserIds = Array.from(targets.keys());
+
+          // Fetch user event roles in bulk to check for ATTENDEE status
+          const userAccesses = await prisma.eventAccess.findMany({
+            where: {
+              event_id: eventId,
+              user_id: { in: targetUserIds },
+            },
+          });
+          const userRoleMap = new Map(userAccesses.map((ua) => [ua.user_id, ua.role]));
+
+          for (const [userId, info] of targets.entries()) {
+            if (!userRoleMap.has(userId)) continue;
+
+            const title = info.isEveryone ? "Everyone Tag" : "New Mention";
+            const msgText = info.isEveryone
+              ? `${authorName} mentioned everyone in a chat`
+              : `${authorName} mentioned you in a chat`;
+
+            // Create DB notification
+            const notification = await prisma.notification.create({
+              data: {
+                user_id: userId,
+                title,
+                message: msgText,
+                type: "MENTION",
+                link: `/events/${eventId}`,
+                image_url: authorSelfie || null
+              }
             });
+
+            // Check if recipient is an ATTENDEE in this event
+            const role = userRoleMap.get(userId);
+            const isAttendee = role === "ATTENDEE";
+
+            // Real-time socket emit with skipToast flag
+            try {
+              io.to(`user:${userId}`).emit('notification:new', {
+                ...notification,
+                skipToast: isAttendee,
+              });
+            } catch (socketErr) {
+              console.error("[sendChatMessageController] Notification Socket emit failed:", socketErr);
+            }
+
+            // Webhook dispatch
+            const webhookUrl = process.env.NOTIFICATION_WEBHOOK_URL;
+            if (webhookUrl) {
+              fetch(webhookUrl, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                  event: 'notification.created',
+                  data: {
+                    notificationId: notification.id,
+                    userId: notification.user_id,
+                    title: notification.title,
+                    message: notification.message,
+                    type: notification.type,
+                    link: notification.link,
+                    image_url: notification.image_url,
+                    created_at: notification.created_at
+                  }
+                })
+              }).catch(webhookErr => {
+                console.error("[sendChatMessageController] Webhook call failed:", webhookErr);
+              });
+            }
           }
         }
       } catch (notifErr) {

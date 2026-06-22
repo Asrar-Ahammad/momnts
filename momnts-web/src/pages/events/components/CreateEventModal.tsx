@@ -1,4 +1,4 @@
-import { useState, useRef } from 'react'
+import { useState, useRef, useEffect } from 'react'
 import { useNavigate } from 'react-router'
 import { format } from 'date-fns'
 import { Button } from '../../../components/ui/button'
@@ -14,7 +14,7 @@ import { toast } from 'sonner'
 import { useWebHaptics } from 'web-haptics/react'
 import { createE2EEEventKeys } from '../../../lib/crypto/e2ee'
 import { storeDEK } from '../../../lib/crypto/keyStore'
-import { setPassphrase } from '../../../lib/crypto/passphraseCache'
+import { setPassphrase as setCachedPassphrase } from '../../../lib/crypto/passphraseCache'
 
 interface CreateEventModalProps {
   open: boolean
@@ -43,6 +43,23 @@ export const CreateEventModal = ({ open, onOpenChange, onEventCreated }: CreateE
   const [showRecoveryModal, setShowRecoveryModal] = useState(false)
   const [generatedRecoveryKey, setGeneratedRecoveryKey] = useState('')
   const [createdEventId, setCreatedEventId] = useState<string | null>(null)
+  const [recoveryCountdown, setRecoveryCountdown] = useState(0)
+
+  useEffect(() => {
+    if (showRecoveryModal) {
+      setRecoveryCountdown(5)
+      const timer = setInterval(() => {
+        setRecoveryCountdown((prev) => {
+          if (prev <= 1) {
+            clearInterval(timer)
+            return 0
+          }
+          return prev - 1
+        })
+      }, 1000)
+      return () => clearInterval(timer)
+    }
+  }, [showRecoveryModal])
 
   const handleCreateEvent = async () => {
     if (creatingEventRef.current) return
@@ -91,7 +108,7 @@ export const CreateEventModal = ({ open, onOpenChange, onEventCreated }: CreateE
 
       if (isE2EE && dek) {
         await storeDEK(createdEvent.id, dek)
-        setPassphrase(createdEvent.id, passphrase)
+        setCachedPassphrase(createdEvent.id, passphrase)
         setGeneratedRecoveryKey(`${newEventName} recovery key : ${recoveryKey}`)
         setCreatedEventId(createdEvent.id)
         setShowRecoveryModal(true)
@@ -375,8 +392,9 @@ export const CreateEventModal = ({ open, onOpenChange, onEventCreated }: CreateE
             <Button
               className="w-full h-11 rounded-xl font-semibold shadow-md shadow-primary/10"
               onClick={handleAcknowledgeRecoveryKey}
+              disabled={recoveryCountdown > 0}
             >
-              I've Saved This Key
+              {recoveryCountdown > 0 ? `I've Saved This Key (${recoveryCountdown}s)` : "I've Saved This Key"}
             </Button>
           </DialogFooter>
         </DialogContent>

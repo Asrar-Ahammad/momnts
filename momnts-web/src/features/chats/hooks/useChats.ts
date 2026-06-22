@@ -1,5 +1,5 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { chatsApi, SendChatMessagePayload, ChatMessagesResponse } from "../services/chats.api";
+import { chatsApi, SendChatMessagePayload, ChatMessagesResponse, ChatMessageData } from "../services/chats.api";
 
 export const useChatMessages = (eventId: string | undefined) => {
   return useQuery({
@@ -10,17 +10,70 @@ export const useChatMessages = (eventId: string | undefined) => {
   });
 };
 
+export interface SendChatMessagePayloadWithUser extends SendChatMessagePayload {
+  optimisticUser?: {
+    id: string;
+    name: string;
+    selfie_url?: string | null;
+  };
+}
+
 export const useSendChatMessage = (eventId: string) => {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: (payload: SendChatMessagePayload) => chatsApi.sendChatMessage(eventId, payload),
+    mutationFn: (payload: SendChatMessagePayloadWithUser) => {
+      const { optimisticUser, ...apiPayload } = payload;
+      return chatsApi.sendChatMessage(eventId, apiPayload);
+    },
+    onMutate: async (variables) => {
+      await queryClient.cancelQueries({ queryKey: ["chats", eventId] });
+      const previousChats = queryClient.getQueryData<ChatMessagesResponse>(["chats", eventId]);
+
+      queryClient.setQueryData<ChatMessagesResponse>(["chats", eventId], (oldData) => {
+        const tempId = `temp-${Date.now()}`;
+        const tempMessage: ChatMessageData = {
+          id: tempId,
+          event_id: eventId,
+          user_id: variables.optimisticUser?.id || "",
+          message_text: variables.message_text,
+          encryption_iv: variables.encryption_iv,
+          encryption_tag: variables.encryption_tag,
+          created_at: new Date().toISOString(),
+          updated_at: new Date().toISOString(),
+          user: {
+            id: variables.optimisticUser?.id || "",
+            name: variables.optimisticUser?.name || "Guest",
+            selfie_url: variables.optimisticUser?.selfie_url || null,
+          },
+          photos: [],
+          reactions: [],
+          status: "sending"
+        };
+
+        if (!oldData) return { total: 1, data: [tempMessage] };
+        return {
+          ...oldData,
+          total: oldData.total + 1,
+          data: [...oldData.data, tempMessage],
+        };
+      });
+
+      return { previousChats };
+    },
+    onError: (err, newTodo, context) => {
+      if (context?.previousChats) {
+        queryClient.setQueryData(["chats", eventId], context.previousChats);
+      }
+    },
     onSuccess: (newMessage) => {
       queryClient.setQueryData<ChatMessagesResponse>(["chats", eventId], (oldData) => {
         if (!oldData) return { total: 1, data: [newMessage] };
-        if (oldData.data.some((m) => m.id === newMessage.id)) return oldData;
+        const filtered = oldData.data.filter((m) => !m.id.startsWith("temp-"));
+        if (filtered.some((m) => m.id === newMessage.id)) return { ...oldData, data: filtered };
         return {
-          total: oldData.total + 1,
-          data: [...oldData.data, newMessage],
+          ...oldData,
+          total: filtered.length + 1,
+          data: [...filtered, newMessage],
         };
       });
     },

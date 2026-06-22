@@ -229,10 +229,10 @@ const ShareEventModal = ({ open, onOpenChange, event }: ShareEventModalProps) =>
                             toast.error('Failed to copy event code')
                           }
                         }}
-                        className="p-1 hover:bg-neutral-200 dark:hover:bg-neutral-850 rounded transition-colors text-neutral-500 hover:text-neutral-700 dark:hover:text-neutral-300"
+                        className="p-1 cursor-pointer hover:bg-neutral-200 dark:hover:bg-neutral-850 rounded transition-colors text-neutral-500 hover:text-neutral-700 dark:hover:text-neutral-300 group"
                         title="Copy Code"
                       >
-                        <CopySimpleIcon size={12} />
+                        <CopySimpleIcon size={12} className='group-hover:text-black group'/>
                       </button>
                     </div>
                   </div>
@@ -251,10 +251,10 @@ const ShareEventModal = ({ open, onOpenChange, event }: ShareEventModalProps) =>
                               toast.error('Failed to copy passphrase')
                             }
                           }}
-                          className="p-1 hover:bg-neutral-200 dark:hover:bg-neutral-850 rounded transition-colors text-neutral-500 hover:text-neutral-700 dark:hover:text-neutral-300 shrink-0"
+                          className="p-1 cursor-pointer hover:bg-neutral-200 dark:hover:bg-neutral-850 rounded transition-colors text-neutral-500 hover:text-neutral-700 dark:hover:text-neutral-300 shrink-0 group"
                           title="Copy Passphrase"
                         >
-                          <CopySimpleIcon size={12} />
+                          <CopySimpleIcon size={12} className='group-hover:text-black group'/>
                         </button>
                       </div>
                     ) : (

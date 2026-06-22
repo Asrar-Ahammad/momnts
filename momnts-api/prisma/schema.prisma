@@ -91,13 +91,14 @@ enum EncryptionMode {
 }
 
 model EventAccess {
-  id           String   @id @default(uuid())
-  event_id     String
-  user_id      String
-  role         Role
-  upload_count Int      @default(0)
-  upload_limit Int?
-  joined_at    DateTime @default(now())
+  id                   String   @id @default(uuid())
+  event_id             String
+  user_id              String
+  role                 Role
+  upload_count         Int      @default(0)
+  upload_limit         Int?
+  joined_at            DateTime @default(now())
+  last_read_message_id String?
 
   event Event @relation(fields: [event_id], references: [id], onDelete: Cascade)
   user  User  @relation(fields: [user_id], references: [id], onDelete: Cascade)

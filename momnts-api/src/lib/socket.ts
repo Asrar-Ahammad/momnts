@@ -3,6 +3,7 @@ import type { Server as HTTPServer } from 'http'
 import Redis from 'ioredis'
 import jwt from 'jsonwebtoken'
 import { redisConnectionOptions, REDIS_URL } from './redis'
+import { prisma } from './prisma'
 
 let io: SocketIOServer | null = null
 
@@ -72,6 +73,50 @@ export function initSocketIO(httpServer: HTTPServer) {
     socket.on('leave-event', (eventId: string) => {
       socket.leave(`event:${eventId}`)
       console.log(`[WS] ${socket.id} left room event:${eventId}`)
+    })
+
+    socket.on('chat:typing', (data: { eventId: string; isTyping: boolean; user: { name: string; selfie_url: string | null } }) => {
+      const authUserId = socket.data.userId
+      if (!authUserId || !data.eventId) return
+
+      socket.broadcast.to(`event:${data.eventId}`).emit('chat:typing', {
+        eventId: data.eventId,
+        userId: authUserId,
+        user: {
+          id: authUserId,
+          name: data.user?.name || 'Guest',
+          selfie_url: data.user?.selfie_url || null
+        },
+        isTyping: data.isTyping,
+        timestamp: Date.now()
+      })
+    })
+
+    socket.on('chat:read', async (data: { eventId: string; messageId: string }) => {
+      const authUserId = socket.data.userId
+      if (!authUserId || !data.eventId || !data.messageId) return
+
+      try {
+        await prisma.eventAccess.update({
+          where: {
+            event_id_user_id: {
+              event_id: data.eventId,
+              user_id: authUserId
+            }
+          },
+          data: {
+            last_read_message_id: data.messageId
+          }
+        })
+
+        io?.to(`event:${data.eventId}`).emit('chat:read', {
+          eventId: data.eventId,
+          userId: authUserId,
+          messageId: data.messageId
+        })
+      } catch (err) {
+        console.error('[WS] Failed to update read message status:', err)
+      }
     })
 
     // User joins their own private room for notifications

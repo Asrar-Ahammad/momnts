@@ -91,8 +91,13 @@ export function useDecryptedPhoto(
       return
     }
 
-    if (!iv || !tag || !dek) {
+    if (!iv || !tag) {
       setDecryptedUrl(photoUrl)
+      return
+    }
+
+    if (!dek) {
+      setDecryptedUrl('')
       return
     }
 

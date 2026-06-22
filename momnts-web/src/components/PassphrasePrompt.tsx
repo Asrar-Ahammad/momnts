@@ -4,7 +4,7 @@ import { Input } from '@/components/ui/input'
 import { Button } from '@/components/ui/button'
 import { Label } from '@/components/ui/label'
 import { Checkbox } from '@/components/ui/checkbox'
-import { Key, ShieldCheck, ArrowLeft, Warning } from '@phosphor-icons/react'
+import { Key, ShieldCheck, ArrowLeft, Warning, EyeIcon, EyeSlashIcon } from '@phosphor-icons/react'
 import {
   unlockWithPassphrase,
   unlockWithRecoveryKey,
@@ -12,7 +12,7 @@ import {
   KDFParams
 } from '@/lib/crypto/e2ee'
 import { storeDEK } from '@/lib/crypto/keyStore'
-import { setPassphrase } from '@/lib/crypto/passphraseCache'
+import { setPassphrase as setCachedPassphrase } from '@/lib/crypto/passphraseCache'
 import { eventsApi } from '@/features/events/services/events.api'
 import { toast } from 'sonner'
 import { useWebHaptics } from 'web-haptics/react'
@@ -57,6 +57,9 @@ export default function PassphrasePrompt({
   const [confirmPassphrase, setConfirmPassphrase] = useState('')
   const [rememberDevice, setRememberDevice] = useState(true)
   const [loading, setLoading] = useState(false)
+  const [showPassphrase, setShowPassphrase] = useState(false)
+  const [showNewPassphrase, setShowNewPassphrase] = useState(false)
+  const [showConfirmPassphrase, setShowConfirmPassphrase] = useState(false)
   
   // Temporary storage of DEK during recovery reset passphrase flow
   const [recoveredDek, setRecoveredDek] = useState<CryptoKey | null>(null)
@@ -70,6 +73,9 @@ export default function PassphrasePrompt({
         document.documentElement.style.pointerEvents = ''
         document.documentElement.style.overflow = ''
       }
+      setShowPassphrase(false)
+      setShowNewPassphrase(false)
+      setShowConfirmPassphrase(false)
       const timer = setTimeout(cleanup, 150)
       return () => clearTimeout(timer)
     }
@@ -108,7 +114,7 @@ export default function PassphrasePrompt({
         await storeDEK(eventId, dek)
       }
       
-      setPassphrase(eventId, passphrase)
+      setCachedPassphrase(eventId, passphrase)
       toast.success('Event unlocked successfully!')
       haptic.trigger('success')
       onUnlockSuccess(dek)
@@ -194,7 +200,7 @@ export default function PassphrasePrompt({
         await storeDEK(eventId, recoveredDek)
       }
 
-      setPassphrase(eventId, newPassphrase)
+      setCachedPassphrase(eventId, newPassphrase)
       toast.success('Passphrase updated and event unlocked!')
       haptic.trigger('success')
       onUnlockSuccess(recoveredDek)
@@ -231,28 +237,46 @@ export default function PassphrasePrompt({
             <div className="space-y-4 py-2">
               <div className="space-y-2">
                 <Label htmlFor="new-passphrase">New Passphrase</Label>
-                <Input
-                  id="new-passphrase"
-                  type="password"
-                  value={newPassphrase}
-                  onChange={(e) => setNewPassphrase(e.target.value)}
-                  placeholder="Enter new passphrase"
-                  className="bg-background"
-                  required
-                />
+                <div className="relative">
+                  <Input
+                    id="new-passphrase"
+                    type={showNewPassphrase ? "text" : "password"}
+                    value={newPassphrase}
+                    onChange={(e) => setNewPassphrase(e.target.value)}
+                    placeholder="Enter new passphrase"
+                    className="bg-background pr-10"
+                    required
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowNewPassphrase(!showNewPassphrase)}
+                    className="absolute right-3 top-1/2 -translate-y-1/2 text-neutral-400 hover:text-neutral-600 dark:hover:text-neutral-200 transition-colors"
+                  >
+                    {showNewPassphrase ? <EyeSlashIcon size={18} /> : <EyeIcon size={18} />}
+                  </button>
+                </div>
               </div>
 
               <div className="space-y-2">
                 <Label htmlFor="confirm-passphrase">Confirm Passphrase</Label>
-                <Input
-                  id="confirm-passphrase"
-                  type="password"
-                  value={confirmPassphrase}
-                  onChange={(e) => setConfirmPassphrase(e.target.value)}
-                  placeholder="Confirm new passphrase"
-                  className="bg-background"
-                  required
-                />
+                <div className="relative">
+                  <Input
+                    id="confirm-passphrase"
+                    type={showConfirmPassphrase ? "text" : "password"}
+                    value={confirmPassphrase}
+                    onChange={(e) => setConfirmPassphrase(e.target.value)}
+                    placeholder="Confirm new passphrase"
+                    className="bg-background pr-10"
+                    required
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowConfirmPassphrase(!showConfirmPassphrase)}
+                    className="absolute right-3 top-1/2 -translate-y-1/2 text-neutral-400 hover:text-neutral-600 dark:hover:text-neutral-200 transition-colors"
+                  >
+                    {showConfirmPassphrase ? <EyeSlashIcon size={18} /> : <EyeIcon size={18} />}
+                  </button>
+                </div>
               </div>
 
               <div className="flex items-center space-x-2 pt-1">
@@ -286,6 +310,8 @@ export default function PassphrasePrompt({
                   setNewPassphrase('')
                   setConfirmPassphrase('')
                   setRecoveredDek(null)
+                  setShowNewPassphrase(false)
+                  setShowConfirmPassphrase(false)
                 }}
                 className="w-full flex items-center justify-center gap-2"
               >
@@ -360,15 +386,24 @@ export default function PassphrasePrompt({
             <div className="space-y-4 py-2">
               <div className="space-y-2">
                 <Label htmlFor="passphrase">Event Passphrase</Label>
-                <Input
-                  id="passphrase"
-                  type="password"
-                  value={passphrase}
-                  onChange={(e) => setPassphrase(e.target.value)}
-                  placeholder="Enter passphrase"
-                  className="bg-background"
-                  required
-                />
+                <div className="relative">
+                  <Input
+                    id="passphrase"
+                    type={showPassphrase ? "text" : "password"}
+                    value={passphrase}
+                    onChange={(e) => setPassphrase(e.target.value)}
+                    placeholder="Enter passphrase"
+                    className="bg-background pr-10"
+                    required
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowPassphrase(!showPassphrase)}
+                    className="absolute right-3 top-1/2 -translate-y-1/2 text-neutral-400 hover:text-neutral-600 dark:hover:text-neutral-200 transition-colors"
+                  >
+                    {showPassphrase ? <EyeSlashIcon size={18} /> : <EyeIcon size={18} />}
+                  </button>
+                </div>
               </div>
 
               <div className="flex items-center space-x-2 pt-1">
