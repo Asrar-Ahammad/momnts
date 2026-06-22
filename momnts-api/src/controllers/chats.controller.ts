@@ -45,7 +45,8 @@ export async function getChatMessagesController(req: AuthRequest, res: Response)
         photos: { select: { id: true, thumb_url: true, display_url: true, encryption_iv: true, encryption_tag: true } },
         parent: {
           include: {
-            user: { select: { id: true, name: true } }
+            user: { select: { id: true, name: true } },
+            photos: { select: { id: true, thumb_url: true, display_url: true, encryption_iv: true, encryption_tag: true } }
           }
         },
         reactions: {
@@ -94,6 +95,26 @@ export async function getChatMessagesController(req: AuthRequest, res: Response)
           );
         }
 
+        let signedParent = null;
+        if (msg.parent) {
+          let parentPhotos: any[] = [];
+          if (msg.parent.photos && msg.parent.photos.length > 0) {
+            parentPhotos = await Promise.all(
+              msg.parent.photos.map(async (photo) => ({
+                id: photo.id,
+                thumb_url: await memoizedPresign(photo.thumb_url, 3600),
+                display_url: await memoizedPresign(photo.display_url, 3600),
+                encryption_iv: photo.encryption_iv,
+                encryption_tag: photo.encryption_tag,
+              }))
+            );
+          }
+          signedParent = {
+            ...msg.parent,
+            photos: parentPhotos,
+          };
+        }
+
         const signedReactions = await Promise.all(
           msg.reactions.map(async (reaction) => ({
             ...reaction,
@@ -112,6 +133,7 @@ export async function getChatMessagesController(req: AuthRequest, res: Response)
           },
           photos: signedPhotos,
           reactions: signedReactions,
+          parent: signedParent,
         };
       })
     );
@@ -202,7 +224,8 @@ export async function sendChatMessageController(req: AuthRequest, res: Response)
         photos: { select: { id: true, thumb_url: true, display_url: true, encryption_iv: true, encryption_tag: true } },
         parent: {
           include: {
-            user: { select: { id: true, name: true } }
+            user: { select: { id: true, name: true } },
+            photos: { select: { id: true, thumb_url: true, display_url: true, encryption_iv: true, encryption_tag: true } }
           }
         },
         reactions: {
@@ -231,6 +254,26 @@ export async function sendChatMessageController(req: AuthRequest, res: Response)
       );
     }
 
+    let signedParent = null;
+    if (message.parent) {
+      let parentPhotos: any[] = [];
+      if (message.parent.photos && message.parent.photos.length > 0) {
+        parentPhotos = await Promise.all(
+          message.parent.photos.map(async (photo) => ({
+            id: photo.id,
+            thumb_url: await presignStoredUrl(photo.thumb_url, 3600),
+            display_url: await presignStoredUrl(photo.display_url, 3600),
+            encryption_iv: photo.encryption_iv,
+            encryption_tag: photo.encryption_tag,
+          }))
+        );
+      }
+      signedParent = {
+        ...message.parent,
+        photos: parentPhotos,
+      };
+    }
+
     const broadcastMessage = {
       ...message,
       user: {
@@ -238,6 +281,7 @@ export async function sendChatMessageController(req: AuthRequest, res: Response)
         selfie_url: signedSelfie,
       },
       photos: signedPhotos,
+      parent: signedParent,
     };
 
     // 6. Broadcast via Socket.IO
@@ -441,7 +485,8 @@ export async function updateChatMessageController(req: AuthRequest, res: Respons
         photos: { select: { id: true, thumb_url: true, display_url: true, encryption_iv: true, encryption_tag: true } },
         parent: {
           include: {
-            user: { select: { id: true, name: true } }
+            user: { select: { id: true, name: true } },
+            photos: { select: { id: true, thumb_url: true, display_url: true, encryption_iv: true, encryption_tag: true } }
           }
         },
         reactions: {
@@ -470,6 +515,26 @@ export async function updateChatMessageController(req: AuthRequest, res: Respons
       );
     }
 
+    let signedParent = null;
+    if (updatedMessage.parent) {
+      let parentPhotos: any[] = [];
+      if (updatedMessage.parent.photos && updatedMessage.parent.photos.length > 0) {
+        parentPhotos = await Promise.all(
+          updatedMessage.parent.photos.map(async (photo) => ({
+            id: photo.id,
+            thumb_url: await presignStoredUrl(photo.thumb_url, 3600),
+            display_url: await presignStoredUrl(photo.display_url, 3600),
+            encryption_iv: photo.encryption_iv,
+            encryption_tag: photo.encryption_tag,
+          }))
+        );
+      }
+      signedParent = {
+        ...updatedMessage.parent,
+        photos: parentPhotos,
+      };
+    }
+
     const broadcastMessage = {
       ...updatedMessage,
       user: {
@@ -477,6 +542,7 @@ export async function updateChatMessageController(req: AuthRequest, res: Respons
         selfie_url: signedSelfie,
       },
       photos: signedPhotos,
+      parent: signedParent,
     };
 
     // 5. Broadcast updated message via Socket.IO

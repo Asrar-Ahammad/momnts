@@ -24,6 +24,7 @@ export interface ChatMessageParent {
     id: string;
     name: string;
   };
+  photos?: ChatMessagePhoto[] | null;
 }
 
 export interface MessageReaction {

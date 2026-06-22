@@ -842,32 +842,62 @@ export default function EventChatRoom({
 
         {/* WhatsApp/Telegram-style Replying to Message Preview Banner */}
         <AnimatePresence>
-          {replyingToMessage && (
-            <motion.div
-              initial={{ opacity: 0, y: 10, height: 0 }}
-              animate={{ opacity: 1, y: 0, height: 'auto' }}
-              exit={{ opacity: 0, y: 10, height: 0 }}
-              className="overflow-hidden"
-            >
-              <div className="flex items-center justify-between p-2.5 rounded-xl bg-white/5 border-l-4 border-l-primary border border-white/10 mb-1">
-                <div className="flex-1 min-w-0 pr-2">
-                  <div className="text-[11px] font-bold text-primary flex items-center gap-1">
-                    <span>Replying to {replyingToMessage.user?.name || "Guest"}</span>
+          {replyingToMessage && (() => {
+            const hasPhoto = replyingToMessage.photos && replyingToMessage.photos.length > 0;
+            return (
+              <motion.div
+                initial={{ opacity: 0, y: 10, height: 0 }}
+                animate={{ opacity: 1, y: 0, height: 'auto' }}
+                exit={{ opacity: 0, y: 10, height: 0 }}
+                className="overflow-hidden"
+              >
+                {hasPhoto ? (
+                  <div className="flex items-center justify-between p-2 rounded-xl bg-white/5 border border-white/10 mb-1">
+                    <div className="flex items-center gap-3 flex-1 min-w-0">
+                      <div className="w-10 h-10 rounded-lg overflow-hidden bg-neutral-800 shrink-0">
+                        <TaggedPhotoThumbnail photo={replyingToMessage.photos[0]} dek={dek} isFullFill={true} />
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <div className="text-[13px] font-semibold text-[#6B8AFD]">
+                          Reply to {replyingToMessage.user?.name || "Guest"}
+                        </div>
+                        <div className="mt-0.5">
+                          <ReplyingMessagePreview msg={replyingToMessage} dek={dek} hasPhotoLayout={true} />
+                        </div>
+                      </div>
+                    </div>
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="icon"
+                      onClick={() => { haptic.trigger("light"); setReplyingToMessage(null); }}
+                      className="h-7 w-7 rounded-full text-muted-foreground hover:text-foreground hover:bg-white/10 cursor-pointer shrink-0 ml-2"
+                    >
+                      <X size={14} weight="bold" />
+                    </Button>
                   </div>
-                  <ReplyingMessagePreview msg={replyingToMessage} dek={dek} />
-                </div>
-                <Button
-                  type="button"
-                  variant="ghost"
-                  size="icon"
-                  onClick={() => { haptic.trigger("light"); setReplyingToMessage(null); }}
-                  className="h-7 w-7 rounded-full text-muted-foreground hover:text-foreground hover:bg-white/10 cursor-pointer shrink-0"
-                >
-                  <X size={14} weight="bold" />
-                </Button>
-              </div>
-            </motion.div>
-          )}
+                ) : (
+                  <div className="flex items-center justify-between p-2.5 rounded-xl bg-white/5 border-l-4 border-l-primary border border-white/10 mb-1">
+                    <div className="flex-1 min-w-0 pr-2">
+                      <div className="text-[11px] font-bold text-primary flex items-center gap-1">
+                        <span>Replying to {replyingToMessage.user?.name || "Guest"}</span>
+                      </div>
+                      <ReplyingMessagePreview msg={replyingToMessage} dek={dek} />
+                    </div>
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="icon"
+                      onClick={() => { haptic.trigger("light"); setReplyingToMessage(null); }}
+                      className="h-7 w-7 rounded-full text-muted-foreground hover:text-foreground hover:bg-white/10 cursor-pointer shrink-0"
+                    >
+                      <X size={14} weight="bold" />
+                    </Button>
+                  </div>
+                )}
+              </motion.div>
+            );
+          })()}
         </AnimatePresence>
 
         {/* Mentions dropdown list */}
@@ -1007,6 +1037,66 @@ export default function EventChatRoom({
       )}
     </div>
   )
+}
+
+interface ParentMessageQuoteProps {
+  parent: ChatMessageParent
+  dek: CryptoKey | null
+  isSelf: boolean
+}
+
+function ParentMessageQuote({ parent, dek, isSelf }: ParentMessageQuoteProps) {
+  const hasParentPhoto = parent.photos && parent.photos.length > 0;
+
+  const handleClick = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    const el = document.getElementById(`msg-${parent.id}`);
+    if (el) {
+      el.scrollIntoView({ behavior: "smooth", block: "center" });
+      el.classList.add("bg-primary/20", "dark:bg-primary/30");
+      setTimeout(() => {
+        el.classList.remove("bg-primary/20", "dark:bg-primary/30");
+      }, 1500);
+    }
+  };
+
+  if (hasParentPhoto) {
+    return (
+      <div
+        onClick={handleClick}
+        className={`mb-2 p-1.5 rounded-lg text-[11px] cursor-pointer select-none transition-colors border-l-4 flex items-center gap-2.5 bg-current/10 hover:bg-current/15 w-full min-w-[200px] ${
+          isSelf ? "border-l-current/70 text-current/80" : "border-l-primary text-current/80"
+        }`}
+      >
+        <div className="shrink-0 w-8 h-8 rounded-md overflow-hidden bg-neutral-800/20">
+          <TaggedPhotoThumbnail photo={parent.photos[0]} dek={dek} isFullFill={true} />
+        </div>
+        <div className="flex flex-col min-w-0 text-left">
+          <span className={`font-bold text-[11px] leading-tight ${isSelf ? "text-current" : "text-primary"}`}>
+            {parent.user?.name || "Guest"}
+          </span>
+          <div className="text-[11px] leading-tight truncate mt-0.5 opacity-90">
+            <ParentMessageText parentMsg={parent} dek={dek} />
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div
+      onClick={handleClick}
+      className={`mb-2 p-2 rounded-lg text-[11px] cursor-pointer select-none transition-colors border-l-[3px] flex flex-col gap-0.5 bg-current/10 hover:bg-current/15 ${isSelf
+          ? "text-current/80 border-l-current/70"
+          : "text-current/80 border-l-primary"
+        }`}
+    >
+      <span className={`font-bold text-[10px] leading-none ${isSelf ? "text-current" : "text-primary"}`}>
+        {parent.user?.name || "Guest"}
+      </span>
+      <ParentMessageText parentMsg={parent} dek={dek} />
+    </div>
+  );
 }
 
 // ─── Chat Message Item Render (with async decryption) ────────────────
@@ -1314,6 +1404,30 @@ function ChatMessageItem({
         x: shouldRenderHidden ? animationOrigin.x : 0, 
         scale: shouldRenderHidden ? animationOrigin.scale : 1 
       }}
+      exit={{
+        opacity: 0,
+        x: isSelf ? 300 : -300,
+        y: -60,
+        scale: 0.6,
+        rotate: isSelf ? 15 : -15,
+        height: 0,
+        paddingTop: 0,
+        paddingBottom: 0,
+        marginTop: 0,
+        marginBottom: 0,
+        transition: {
+          x: { type: "spring", stiffness: 120, damping: 14 },
+          y: { type: "spring", stiffness: 120, damping: 14 },
+          rotate: { type: "spring", stiffness: 120, damping: 14 },
+          scale: { type: "spring", stiffness: 120, damping: 14 },
+          opacity: { duration: 0.2 },
+          height: { duration: 0.3, ease: "easeInOut" },
+          paddingTop: { duration: 0.3, ease: "easeInOut" },
+          paddingBottom: { duration: 0.3, ease: "easeInOut" },
+          marginTop: { duration: 0.3, ease: "easeInOut" },
+          marginBottom: { duration: 0.3, ease: "easeInOut" }
+        }
+      }}
       transition={transitionAnimation}
       className={`flex w-full p-1 rounded-xl transition-colors duration-500 relative ${isSelf ? "justify-end" : "justify-start"}`}
     >
@@ -1375,27 +1489,7 @@ function ChatMessageItem({
               >
                 {/* Parent Message Reply Quote Block */}
                 {msg.parent && (
-                  <div
-                    onClick={() => {
-                      const el = document.getElementById(`msg-${msg.parent?.id}`);
-                      if (el) {
-                        el.scrollIntoView({ behavior: "smooth", block: "center" });
-                        el.classList.add("bg-primary/20", "dark:bg-primary/30");
-                        setTimeout(() => {
-                          el.classList.remove("bg-primary/20", "dark:bg-primary/30");
-                        }, 1500);
-                      }
-                    }}
-                    className={`mb-2 p-2 rounded-lg text-[11px] cursor-pointer select-none transition-colors border-l-[3px] flex flex-col gap-0.5 bg-current/10 hover:bg-current/15 ${isSelf
-                        ? "text-current/80 border-l-current/70"
-                        : "text-current/80 border-l-primary"
-                      }`}
-                  >
-                    <span className={`font-bold text-[10px] leading-none ${isSelf ? "text-current" : "text-primary"}`}>
-                      {msg.parent.user?.name || "Guest"}
-                    </span>
-                    <ParentMessageText parentMsg={msg.parent} dek={dek} />
-                  </div>
+                  <ParentMessageQuote parent={msg.parent} dek={dek} isSelf={isSelf} />
                 )}
 
                 <form onSubmit={handleEditSubmit} className="flex flex-col gap-2 min-w-[200px] sm:min-w-[240px]">
@@ -1448,31 +1542,10 @@ function ChatMessageItem({
                                 : "bg-white/5 border border-white/10 text-foreground rounded-bl-sm"
                               }`}
                           >
-                            {/* Parent Message Reply Quote Block */}
-                            {msg.parent && (
-                              <div
-                                onClick={(e) => {
-                                  e.stopPropagation();
-                                  const el = document.getElementById(`msg-${msg.parent?.id}`);
-                                  if (el) {
-                                    el.scrollIntoView({ behavior: "smooth", block: "center" });
-                                    el.classList.add("bg-primary/20", "dark:bg-primary/30");
-                                    setTimeout(() => {
-                                      el.classList.remove("bg-primary/20", "dark:bg-primary/30");
-                                    }, 1500);
-                                  }
-                                }}
-                                className={`mb-2 p-2 rounded-lg text-[11px] cursor-pointer select-none transition-colors border-l-[3px] flex flex-col gap-0.5 bg-current/10 hover:bg-current/15 ${isSelf
-                                    ? "text-current/80 border-l-current/70"
-                                    : "text-current/80 border-l-primary"
-                                  }`}
-                              >
-                                <span className={`font-bold text-[10px] leading-none ${isSelf ? "text-current" : "text-primary"}`}>
-                                  {msg.parent.user?.name || "Guest"}
-                                </span>
-                                <ParentMessageText parentMsg={msg.parent} dek={dek} />
-                              </div>
-                            )}
+                             {/* Parent Message Reply Quote Block */}
+                             {msg.parent && (
+                               <ParentMessageQuote parent={msg.parent} dek={dek} isSelf={isSelf} />
+                             )}
 
                             {decrypting ? (
                               <span className="text-[13px] italic opacity-70 animate-pulse">Decrypting message...</span>
@@ -2114,9 +2187,10 @@ function PhotoPickerModal({
 interface ReplyingMessagePreviewProps {
   msg: ChatMessageData
   dek: CryptoKey | null
+  hasPhotoLayout?: boolean
 }
 
-function ReplyingMessagePreview({ msg, dek }: ReplyingMessagePreviewProps) {
+function ReplyingMessagePreview({ msg, dek, hasPhotoLayout = false }: ReplyingMessagePreviewProps) {
   const [decryptedText, setDecryptedText] = useState("")
   const [decrypting, setDecrypting] = useState(true)
 
@@ -2149,7 +2223,15 @@ function ReplyingMessagePreview({ msg, dek }: ReplyingMessagePreviewProps) {
   }, [msg.message_text, msg.encryption_iv, msg.encryption_tag, dek])
 
   if (decrypting) {
-    return <p className="text-xs text-muted-foreground italic truncate">Decrypting...</p>
+    return <p className={hasPhotoLayout ? "text-[13px] text-muted-foreground italic truncate" : "text-xs text-muted-foreground italic truncate"}>Decrypting...</p>
+  }
+
+  if (hasPhotoLayout) {
+    return (
+      <p className="text-[13px] text-zinc-300 truncate leading-snug">
+        {decryptedText || (msg.photos && msg.photos.length > 0 ? "Tagged Photo" : "Encrypted message")}
+      </p>
+    )
   }
 
   return (
