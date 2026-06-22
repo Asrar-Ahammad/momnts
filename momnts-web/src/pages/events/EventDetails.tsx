@@ -3,7 +3,7 @@ import { useParams, useNavigate, useSearchParams } from 'react-router'
 import { useAuth } from '../../features/auth/hooks/useAuth'
 import { Button } from '../../components/ui/button'
 import { Badge } from '../../components/ui/badge'
-import { ArrowLeft, X, CaretUp, LockKey } from '@phosphor-icons/react'
+import { ArrowLeft, X, CaretUp, LockKey, ChatCircle } from '@phosphor-icons/react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { eventsApi, EventData } from '../../features/events/services/events.api'
 import { photosApi, PhotoData } from '../../features/events/services/photos.api'
@@ -26,6 +26,8 @@ import { getDEK, deleteDEK } from '../../lib/crypto/keyStore'
 import { getPassphrase } from '../../lib/crypto/passphraseCache'
 import { decryptPhoto, detectImageType } from '../../lib/crypto/e2ee'
 import PassphrasePrompt from '../../components/PassphrasePrompt'
+import EventChatRoom from './components/EventChatRoom'
+import { Sheet, SheetContent, SheetTrigger, SheetHeader, SheetTitle, SheetDescription } from '../../components/ui/sheet'
 
 type TabType = 'all' | 'your-photos' | 'favourites' | 'your-uploads' | 'connections'
 type GalleryColumns = 1 | 2 | 3
@@ -93,7 +95,61 @@ const EventDetails = () => {
   })
 
   const [dek, setDek] = useState<CryptoKey | null>(null)
+  const [chatDek, setChatDek] = useState<CryptoKey | null>(null)
+  const [isChatOpen, setIsChatOpen] = useState(false)
   const [isPassphrasePromptOpen, setIsPassphrasePromptOpen] = useState(false)
+
+  // Resizable Chat Sheet state
+  const [chatWidth, setChatWidth] = useState(448) // default max-w-md (448px)
+  const [isDesktop, setIsDesktop] = useState(false)
+  const [hasUnreadMessages, setHasUnreadMessages] = useState(false)
+  const isResizingRef = useRef(false)
+  const startXRef = useRef(0)
+  const startWidthRef = useRef(0)
+
+  useEffect(() => {
+    const checkIsDesktop = () => {
+      setIsDesktop(window.innerWidth >= 640)
+    }
+    checkIsDesktop()
+    window.addEventListener('resize', checkIsDesktop)
+    return () => window.removeEventListener('resize', checkIsDesktop)
+  }, [])
+
+  useEffect(() => {
+    if (isChatOpen) {
+      setHasUnreadMessages(false)
+    }
+  }, [isChatOpen])
+
+  const handleResizeMouseMove = useCallback((e: MouseEvent) => {
+    if (!isResizingRef.current) return
+    const deltaX = e.clientX - startXRef.current
+    const newWidth = Math.max(340, Math.min(800, startWidthRef.current - deltaX))
+    setChatWidth(newWidth)
+  }, [])
+
+  const handleResizeMouseUp = useCallback(() => {
+    isResizingRef.current = false
+    document.removeEventListener('mousemove', handleResizeMouseMove)
+    document.removeEventListener('mouseup', handleResizeMouseUp)
+  }, [handleResizeMouseMove])
+
+  const handleResizeMouseDown = (e: React.MouseEvent) => {
+    e.preventDefault()
+    isResizingRef.current = true
+    startXRef.current = e.clientX
+    startWidthRef.current = chatWidth
+    document.addEventListener('mousemove', handleResizeMouseMove)
+    document.addEventListener('mouseup', handleResizeMouseUp)
+  }
+
+  useEffect(() => {
+    return () => {
+      document.removeEventListener('mousemove', handleResizeMouseMove)
+      document.removeEventListener('mouseup', handleResizeMouseUp)
+    }
+  }, [handleResizeMouseMove, handleResizeMouseUp])
 
   const isE2EELocked = event?.encryption_mode === 'E2EE' && !dek
   const loading = eventLoading || (!isE2EELocked && (photosLoading || (!isEventE2EE && myPhotosLoading)))
@@ -114,15 +170,43 @@ const EventDetails = () => {
         const cachedDek = await getDEK(event.id)
         if (cachedDek) {
           setDek(cachedDek)
+          setChatDek(cachedDek)
           setIsPassphrasePromptOpen(false)
         } else {
           setDek(null)
+          setChatDek(null)
           setIsPassphrasePromptOpen(true)
         }
       }
       checkLockStatus()
+    } else if (event?.encryption_mode === 'AI') {
+      setDek(null)
+      setIsPassphrasePromptOpen(false)
+      // Fetch server-assisted chat DEK
+      const fetchChatKey = async () => {
+        try {
+          const base64Key = await eventsApi.getEventChatKey(event.id)
+          const binaryString = atob(base64Key)
+          const rawKey = new Uint8Array(binaryString.length)
+          for (let i = 0; i < binaryString.length; i++) {
+            rawKey[i] = binaryString.charCodeAt(i)
+          }
+          const importedKey = await crypto.subtle.importKey(
+            'raw',
+            rawKey,
+            { name: 'AES-GCM' },
+            false,
+            ['encrypt', 'decrypt']
+          )
+          setChatDek(importedKey)
+        } catch (err) {
+          console.error("Failed to fetch chat key", err)
+        }
+      }
+      fetchChatKey()
     } else {
       setDek(null)
+      setChatDek(null)
       setIsPassphrasePromptOpen(false)
     }
   }, [event?.id, event?.encryption_mode])
@@ -190,6 +274,12 @@ const EventDetails = () => {
         }
       }
     }, [user?.id, eventId, queryClient]),
+    onChatMessage: useCallback((data) => {
+      // If chat is not open, show the unread indicator
+      if (!isChatOpen) {
+        setHasUnreadMessages(true)
+      }
+    }, [isChatOpen]),
   })
 
   // Sync favorites
@@ -1032,6 +1122,59 @@ const EventDetails = () => {
           eventDate={event.date}
           dek={dek}
         />
+      )}
+
+      {/* Floating Chat Button & Sheet */}
+      {event && (
+        <Sheet open={isChatOpen} onOpenChange={setIsChatOpen}>
+          <SheetTrigger asChild>
+            <motion.div
+              initial={{ scale: 0, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              transition={{ type: "spring", stiffness: 260, damping: 20 }}
+              className="fixed bottom-[calc(5.5rem+env(safe-area-inset-bottom,0px))] right-6 md:bottom-8 md:right-8 z-50"
+            >
+              <Button
+                size="icon"
+                className="relative h-14 w-14 rounded-full shadow-2xl bg-primary hover:bg-primary/90 text-primary-foreground flex items-center justify-center cursor-pointer transition-transform hover:scale-105 active:scale-95"
+              >
+                <ChatCircle size={28} weight="fill" />
+                {hasUnreadMessages && (
+                  <span className="absolute top-0 right-0 flex h-4 w-4">
+                    <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-red-400 opacity-75"></span>
+                    <span className="relative inline-flex rounded-full h-4 w-4 bg-red-500 border-2 border-background"></span>
+                  </span>
+                )}
+              </Button>
+            </motion.div>
+          </SheetTrigger>
+          <SheetContent 
+            side="right" 
+            className="w-full p-0 flex flex-col h-[100dvh] border-l-0 sm:border-l shadow-2xl bg-background overflow-hidden z-50"
+            style={isDesktop ? { width: `${chatWidth}px`, maxWidth: '100vw', transitionProperty: 'translate, transform, opacity' } : { width: '100vw', maxWidth: '100vw' }}
+          >
+            {/* Drag Resizer Handle */}
+            <div
+              onMouseDown={handleResizeMouseDown}
+              className="hidden sm:flex absolute left-0 top-0 bottom-0 w-2.5 cursor-col-resize hover:bg-primary/20 hover:border-l hover:border-primary/50 transition-all z-50 items-center justify-center group/resizer select-none"
+            >
+              <div className="w-[2px] h-10 rounded-full bg-muted-foreground/25 group-hover/resizer:bg-primary group-hover/resizer:h-16 transition-all duration-150" />
+            </div>
+
+            <SheetHeader className="sr-only">
+              <SheetTitle>Event Chat</SheetTitle>
+              <SheetDescription>Chat room for {event.name}</SheetDescription>
+            </SheetHeader>
+            <EventChatRoom
+              eventId={event.id}
+              dek={chatDek}
+              photos={photos}
+              onPhotoClick={handlePhotoClick}
+              isOrganizer={event.user_role === 'ORGANIZER'}
+              onClose={() => setIsChatOpen(false)}
+            />
+          </SheetContent>
+        </Sheet>
       )}
 
       <ShareEventModal

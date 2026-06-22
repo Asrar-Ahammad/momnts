@@ -38,6 +38,8 @@ model User {
   comments         Comment[]
   join_requests    JoinRequest[]
   subscription     Subscription?
+  chat_messages    ChatMessage[]
+  message_reactions MessageReaction[]
 }
 
 model Event {
@@ -70,6 +72,7 @@ model Event {
   photos        Photo[]
   face_profiles FaceProfile[]
   join_requests JoinRequest[]
+  chat_messages ChatMessage[]
 }
 
 enum Role {
@@ -123,6 +126,7 @@ model Photo {
   photo_faces PhotoFace[]
   favourites  Favourite[]
   comments    Comment[]
+  chat_messages ChatMessage[]
 }
 
 model FaceProfile {
@@ -248,4 +252,36 @@ model Subscription {
   is_active  Boolean   @default(true)
 
   user User @relation(fields: [user_id], references: [id], onDelete: Cascade)
+}
+
+model ChatMessage {
+  id             String   @id @default(uuid())
+  event_id       String
+  user_id        String
+  parent_id      String?
+  message_text   String   @db.VarChar(2000)
+  encryption_iv  String
+  encryption_tag String
+  created_at     DateTime @default(now())
+  updated_at     DateTime @default(now()) @updatedAt
+
+  event   Event        @relation(fields: [event_id], references: [id], onDelete: Cascade)
+  user    User         @relation(fields: [user_id], references: [id], onDelete: Cascade)
+  photos  Photo[]
+  parent  ChatMessage? @relation("ChatReplies", fields: [parent_id], references: [id], onDelete: SetNull)
+  replies ChatMessage[] @relation("ChatReplies")
+  reactions MessageReaction[] @relation("MessageReactions")
+}
+
+model MessageReaction {
+  id               String      @id @default(uuid())
+  chat_message_id  String
+  user_id          String
+  emoji            String
+  created_at       DateTime    @default(now())
+
+  chat_message     ChatMessage @relation("MessageReactions", fields: [chat_message_id], references: [id], onDelete: Cascade)
+  user             User        @relation(fields: [user_id], references: [id], onDelete: Cascade)
+
+  @@unique([chat_message_id, user_id])
 }

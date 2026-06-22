@@ -1542,6 +1542,68 @@ async function getPendingRequestCountController(req: AuthRequest, res: Response)
     }
 }
 
+/**
+ * @name getEventChatKeyController
+ * @description Provides a deterministic symmetric key for transparent chat encryption in non-E2EE events.
+ * @route GET /events/:eventId/chat-key
+ * @access Private (Attendees & Organizers)
+ */
+async function getEventChatKeyController(req: AuthRequest, res: Response) {
+    try {
+        if (!req.user?.id) {
+            return res.status(401).json({ message: "User not authenticated" });
+        }
+
+        const eventId = req.params.eventId as string;
+
+        if (!eventId) {
+            return res.status(400).json({ message: "Event ID is required" });
+        }
+
+        // Verify access
+        const eventAccess = await prisma.eventAccess.findUnique({
+            where: {
+                event_id_user_id: {
+                    event_id: eventId,
+                    user_id: req.user.id,
+                }
+            },
+            include: {
+                event: {
+                    select: { encryption_mode: true }
+                }
+            }
+        });
+
+        if (!eventAccess) {
+            return res.status(403).json({ message: 'You do not have access to this event' });
+        }
+
+        if (eventAccess.event.encryption_mode === 'E2EE') {
+            return res.status(400).json({ message: 'E2EE events use client-side passphrase for chat keys' });
+        }
+
+        const jwtSecret = process.env.JWT_SECRET;
+        if (!jwtSecret) {
+            return res.status(500).json({ message: 'Server configuration error' });
+        }
+
+        // Deterministic symmetric key generation: HMAC-SHA256 of the event ID using the server secret
+        // This generates exactly 32 bytes of output, perfect for AES-GCM-256.
+        const derivedKeyBase64 = crypto.createHmac('sha256', jwtSecret)
+            .update(`chat_dek_${eventId}`)
+            .digest('base64');
+
+        return res.status(200).json({
+            message: "Chat key fetched successfully",
+            key: derivedKeyBase64
+        });
+    } catch (error) {
+        const message = error instanceof Error ? error.message : "Internal server error";
+        return res.status(500).json({ message });
+    }
+}
+
 export {
     createEventController,
     getEventDetailsController,
@@ -1557,5 +1619,6 @@ export {
     removeAttendeeController,
     getJoinRequestsController,
     handleJoinRequestController,
-    getPendingRequestCountController
+    getPendingRequestCountController,
+    getEventChatKeyController
 };

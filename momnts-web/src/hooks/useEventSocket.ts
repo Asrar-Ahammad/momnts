@@ -32,6 +32,7 @@ interface UseEventSocketOptions {
   onPhotoProcessed?: (data: PhotoProcessedEvent) => void
   onFaceMatched?: (data: FaceMatchedEvent) => void
   onJoinRequestChange?: (data: any) => void
+  onChatMessage?: (data: any) => void
 }
 
 /**
@@ -44,6 +45,7 @@ export function useEventSocket({
   onPhotoProcessed,
   onFaceMatched,
   onJoinRequestChange,
+  onChatMessage,
 }: UseEventSocketOptions) {
   const socketRef = useRef<Socket | null>(null)
   const queryClient = useQueryClient()
@@ -52,6 +54,7 @@ export function useEventSocket({
   const onPhotoProcessedRef = useRef(onPhotoProcessed)
   const onFaceMatchedRef = useRef(onFaceMatched)
   const onJoinRequestChangeRef = useRef(onJoinRequestChange)
+  const onChatMessageRef = useRef(onChatMessage)
 
   useEffect(() => {
     onPhotoProcessedRef.current = onPhotoProcessed
@@ -64,6 +67,10 @@ export function useEventSocket({
   useEffect(() => {
     onJoinRequestChangeRef.current = onJoinRequestChange
   }, [onJoinRequestChange])
+
+  useEffect(() => {
+    onChatMessageRef.current = onChatMessage
+  }, [onChatMessage])
 
   useEffect(() => {
     if (!eventId) return
@@ -89,6 +96,45 @@ export function useEventSocket({
     socket.on('face:matched', (data: FaceMatchedEvent) => {
       console.log('[WS] Face matched:', data)
       onFaceMatchedRef.current?.(data)
+    })
+
+    socket.on('chat:message', (data: any) => {
+      console.log('[WS] Chat message received:', data)
+      onChatMessageRef.current?.(data)
+    })
+
+    socket.on('chat:message-updated', (data: any) => {
+      console.log('[WS] Chat message updated:', data)
+      queryClient.setQueryData(["chats", eventId], (oldData: any) => {
+        if (!oldData) return undefined
+        return {
+          total: oldData.total,
+          data: oldData.data.map((m: any) => m.id === data.id ? data : m)
+        }
+      })
+    })
+
+    socket.on('chat:reaction-updated', (data: any) => {
+      console.log('[WS] Chat reaction updated:', data)
+      queryClient.setQueryData(["chats", eventId], (oldData: any) => {
+        if (!oldData) return undefined
+        return {
+          total: oldData.total,
+          data: oldData.data.map((m: any) => m.id === data.messageId ? { ...m, reactions: data.reactions } : m)
+        }
+      })
+    })
+
+    socket.on('chat:message-deleted', (data: any) => {
+      console.log('[WS] Chat message deleted:', data)
+      queryClient.setQueryData(["chats", eventId], (oldData: any) => {
+        if (!oldData) return undefined
+        const filtered = oldData.data.filter((m: any) => m.id !== data.id)
+        return {
+          total: filtered.length,
+          data: filtered
+        }
+      })
     })
 
     socket.on('join-request:change', (data: any) => {

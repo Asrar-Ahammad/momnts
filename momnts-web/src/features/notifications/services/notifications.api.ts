@@ -13,6 +13,7 @@ export interface NotificationData {
   image_url?: string | null
   is_read: boolean
   created_at: string
+  skipToast?: boolean
 }
 
 async function handleError(response: Response, fallback: string) {
@@ -52,6 +53,17 @@ export const notificationsApi = {
 
     if (!response.ok) {
       await handleError(response, "Failed to mark as read");
+    }
+  },
+
+  async markAllAsRead(): Promise<void> {
+    const response = await apiFetch(`${API_URL}/api/notifications/all/read`, {
+      method: "PUT",
+      headers: authHeaders(),
+    })
+
+    if (!response.ok) {
+      await handleError(response, "Failed to mark all as read");
     }
   },
 

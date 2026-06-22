@@ -1007,7 +1007,12 @@ async function getSessionsController(req: any, res: Response) {
     const refreshToken = req.headers['x-refresh-token'] || req.body.refreshToken;
 
     const sessions = await prisma.refreshToken.findMany({
-      where: { user_id: req.user.id },
+      where: { 
+        user_id: req.user.id,
+        expires_at: {
+          gt: new Date()
+        }
+      },
       orderBy: { last_used_at: 'desc' }
     });
 
