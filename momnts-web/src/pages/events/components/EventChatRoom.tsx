@@ -600,6 +600,11 @@ export default function EventChatRoom({
       }
     }
 
+    // Keep input focused synchronously to avoid keyboard flicker
+    if (inputRef.current) {
+      inputRef.current.focus()
+    }
+
     try {
       // Extract mentioned user IDs before encryption
       const mentionedUserIds: string[] = []
@@ -618,7 +623,6 @@ export default function EventChatRoom({
       }
 
       // 2. Parse any remaining typed mentions that weren't explicitly captured from the dropdown
-      // (e.g. typing @everyone or @username directly)
       const everyoneRegex = /(?:^|\s)@everyone(?:$|\s|[.,!?;:])/i
       if (everyoneRegex.test(textToSearch)) {
         mentionedUserIds.push("everyone")
@@ -645,7 +649,8 @@ export default function EventChatRoom({
       // Encrypt the message text client-side
       const encrypted = await encryptTextMessage(text || `Tagged ${selectedPhotos.length} photo${selectedPhotos.length === 1 ? "" : "s"}`, dek)
 
-      await sendMutation.mutateAsync({
+      // Use mutate instead of await mutateAsync to prevent layout/keyboard focus loss from waiting on network response
+      sendMutation.mutate({
         message_text: encrypted.ciphertext,
         encryption_iv: encrypted.iv,
         encryption_tag: encrypted.tag,
@@ -664,6 +669,7 @@ export default function EventChatRoom({
       setExplicitMentions([])
       setSelectedPhotos([])
       setReplyingToMessage(null)
+
       if (inputRef.current) {
         inputRef.current.focus()
       }
