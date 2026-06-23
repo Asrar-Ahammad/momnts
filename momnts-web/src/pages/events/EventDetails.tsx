@@ -111,7 +111,12 @@ const EventDetails = () => {
 
 
   // Resizable Chat Sheet state
-  const [chatWidth, setChatWidth] = useState(448) // default max-w-md (448px)
+  const [chatWidth, setChatWidth] = useState(() => {
+    if (typeof window !== 'undefined') {
+      return window.innerWidth >= 1024 ? Math.round(window.innerWidth / 2) : 448
+    }
+    return 448
+  })
   const [isDesktop, setIsDesktop] = useState(false)
   const [hasUnreadMessages, setHasUnreadMessages] = useState(false)
   const isResizingRef = useRef(false)
@@ -136,7 +141,8 @@ const EventDetails = () => {
   const handleResizeMouseMove = useCallback((e: MouseEvent) => {
     if (!isResizingRef.current) return
     const deltaX = e.clientX - startXRef.current
-    const newWidth = Math.max(340, Math.min(800, startWidthRef.current - deltaX))
+    const maxAllowedWidth = Math.max(800, Math.round(window.innerWidth * 0.8))
+    const newWidth = Math.max(340, Math.min(maxAllowedWidth, startWidthRef.current - deltaX))
     setChatWidth(newWidth)
   }, [])
 

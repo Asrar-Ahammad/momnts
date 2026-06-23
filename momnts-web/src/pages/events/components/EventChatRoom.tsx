@@ -1,85 +1,34 @@
 import React, { useState, useRef, useEffect, useLayoutEffect, useMemo, Suspense } from "react"
 import { useAuth } from "@/features/auth/hooks/useAuth"
-import { useChatMessages, useSendChatMessage, useUpdateChatMessage, useDeleteChatMessage, useToggleChatMessageReaction } from "@/features/chats/hooks/useChats"
+import { useChatMessages, useSendChatMessage } from "@/features/chats/hooks/useChats"
 import { cn } from "@/lib/utils"
-import { useTheme } from "next-themes"
 import { chatsApi } from "@/features/chats/services/chats.api"
 
 import { useEventAttendees } from "@/features/events/hooks/useEvents"
-import { decryptTextMessage, encryptTextMessage } from "@/lib/crypto/e2ee"
-import { useDecryptedPhoto } from "@/features/events/hooks/useDecryptedPhoto"
+import { encryptTextMessage } from "@/lib/crypto/e2ee"
 import { useQueryClient } from "@tanstack/react-query"
 import { useWebHaptics } from "web-haptics/react"
-import { motion, AnimatePresence, useMotionValue, useTransform } from "framer-motion"
+import { motion, AnimatePresence } from "framer-motion"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar"
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu"
-import {
-  Popover,
-  PopoverContent,
-  PopoverTrigger,
-} from "@/components/ui/popover"
-import { Popover as PopoverPrimitive } from "@base-ui/react/popover"
-import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-} from "@/components/ui/alert-dialog"
-import { Tooltip, TooltipTrigger, TooltipContent, TooltipProvider } from "@/components/ui/tooltip"
 import {
   Lock,
   PaperPlaneRight,
   Image as ImageIcon,
   X,
   ArrowDown,
-  ChatCircle,
-  Users,
-  Warning,
-  Eye,
-  Pencil,
-  Trash,
-  ArrowBendUpLeft,
-  Check,
-  Checks,
-  Clock,
-  Smiley,
-  Plus
+  Users
 } from "@phosphor-icons/react"
 import { toast } from "sonner"
-import { ChatMessageData, ChatMessageParent } from "@/features/chats/services/chats.api"
+import { ChatMessageData } from "@/features/chats/services/chats.api"
 
-interface CachedPhoto {
-  cleanPath: string
-  presignedUrl: string
-  timestamp: number
-}
-
-const profilePhotoCache: Record<string, CachedPhoto> = {}
-
-import EmojiPicker from "emoji-picker-react"
-
-export const getCachedProfilePhoto = (userId: string, incomingUrl: string | null | undefined): string | undefined => {
-  if (!incomingUrl) return undefined
-  const cleanPath = incomingUrl.split("?")[0]
-  const cached = profilePhotoCache[userId]
-  const now = Date.now()
-  if (!cached || cached.cleanPath !== cleanPath || (now - cached.timestamp > 60 * 60 * 1000)) {
-    profilePhotoCache[userId] = { cleanPath, presignedUrl: incomingUrl, timestamp: now }
-    return incomingUrl
-  }
-  return cached.presignedUrl
-}
+// Modular Imports
+import { getCachedProfilePhoto } from "./chatUtils"
+import { ChatMessageItem } from "./ChatMessageItem"
+import { TaggedPhotoThumbnail } from "./TaggedPhotoThumbnail"
+import { PhotoPickerModal } from "./PhotoPickerModal"
+import { ReplyingMessagePreview } from "./ReplyingMessagePreview"
 
 interface EventChatRoomProps {
   eventId: string
@@ -108,6 +57,7 @@ export default function EventChatRoom({
   const queryClient = useQueryClient()
   const haptic = useWebHaptics()
   const scrollRef = useRef<HTMLDivElement>(null)
+  const tempIdMapRef = useRef<Map<string, string>>(new Map())
 
   const [inputText, setInputText] = useState("")
   const [viewportStyle, setViewportStyle] = useState<React.CSSProperties>({})
@@ -158,10 +108,10 @@ export default function EventChatRoom({
     return localStorage.getItem("momnts_chat_first_time") === null
   })
 
-  const handleDismissTooltip = () => {
+  const handleDismissTooltip = React.useCallback(() => {
     localStorage.setItem("momnts_chat_first_time", "false")
     setIsFirstTimeChat(false)
-  }
+  }, [])
 
   // Real-time typing indicators state
   interface TypingUser {
@@ -308,13 +258,13 @@ export default function EventChatRoom({
     }
   }
 
-  const handleStartReply = (msg: ChatMessageData) => {
+  const handleStartReply = React.useCallback((msg: ChatMessageData) => {
     haptic.trigger("light")
     setReplyingToMessage(msg)
     if (inputRef.current) {
       inputRef.current.focus()
     }
-  }
+  }, [haptic])
 
   const { data: chatsData, isLoading } = useChatMessages(eventId)
   const sendMutation = useSendChatMessage(eventId)
@@ -760,25 +710,55 @@ export default function EventChatRoom({
                 </div>
               )}
               <AnimatePresence initial={false}>
-                {messages.map((msg, index) => (
-                  <ChatMessageItem
-                    key={msg.id}
-                    msg={msg}
-                    dek={dek}
-                    isSelf={msg.user_id === user?.id}
-                    allPhotos={photos}
-                    onPhotoClick={onPhotoClick}
-                    isOrganizer={isOrganizer}
-                    onReply={handleStartReply}
-                    attendees={attendees}
-                    messages={messages}
-                    index={index}
-                    showActionsTooltip={isFirstTimeChat && index === messages.length - 1}
-                    onDismissTooltip={handleDismissTooltip}
-                    topEmojis={topEmojis}
-                    chatOpenedAt={chatOpenedAtRef.current}
-                  />
-                ))}
+                {messages.map((msg, index) => {
+                  // Generate a stable key for each message that is preserved across optimistic updates and edits
+                  let messageKey = msg.id
+                  if (msg.id.startsWith("temp-")) {
+                    if (msg.encryption_iv) {
+                      tempIdMapRef.current.set(msg.encryption_iv, msg.id)
+                    }
+                  } else {
+                    if (msg.encryption_iv && tempIdMapRef.current.has(msg.encryption_iv)) {
+                      const tempId = tempIdMapRef.current.get(msg.encryption_iv)!
+                      tempIdMapRef.current.set(msg.id, tempId)
+                      messageKey = tempId
+                    } else if (tempIdMapRef.current.has(msg.id)) {
+                      messageKey = tempIdMapRef.current.get(msg.id)!
+                    }
+                  }
+
+                  const prevMsg = index > 0 ? messages[index - 1] : null
+                  const showDateTag = !prevMsg || 
+                    new Date(msg.created_at).toDateString() !== new Date(prevMsg.created_at).toDateString()
+
+                  return (
+                    <React.Fragment key={messageKey}>
+                      {showDateTag && (
+                        <div className="flex justify-center my-3 select-none">
+                          <span className="bg-neutral-100/90 dark:bg-neutral-800/60 border border-neutral-200/50 dark:border-white/5 text-neutral-600 dark:text-neutral-300 text-[11px] font-bold px-3.5 py-1 rounded-full shadow-sm backdrop-blur-md">
+                            {formatChatDate(msg.created_at)}
+                          </span>
+                        </div>
+                      )}
+                      <ChatMessageItem
+                        msg={msg}
+                        dek={dek}
+                        isSelf={msg.user_id === user?.id}
+                        allPhotos={photos}
+                        onPhotoClick={onPhotoClick}
+                        isOrganizer={isOrganizer}
+                        onReply={handleStartReply}
+                        attendees={attendees}
+                        messages={messages}
+                        index={index}
+                        showActionsTooltip={isFirstTimeChat && index === messages.length - 1}
+                        onDismissTooltip={handleDismissTooltip}
+                        topEmojis={topEmojis}
+                        chatOpenedAt={chatOpenedAtRef.current}
+                      />
+                    </React.Fragment>
+                  )
+                })}
               </AnimatePresence>
             </div>
           )}
@@ -1039,1249 +1019,30 @@ export default function EventChatRoom({
   )
 }
 
-interface ParentMessageQuoteProps {
-  parent: ChatMessageParent
-  dek: CryptoKey | null
-  isSelf: boolean
-}
+const formatChatDate = (dateStr: string) => {
+  const date = new Date(dateStr)
+  const today = new Date()
+  const yesterday = new Date()
+  yesterday.setDate(today.getDate() - 1)
 
-function ParentMessageQuote({ parent, dek, isSelf }: ParentMessageQuoteProps) {
-  const hasParentPhoto = parent.photos && parent.photos.length > 0;
+  const isSameDay = (d1: Date, d2: Date) =>
+    d1.getFullYear() === d2.getFullYear() &&
+    d1.getMonth() === d2.getMonth() &&
+    d1.getDate() === d2.getDate()
 
-  const handleClick = (e: React.MouseEvent) => {
-    e.stopPropagation();
-    const el = document.getElementById(`msg-${parent.id}`);
-    if (el) {
-      el.scrollIntoView({ behavior: "smooth", block: "center" });
-      el.classList.add("bg-primary/20", "dark:bg-primary/30");
-      setTimeout(() => {
-        el.classList.remove("bg-primary/20", "dark:bg-primary/30");
-      }, 1500);
+  if (isSameDay(date, today)) {
+    return "Today"
+  } else if (isSameDay(date, yesterday)) {
+    return "Yesterday"
+  } else {
+    const options: Intl.DateTimeFormatOptions = {
+      weekday: 'short',
+      month: 'short',
+      day: 'numeric'
     }
-  };
-
-  if (hasParentPhoto) {
-    return (
-      <div
-        onClick={handleClick}
-        className={`mb-2 p-1.5 rounded-lg text-[11px] cursor-pointer select-none transition-colors border-l-4 flex items-center gap-2.5 bg-current/10 hover:bg-current/15 w-full min-w-[200px] ${
-          isSelf ? "border-l-current/70 text-current/80" : "border-l-primary text-current/80"
-        }`}
-      >
-        <div className="shrink-0 w-8 h-8 rounded-md overflow-hidden bg-neutral-800/20">
-          <TaggedPhotoThumbnail photo={parent.photos[0]} dek={dek} isFullFill={true} />
-        </div>
-        <div className="flex flex-col min-w-0 text-left">
-          <span className={`font-bold text-[11px] leading-tight ${isSelf ? "text-current" : "text-primary"}`}>
-            {parent.user?.name || "Guest"}
-          </span>
-          <div className="text-[11px] leading-tight truncate mt-0.5 opacity-90">
-            <ParentMessageText parentMsg={parent} dek={dek} />
-          </div>
-        </div>
-      </div>
-    );
+    if (date.getFullYear() !== today.getFullYear()) {
+      options.year = 'numeric'
+    }
+    return date.toLocaleDateString("en-US", options)
   }
-
-  return (
-    <div
-      onClick={handleClick}
-      className={`mb-2 p-2 rounded-lg text-[11px] cursor-pointer select-none transition-colors border-l-[3px] flex flex-col gap-0.5 bg-current/10 hover:bg-current/15 ${isSelf
-          ? "text-current/80 border-l-current/70"
-          : "text-current/80 border-l-primary"
-        }`}
-    >
-      <span className={`font-bold text-[10px] leading-none ${isSelf ? "text-current" : "text-primary"}`}>
-        {parent.user?.name || "Guest"}
-      </span>
-      <ParentMessageText parentMsg={parent} dek={dek} />
-    </div>
-  );
-}
-
-// ─── Chat Message Item Render (with async decryption) ────────────────
-interface ChatMessageItemProps {
-  msg: ChatMessageData
-  dek: CryptoKey | null
-  isSelf: boolean
-  allPhotos: any[]
-  onPhotoClick: (photoId: string, messagePhotos: any[]) => void
-  isOrganizer: boolean
-  onReply: (msg: ChatMessageData) => void
-  attendees: any[]
-  messages: ChatMessageData[]
-  index: number
-  showActionsTooltip?: boolean
-  onDismissTooltip?: () => void
-  topEmojis: string[]
-  chatOpenedAt: number | null
-}
-
-function ChatMessageItem({
-  msg,
-  dek,
-  isSelf,
-  allPhotos,
-  onPhotoClick,
-  isOrganizer,
-  onReply,
-  attendees,
-  messages,
-  index,
-  showActionsTooltip,
-  onDismissTooltip,
-  topEmojis,
-  chatOpenedAt
-}: ChatMessageItemProps) {
-  const { resolvedTheme } = useTheme()
-  const [decryptedText, setDecryptedText] = useState("")
-  const [decryptionError, setDecryptionError] = useState(false)
-  const [decrypting, setDecrypting] = useState(true)
-
-  const [isEditing, setIsEditing] = useState(false)
-  const [editText, setEditText] = useState("")
-  const [isWithinEditWindow, setIsWithinEditWindow] = useState(true)
-  const [popoverOpen, setPopoverOpen] = useState(false)
-  const [dropdownOpen, setDropdownOpen] = useState(false)
-  const [reactionDetailsOpen, setReactionDetailsOpen] = useState(false)
-  const [activeReactionTab, setActiveReactionTab] = useState("All")
-  const [showFullPicker, setShowFullPicker] = useState(false)
-  const [showMobilePicker, setShowMobilePicker] = useState(false)
-  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false)
-  const isTransitioningToFullPickerRef = useRef(false)
-  const isTransitioningToMobilePickerRef = useRef(false)
-
-  useEffect(() => {
-    if (!popoverOpen) {
-      setShowFullPicker(false)
-    }
-  }, [popoverOpen])
-
-  useEffect(() => {
-    if (!dropdownOpen) {
-      setShowMobilePicker(false)
-    }
-  }, [dropdownOpen])
-  const updateMutation = useUpdateChatMessage(msg.event_id)
-  const deleteMutation = useDeleteChatMessage(msg.event_id)
-  const toggleReactionMutation = useToggleChatMessageReaction(msg.event_id)
-  const { user } = useAuth()
-  const currentUserId = user?.id
-
-  const reactionsByEmoji = useMemo(() => {
-    if (!msg.reactions) return {};
-    return msg.reactions.reduce((acc, r) => {
-      acc[r.emoji] = acc[r.emoji] || { count: 0, hasReacted: false };
-      acc[r.emoji].count++;
-      if (r.user_id === currentUserId) acc[r.emoji].hasReacted = true;
-      return acc;
-    }, {} as Record<string, { count: number; hasReacted: boolean }>);
-  }, [msg.reactions, currentUserId]);
-
-  // Determine sending status / seen status
-  const statusIcon = useMemo(() => {
-    // Only show ticks/clock for self (sender) messages
-    if (!isSelf) return null
-
-    if (msg.id.startsWith("temp-") || msg.status === "sending") {
-      return <Clock size={11} className="text-black dark:text-white animate-pulse" />
-    }
-
-    // Check if seen by all other attendees
-    const otherAttendees = attendees.filter((a) => a.user_id !== msg.user_id)
-
-    if (otherAttendees.length === 0) {
-      // If there's no one else in the event, show single tick
-      return <Check size={12} className="text-black dark:text-white" />
-    }
-
-    const seenByAll = otherAttendees.every((attendee) => {
-      const attendeeLastReadId = attendee.last_read_message_id
-      if (!attendeeLastReadId) return false
-
-      // Find index of attendee's last read message
-      const readIdx = messages.findIndex((m) => m.id === attendeeLastReadId)
-      if (readIdx === -1) return false
-
-      return readIdx >= index
-    })
-
-    if (seenByAll) {
-      return <Checks size={14} className="text-black dark:text-white font-bold" />
-    }
-
-    return <Check size={12} className="text-black dark:text-white" />
-  }, [msg.id, msg.status, msg.user_id, isSelf, attendees, messages, index])
-
-  // Track the 15-minute edit window dynamically
-  useEffect(() => {
-    const checkWindow = () => {
-      const elapsed = Date.now() - new Date(msg.created_at).getTime()
-      const limit = 15 * 60 * 1000
-      const isWithin = elapsed < limit
-      setIsWithinEditWindow(isWithin)
-      return limit - elapsed
-    }
-
-    const remaining = checkWindow()
-    if (remaining > 0) {
-      const timer = setTimeout(() => {
-        setIsWithinEditWindow(false)
-        setIsEditing(false)
-      }, remaining)
-      return () => clearTimeout(timer)
-    } else {
-      setIsWithinEditWindow(false)
-    }
-  }, [msg.created_at])
-  const haptic = useWebHaptics()
-
-  const dragX = useMotionValue(0)
-  const replyIconOpacity = useTransform(dragX, isSelf ? [0, -60] : [0, 60], [0, 1])
-  const replyIconScale = useTransform(dragX, isSelf ? [0, -60] : [0, 60], [0.6, 1.1])
-  const replyIconX = useTransform(dragX, isSelf ? [0, -60] : [0, 60], isSelf ? [15, 0] : [-15, 0])
-  const hasTriggeredHaptic = useRef(false)
-
-  const handleDrag = (event: any, info: any) => {
-    const thresholdCrossed = isSelf ? info.offset.x < -50 : info.offset.x > 50
-    if (thresholdCrossed) {
-      if (!hasTriggeredHaptic.current) {
-        haptic.trigger("light")
-        hasTriggeredHaptic.current = true
-      }
-    } else {
-      hasTriggeredHaptic.current = false
-    }
-  }
-
-  const handleDragEnd = (event: any, info: any) => {
-    const thresholdCrossed = isSelf ? info.offset.x < -50 : info.offset.x > 50
-    if (thresholdCrossed) {
-      onReply(msg)
-    }
-    hasTriggeredHaptic.current = false
-  }
-
-  const dragElastic = isSelf ? { left: 0.65, right: 0.02 } : { left: 0.02, right: 0.65 }
-
-  // Asynchronously decrypt the message on mount/key changes
-  useEffect(() => {
-    let active = true
-
-    const decrypt = async () => {
-      if (!dek) {
-        setDecrypting(false)
-        setDecryptedText("")
-        return
-      }
-      try {
-        setDecrypting(true)
-        const text = await decryptTextMessage(msg.message_text, msg.encryption_iv, msg.encryption_tag, dek)
-        if (active) {
-          setDecryptedText(text)
-          setDecryptionError(false)
-        }
-      } catch (err) {
-        console.error("Message decryption failed:", err)
-        if (active) {
-          setDecryptionError(true)
-        }
-      } finally {
-        if (active) {
-          setDecrypting(false)
-        }
-      }
-    }
-
-    decrypt()
-    return () => {
-      active = false
-    }
-  }, [msg.message_text, msg.encryption_iv, msg.encryption_tag, dek])
-
-  // Sync editText with decrypted text
-  useEffect(() => {
-    if (decryptedText) {
-      setEditText(decryptedText)
-    }
-  }, [decryptedText])
-
-  const formatTime = (dateStr: string) => {
-    return new Date(dateStr).toLocaleTimeString("en-US", {
-      hour: "numeric",
-      minute: "2-digit",
-      hour12: true
-    })
-  }
-
-
-
-  const handleEditSubmit = async (e: React.FormEvent) => {
-    e.preventDefault()
-    const trimmed = editText.trim()
-    if (!trimmed || !dek || updateMutation.isPending) return
-
-    try {
-      const encrypted = await encryptTextMessage(trimmed, dek)
-      await updateMutation.mutateAsync({
-        messageId: msg.id,
-        payload: {
-          message_text: encrypted.ciphertext,
-          encryption_iv: encrypted.iv,
-          encryption_tag: encrypted.tag
-        }
-      })
-      setIsEditing(false)
-      haptic.trigger("success")
-    } catch (err) {
-      haptic.trigger("error")
-      toast.error("Failed to edit message.")
-    }
-  }
-
-  const handleDelete = async () => {
-    if (deleteMutation.isPending) return
-    try {
-      await deleteMutation.mutateAsync(msg.id)
-      haptic.trigger("success")
-      setDeleteDialogOpen(false)
-    } catch (err) {
-      haptic.trigger("error")
-      toast.error("Failed to delete message.")
-    }
-  }
-
-  const canEdit = isSelf && isWithinEditWindow
-  const canDelete = isSelf || isOrganizer
-
-  const isTemp = msg.id.startsWith("temp-")
-  const isNew = isTemp || (chatOpenedAt !== null && new Date(msg.created_at).getTime() > chatOpenedAt)
-  const [animationOrigin, setAnimationOrigin] = useState({ x: 0, y: 0, scale: 0.3, opacity: 0 })
-  const [isReadyToAnimate, setIsReadyToAnimate] = useState(false)
-
-  useLayoutEffect(() => {
-    if (isNew) {
-      const timer = setTimeout(() => {
-        const bubbleEl = document.getElementById(`msg-${msg.id}`)
-        const inputEl = document.getElementById("chat-input-field")
-        if (bubbleEl && inputEl) {
-          const bubbleRect = bubbleEl.getBoundingClientRect()
-          const inputRect = inputEl.getBoundingClientRect()
-          
-          const deltaX = (inputRect.left + inputRect.width / 2) - (bubbleRect.left + bubbleRect.width / 2)
-          const deltaY = (inputRect.top + inputRect.height / 2) - (bubbleRect.top + bubbleRect.height / 2)
-          
-          setAnimationOrigin({ x: deltaX, y: deltaY, scale: 0.3, opacity: 0 })
-          setIsReadyToAnimate(true)
-        } else {
-          setAnimationOrigin({ x: isSelf ? -80 : 80, y: 120, scale: 0.5, opacity: 0 })
-          setIsReadyToAnimate(true)
-        }
-      }, 30)
-      return () => clearTimeout(timer)
-    } else {
-      setIsReadyToAnimate(true)
-    }
-  }, [msg.id, isNew])
-
-  const initialAnimation = isNew
-    ? animationOrigin
-    : { opacity: 0, y: 15, x: 0, scale: 1 }
-
-  const transitionAnimation = isNew
-    ? { type: "spring", stiffness: 180, damping: 18 }
-    : { type: "spring", stiffness: 350, damping: 28 }
-
-  const shouldRenderHidden = isNew && !isReadyToAnimate
-
-  return (
-    <motion.div
-      id={`msg-${msg.id}`}
-      initial={initialAnimation}
-      animate={{ 
-        opacity: shouldRenderHidden ? 0 : 1, 
-        y: shouldRenderHidden ? animationOrigin.y : 0, 
-        x: shouldRenderHidden ? animationOrigin.x : 0, 
-        scale: shouldRenderHidden ? animationOrigin.scale : 1 
-      }}
-      exit={{
-        opacity: 0,
-        x: isSelf ? 300 : -300,
-        y: -60,
-        scale: 0.6,
-        rotate: isSelf ? 15 : -15,
-        height: 0,
-        paddingTop: 0,
-        paddingBottom: 0,
-        marginTop: 0,
-        marginBottom: 0,
-        transition: {
-          x: { type: "spring", stiffness: 120, damping: 14 },
-          y: { type: "spring", stiffness: 120, damping: 14 },
-          rotate: { type: "spring", stiffness: 120, damping: 14 },
-          scale: { type: "spring", stiffness: 120, damping: 14 },
-          opacity: { duration: 0.2 },
-          height: { duration: 0.3, ease: "easeInOut" },
-          paddingTop: { duration: 0.3, ease: "easeInOut" },
-          paddingBottom: { duration: 0.3, ease: "easeInOut" },
-          marginTop: { duration: 0.3, ease: "easeInOut" },
-          marginBottom: { duration: 0.3, ease: "easeInOut" }
-        }
-      }}
-      transition={transitionAnimation}
-      className={`flex w-full p-1 rounded-xl transition-colors duration-500 relative ${isSelf ? "justify-end" : "justify-start"}`}
-    >
-      {/* Reply Indicator (reveals when dragging row) */}
-      <motion.div
-        style={{
-          opacity: replyIconOpacity,
-          scale: replyIconScale,
-          x: replyIconX,
-        }}
-        className={`absolute top-1/2 -translate-y-1/2 text-primary pointer-events-none flex items-center justify-center z-0 ${
-          isSelf ? "right-4" : "left-4"
-        }`}
-      >
-        <div className="p-1.5 bg-primary/10 border border-primary/20 rounded-full flex items-center justify-center">
-          <ArrowBendUpLeft size={16} weight="bold" />
-        </div>
-      </motion.div>
-
-      {/* Draggable message row content */}
-      <motion.div
-        drag="x"
-        dragConstraints={{ left: 0, right: 0 }}
-        dragElastic={dragElastic}
-        style={{ x: dragX }}
-        onDrag={handleDrag}
-        onDragEnd={handleDragEnd}
-        className={`flex gap-3 max-w-[95%] sm:max-w-[90%] relative z-10 touch-pan-y ${isSelf ? "flex-row-reverse" : "flex-row"}`}
-      >
-        {/* Sender Avatar */}
-        <Avatar className="w-8 h-8 shrink-0 select-none border border-white/10 shadow-sm mt-auto mb-1">
-          {msg.user?.selfie_url && <AvatarImage src={getCachedProfilePhoto(msg.user_id, msg.user.selfie_url)} alt={msg.user.name} className="object-cover" />}
-          <AvatarFallback className="bg-white/10 text-foreground text-[10px] font-bold">
-            {msg.user?.name ? msg.user.name.substring(0, 2).toUpperCase() : "?"}
-          </AvatarFallback>
-        </Avatar>
-
-        {/* Bubble & Actions Wrapper */}
-        <div className={`flex flex-col gap-1.5 ${isSelf ? "items-end" : "items-start"}`}>
-
-          {/* Name and Time Header */}
-          <div className={`flex items-center gap-1.5 text-[11px] px-1`}>
-            <span className="font-medium text-foreground/80 capitalize">{msg.user?.name || "Guest"}</span>
-            <span className="text-muted-foreground/60 font-medium">{formatTime(msg.created_at)}</span>
-            {msg.updated_at && new Date(msg.updated_at).getTime() - new Date(msg.created_at).getTime() > 1000 && (
-              <span className="text-[10px] text-muted-foreground/50 italic" title={`Edited at ${formatTime(msg.updated_at)}`}>(edited)</span>
-            )}
-            {statusIcon}
-          </div>
-
-          <div className={`group relative flex items-end gap-2 ${isSelf ? "flex-row-reverse" : "flex-row"}`}>
-
-            {isEditing ? (
-              <div
-                className={`px-4 py-2.5 rounded-[20px] text-[14px] leading-relaxed shadow-sm break-words relative overflow-hidden select-text ${isSelf
-                    ? "bg-primary text-primary-foreground rounded-br-sm"
-                    : "bg-white/5 border border-white/10 text-foreground rounded-bl-sm"
-                  }`}
-              >
-                {/* Parent Message Reply Quote Block */}
-                {msg.parent && (
-                  <ParentMessageQuote parent={msg.parent} dek={dek} isSelf={isSelf} />
-                )}
-
-                <form onSubmit={handleEditSubmit} className="flex flex-col gap-2 min-w-[200px] sm:min-w-[240px]">
-                  <textarea
-                    value={editText}
-                    onChange={(e) => setEditText(e.target.value)}
-                    className="w-full text-[13px] bg-primary-foreground/5 border border-primary-foreground/20 rounded-xl p-2.5 focus:outline-none focus:border-primary-foreground/40 text-primary-foreground resize-none"
-                    rows={2}
-                    maxLength={1000}
-                    autoFocus
-                  />
-                  <div className="flex justify-end gap-2 mt-1">
-                    <Button
-                      type="button"
-                      variant="ghost"
-                      size="sm"
-                      onClick={() => setIsEditing(false)}
-                      className="text-primary-foreground/70 hover:text-primary-foreground hover:bg-primary-foreground/10 h-7 text-[11px] rounded-lg"
-                    >
-                      Cancel
-                    </Button>
-                    <Button
-                      type="submit"
-                      size="sm"
-                      disabled={!editText.trim() || updateMutation.isPending}
-                      className="bg-primary-foreground text-primary hover:bg-primary-foreground/90 h-7 text-[11px] rounded-lg font-bold"
-                    >
-                      {updateMutation.isPending ? "Saving..." : "Save"}
-                    </Button>
-                  </div>
-                </form>
-              </div>
-            ) : (
-              (() => {
-                    const bubbleContent = (
-                      <DropdownMenu open={dropdownOpen} onOpenChange={(open, eventDetails?: any) => {
-                        if (!open && isTransitioningToMobilePickerRef.current) {
-                          eventDetails?.cancel?.()
-                          return
-                        }
-                        setDropdownOpen(open)
-                        if (!open) {
-                          setShowMobilePicker(false)
-                        }
-                      }}>
-                        <DropdownMenuTrigger render={<div />}>
-                          <div
-                            className={`text-left cursor-pointer sm:cursor-auto px-4 py-2.5 rounded-[20px] text-[14px] leading-relaxed shadow-sm break-words relative overflow-hidden select-text ${isSelf
-                                ? "bg-primary text-primary-foreground rounded-br-sm"
-                                : "bg-white/5 border border-white/10 text-foreground rounded-bl-sm"
-                              }`}
-                          >
-                             {/* Parent Message Reply Quote Block */}
-                             {msg.parent && (
-                               <ParentMessageQuote parent={msg.parent} dek={dek} isSelf={isSelf} />
-                             )}
-
-                            {decrypting ? (
-                              <span className="text-[13px] italic opacity-70 animate-pulse">Decrypting message...</span>
-                            ) : decryptionError ? (
-                              <span className="text-[13px] italic flex items-center gap-1.5 opacity-80 text-rose-300">
-                                <Warning size={16} />
-                                Unable to decrypt
-                              </span>
-                            ) : (
-                              <span className="whitespace-pre-wrap">{decryptedText}</span>
-                            )}
-
-                            {/* Tagged Photos Grid Preview inside Message Bubble */}
-                            {msg.photos && msg.photos.length > 0 && (
-                              <div className={`mt-2.5 grid gap-1 rounded-xl border border-white/10 overflow-hidden shadow-sm max-w-full ${msg.photos.length === 1
-                                  ? "grid-cols-1 w-52"
-                                  : msg.photos.length === 2 || msg.photos.length === 4
-                                    ? "grid-cols-2 w-60"
-                                    : "grid-cols-3 w-72"
-                                }`}>
-                                {msg.photos.map((photo) => (
-                                  <div
-                                    key={photo.id}
-                                    onClick={(e) => {
-                                      e.stopPropagation();
-                                      onPhotoClick(photo.id, msg.photos)
-                                    }}
-                                    className={`relative group/photo w-full cursor-pointer overflow-hidden bg-muted ${msg.photos.length === 1 ? "aspect-[4/3]" : "aspect-square"
-                                      }`}
-                                  >
-                                    <TaggedPhotoThumbnail photo={photo} dek={dek} isFullFill />
-                                    <div className="absolute inset-0 bg-black/40 opacity-0 group-hover/photo:opacity-100 transition-opacity flex items-center justify-center text-white select-none backdrop-blur-[2px]">
-                                      <Eye size={16} />
-                                    </div>
-                                  </div>
-                                ))}
-                              </div>
-                            )}
-                          </div>
-                        </DropdownMenuTrigger>
-                        <DropdownMenuContent
-                          align={isSelf ? "end" : "start"}
-                          className="sm:hidden p-0 overflow-hidden bg-transparent border-none ring-0 shadow-none !w-auto !min-w-0 !max-w-none"
-                        >
-                          <AnimatePresence mode="wait">
-                            {!showMobilePicker ? (
-                              <motion.div
-                                key="quick-menu-container"
-                                initial={{ opacity: 0, scale: 0.95 }}
-                                animate={{ opacity: 1, scale: 1 }}
-                                exit={{ opacity: 0, scale: 0.95 }}
-                                transition={{ duration: 0.15 }}
-                                className="bg-card border border-border shadow-xl rounded-xl flex flex-col overflow-hidden w-[230px]"
-                                style={{
-                                  height: `${canEdit && canDelete ? 172 : canDelete || canEdit ? 136 : 100}px`
-                                }}
-                              >
-                                <div className="flex items-center justify-between px-3 py-2 mb-1 border-b border-border/50">
-                                  {topEmojis.map((emoji) => (
-                                    <button
-                                      key={emoji}
-                                      onClick={() => {
-                                        haptic.trigger("light")
-                                        toggleReactionMutation.mutate({ messageId: msg.id, emoji })
-                                        setDropdownOpen(false)
-                                      }}
-                                      className="h-7 w-7 rounded-full flex items-center justify-center text-lg hover:bg-muted transition-colors cursor-pointer"
-                                    >
-                                      {emoji}
-                                    </button>
-                                  ))}
-                                  <button
-                                     onPointerDown={(e) => {
-                                       e.stopPropagation()
-                                       e.nativeEvent.stopImmediatePropagation()
-                                       isTransitioningToMobilePickerRef.current = true
-                                     }}
-                                     onPointerUp={(e) => {
-                                       e.stopPropagation()
-                                       e.nativeEvent.stopImmediatePropagation()
-                                     }}
-                                     onMouseDown={(e) => {
-                                       e.stopPropagation()
-                                       e.nativeEvent.stopImmediatePropagation()
-                                       isTransitioningToMobilePickerRef.current = true
-                                     }}
-                                     onMouseUp={(e) => {
-                                       e.stopPropagation()
-                                       e.nativeEvent.stopImmediatePropagation()
-                                     }}
-                                     onClick={(e) => {
-                                       e.preventDefault()
-                                       e.stopPropagation()
-                                       e.nativeEvent.stopImmediatePropagation()
-                                       haptic.trigger("light")
-                                       isTransitioningToMobilePickerRef.current = true
-                                       setShowMobilePicker(true)
-                                       setTimeout(() => {
-                                         isTransitioningToMobilePickerRef.current = false
-                                       }, 500)
-                                     }}
-                                     className="h-7 w-7 rounded-full flex items-center justify-center hover:bg-muted transition-colors text-muted-foreground cursor-pointer font-bold"
-                                   >
-                                     <Plus size={14} />
-                                   </button>
-                                </div>
-                                <DropdownMenuItem onClick={() => onReply(msg)} className="cursor-pointer">
-                                  <ArrowBendUpLeft size={16} className="mr-2" />
-                                  Reply
-                                </DropdownMenuItem>
-                                {canEdit && (
-                                  <DropdownMenuItem onClick={() => setIsEditing(true)} className="cursor-pointer">
-                                    <Pencil size={16} className="mr-2" />
-                                    Edit
-                                  </DropdownMenuItem>
-                                )}
-                                {canDelete && (
-                                  <DropdownMenuItem
-                                    onClick={() => { haptic.trigger("warning"); setDeleteDialogOpen(true); }}
-                                    disabled={deleteMutation.isPending}
-                                    className="cursor-pointer text-red-500 focus:text-red-500 focus:bg-red-500/10"
-                                  >
-                                    <Trash size={16} className="mr-2" />
-                                    Delete
-                                  </DropdownMenuItem>
-                                )}
-                              </motion.div>
-                            ) : (
-                              <motion.div
-                                key="mobile-picker-container"
-                                initial={{ opacity: 0, scale: 0.95 }}
-                                animate={{ opacity: 1, scale: 1 }}
-                                exit={{ opacity: 0, scale: 0.95 }}
-                                transition={{ duration: 0.2 }}
-                                className="bg-card border border-border shadow-xl rounded-xl flex flex-col overflow-hidden w-[320px] h-[450px] p-2"
-                                onClick={(e) => e.stopPropagation()}
-                                onKeyDown={(e) => e.stopPropagation()}
-                                onPointerDown={(e) => e.stopPropagation()}
-                              >
-                                <div className="flex justify-between items-center mb-2 px-1">
-                                  <span className="text-xs font-semibold text-muted-foreground">Select Reaction</span>
-                                  <button
-                                    onClick={(e) => {
-                                      e.stopPropagation()
-                                      setShowMobilePicker(false)
-                                    }}
-                                    className="text-muted-foreground hover:text-foreground text-xs font-medium cursor-pointer"
-                                  >
-                                    Back
-                                  </button>
-                                </div>
-                                <EmojiPicker
-                                  onEmojiClick={(emojiData) => {
-                                    haptic.trigger("light")
-                                    toggleReactionMutation.mutate({ messageId: msg.id, emoji: emojiData.emoji })
-                                    setShowMobilePicker(false)
-                                    setDropdownOpen(false)
-                                  }}
-                                  theme={resolvedTheme === "dark" ? "dark" : "light"}
-                                  lazyLoadEmojis={true}
-                                  width={304}
-                                  height={380}
-                                  previewConfig={{ showPreview: false }}
-                                  skinTonesDisabled={true}
-                                />
-                              </motion.div>
-                            )}
-                          </AnimatePresence>
-                        </DropdownMenuContent>
-                      </DropdownMenu>
-                    );
-
-                    return showActionsTooltip ? (
-                      <Popover open={showActionsTooltip} onOpenChange={(open) => {
-                        if (!open && onDismissTooltip) {
-                          onDismissTooltip();
-                        }
-                      }}>
-                        <PopoverTrigger asChild>
-                          <div>
-                            {bubbleContent}
-                          </div>
-                        </PopoverTrigger>
-                        <PopoverContent side="top" align={isSelf ? "end" : "start"} className="w-72 p-3 bg-neutral-900 border border-neutral-800 text-white rounded-xl shadow-xl z-50">
-                          <div className="flex flex-col gap-2">
-                            <p className="text-xs font-semibold">Message Actions</p>
-                            <p className="text-[11px] text-neutral-400">
-                              Hover on desktop or tap on mobile to react, reply, edit, or delete messages!
-                            </p>
-                            <Button 
-                              size="sm" 
-                              onClick={() => {
-                                if (onDismissTooltip) onDismissTooltip();
-                              }}
-                              className="h-6 text-[10px] self-end bg-primary hover:bg-primary/90 text-primary-foreground font-bold rounded-lg px-2 cursor-pointer"
-                            >
-                              Got it
-                            </Button>
-                          </div>
-                        </PopoverContent>
-                      </Popover>
-                    ) : (
-                      bubbleContent
-                    );
-                  })()
-            )}
-
-            {/* Reactions Display */}
-            {msg.reactions && msg.reactions.length > 0 && (
-              <Popover open={reactionDetailsOpen} onOpenChange={setReactionDetailsOpen}>
-                <PopoverTrigger asChild>
-                  <div className={`absolute -bottom-3 ${isSelf ? "right-2" : "left-2"} flex gap-1 z-10 cursor-pointer`}>
-                    {Object.entries(reactionsByEmoji).map(([emoji, data]) => (
-                      <div
-                        key={emoji}
-                        className={`flex items-center gap-1 text-[11px] px-1.5 py-0.5 rounded-full shadow-sm transition-colors ${data.hasReacted
-                            ? "bg-card text-primary"
-                            : "bg-card text-foreground hover:bg-muted"
-                          }`}
-                      >
-                        <span>{emoji}</span>
-                        <span className="font-medium">{data.count}</span>
-                      </div>
-                    ))}
-                  </div>
-                </PopoverTrigger>
-                <PopoverContent side="top" align={isSelf ? "end" : "start"} className="w-64 p-3 shadow-xl rounded-xl">
-                  <div className="flex gap-2 overflow-x-auto pb-2 mb-2 border-b scrollbar-none">
-                    <button onClick={() => setActiveReactionTab("All")} className={`px-2 py-1 rounded-md text-sm whitespace-nowrap transition-colors ${activeReactionTab === "All" ? "bg-muted font-medium" : "text-muted-foreground hover:bg-muted/50"}`}>
-                      All {msg.reactions.length}
-                    </button>
-                    {Object.entries(reactionsByEmoji).map(([emoji, data]) => (
-                      <button key={emoji} onClick={() => setActiveReactionTab(emoji)} className={`px-2 py-1 rounded-md text-sm flex items-center gap-1 whitespace-nowrap transition-colors ${activeReactionTab === emoji ? "bg-muted font-medium" : "text-muted-foreground hover:bg-muted/50"}`}>
-                        <span>{emoji}</span><span>{data.count}</span>
-                      </button>
-                    ))}
-                  </div>
-                  <div className="flex flex-col max-h-48 overflow-y-auto gap-1 pr-1 scrollbar-thin">
-                    {msg.reactions.filter(r => activeReactionTab === "All" || r.emoji === activeReactionTab).map(r => (
-                      <div
-                        key={r.id}
-                        className={`flex items-center justify-between p-2 rounded-lg group transition-colors ${r.user_id === currentUserId ? "cursor-pointer hover:bg-muted" : "hover:bg-muted/50"}`}
-                        onClick={() => {
-                          if (r.user_id === currentUserId) {
-                            haptic.trigger('light');
-                            toggleReactionMutation.mutate({ messageId: msg.id, emoji: r.emoji });
-                            setReactionDetailsOpen(false);
-                          }
-                        }}
-                      >
-                        <div className="flex items-center gap-3">
-                          <Avatar className="w-8 h-8">
-                            <AvatarImage src={getCachedProfilePhoto(r.user_id, r.user?.selfie_url || undefined)} />
-                            <AvatarFallback className="text-[10px]">{r.user?.name?.[0]}</AvatarFallback>
-                          </Avatar>
-                          <div className="flex flex-col">
-                            <span className="text-sm font-medium leading-tight">{r.user_id === currentUserId ? "You" : r.user?.name}</span>
-                            {r.user_id === currentUserId && <span className="text-[10px] text-muted-foreground group-hover:text-foreground transition-colors leading-tight">Click to remove</span>}
-                          </div>
-                        </div>
-                        <span className="text-lg">{r.emoji}</span>
-                      </div>
-                    ))}
-                  </div>
-                </PopoverContent>
-              </Popover>
-            )}
-
-            {/* Action Buttons (Reply / Pencil / Trash / React) */}
-            {!isEditing && (
-              <TooltipProvider>
-                <div className={`hidden sm:flex opacity-0 group-hover:opacity-100 transition-opacity items-center gap-1 absolute z-20 bottom-1.5 ${isSelf
-                    ? "right-full pr-3 flex-row-reverse"
-                    : "left-full pl-3 flex-row"
-                  }`}>
-                  <Tooltip>
-                    <TooltipTrigger asChild>
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        onClick={() => onReply(msg)}
-                        className="h-8 w-8 rounded-full text-muted-foreground hover:text-foreground hover:bg-white/10 cursor-pointer"
-                      >
-                        <ArrowBendUpLeft size={15} />
-                      </Button>
-                    </TooltipTrigger>
-                    <TooltipContent>
-                      Reply to message
-                    </TooltipContent>
-                  </Tooltip>
-
-                  {canEdit && (
-                    <Tooltip>
-                      <TooltipTrigger asChild>
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          onClick={() => setIsEditing(true)}
-                          className="h-8 w-8 rounded-full text-muted-foreground hover:text-foreground hover:bg-white/10 cursor-pointer"
-                        >
-                          <Pencil size={15} />
-                        </Button>
-                      </TooltipTrigger>
-                      <TooltipContent>
-                        Edit message
-                      </TooltipContent>
-                    </Tooltip>
-                  )}
-
-                  {canDelete && (
-                    <Tooltip>
-                      <TooltipTrigger asChild>
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          onClick={() => { haptic.trigger("warning"); setDeleteDialogOpen(true); }}
-                          className="h-8 w-8 rounded-full text-muted-foreground hover:text-red-400 hover:bg-red-400/10 cursor-pointer"
-                          disabled={deleteMutation.isPending}
-                        >
-                          <Trash size={15} />
-                        </Button>
-                      </TooltipTrigger>
-                      <TooltipContent>
-                        Delete message
-                      </TooltipContent>
-                    </Tooltip>
-                  )}
-
-                    <Popover open={popoverOpen} onOpenChange={(open, eventDetails?: any) => {
-                      if (!open && isTransitioningToFullPickerRef.current) {
-                        eventDetails?.cancel?.()
-                        return
-                      }
-                      setPopoverOpen(open)
-                      if (!open) {
-                        setShowFullPicker(false)
-                      }
-                    }}>
-                    <PopoverTrigger asChild>
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        className="h-8 w-8 rounded-full text-muted-foreground hover:text-foreground hover:bg-white/10 cursor-pointer"
-                        title="React"
-                      >
-                        <Smiley size={15} />
-                      </Button>
-                    </PopoverTrigger>
-                    <PopoverPrimitive.Portal>
-                      <PopoverPrimitive.Positioner
-                        side="top"
-                        align={isSelf ? "end" : "start"}
-                        sideOffset={4}
-                        className="isolate z-50 outline-none"
-                      >
-                        <PopoverPrimitive.Popup className="outline-none border-none bg-transparent shadow-none">
-                          <AnimatePresence mode="wait">
-                            {!showFullPicker ? (
-                              <motion.div
-                                key="quick-reactions-container"
-                                initial={{ opacity: 0, scale: 0.95 }}
-                                animate={{ opacity: 1, scale: 1 }}
-                                exit={{ opacity: 0, scale: 0.95 }}
-                                transition={{ duration: 0.15 }}
-                                className="bg-card border border-border shadow-xl p-2 flex flex-col justify-center items-center overflow-hidden w-[228px] h-[48px] rounded-full"
-                              >
-                                <div className="flex items-center gap-1">
-                                  {topEmojis.map((emoji) => (
-                                    <button
-                                      key={emoji}
-                                      onClick={() => {
-                                        haptic.trigger("light")
-                                        toggleReactionMutation.mutate({ messageId: msg.id, emoji })
-                                        setPopoverOpen(false)
-                                      }}
-                                      className="h-8 w-8 rounded-full flex items-center justify-center text-lg hover:bg-muted transition-colors cursor-pointer"
-                                    >
-                                      {emoji}
-                                    </button>
-                                  ))}
-                                  <button
-                                     onPointerDown={(e) => {
-                                       e.stopPropagation()
-                                       e.nativeEvent.stopImmediatePropagation()
-                                       isTransitioningToFullPickerRef.current = true
-                                     }}
-                                     onPointerUp={(e) => {
-                                       e.stopPropagation()
-                                       e.nativeEvent.stopImmediatePropagation()
-                                     }}
-                                     onMouseDown={(e) => {
-                                       e.stopPropagation()
-                                       e.nativeEvent.stopImmediatePropagation()
-                                       isTransitioningToFullPickerRef.current = true
-                                     }}
-                                     onMouseUp={(e) => {
-                                       e.stopPropagation()
-                                       e.nativeEvent.stopImmediatePropagation()
-                                     }}
-                                     onClick={(e) => {
-                                       e.preventDefault()
-                                       e.stopPropagation()
-                                       e.nativeEvent.stopImmediatePropagation()
-                                       haptic.trigger("light")
-                                       isTransitioningToFullPickerRef.current = true
-                                       setShowFullPicker(true)
-                                       setTimeout(() => {
-                                         isTransitioningToFullPickerRef.current = false
-                                       }, 500)
-                                     }}
-                                     className="h-8 w-8 rounded-full flex items-center justify-center hover:bg-muted transition-colors text-muted-foreground cursor-pointer"
-                                   >
-                                     <Plus size={16} />
-                                   </button>
-                                </div>
-                              </motion.div>
-                            ) : (
-                              <motion.div
-                                key="full-picker-container"
-                                initial={{ opacity: 0, scale: 0.95 }}
-                                animate={{ opacity: 1, scale: 1 }}
-                                exit={{ opacity: 0, scale: 0.95 }}
-                                transition={{ duration: 0.2 }}
-                                className="bg-card border border-border shadow-xl p-2 flex flex-col justify-center items-center overflow-hidden w-[350px] h-[400px] rounded-2xl"
-                                onClick={(e) => e.stopPropagation()}
-                                onKeyDown={(e) => e.stopPropagation()}
-                                onPointerDown={(e) => e.stopPropagation()}
-                              >
-                                <div className="w-[334px] h-[384px] flex flex-col">
-                                  <EmojiPicker
-                                      onEmojiClick={(emojiData) => {
-                                        haptic.trigger("light")
-                                        toggleReactionMutation.mutate({ messageId: msg.id, emoji: emojiData.emoji })
-                                        setShowFullPicker(false)
-                                        setPopoverOpen(false)
-                                      }}
-                                      theme={resolvedTheme === "dark" ? "dark" : "light"}
-                                      lazyLoadEmojis={true}
-                                      width={334}
-                                      height={384}
-                                      previewConfig={{ showPreview: false }}
-                                      skinTonesDisabled={true}
-                                    />
-                                </div>
-                              </motion.div>
-                            )}
-                          </AnimatePresence>
-                        </PopoverPrimitive.Popup>
-                      </PopoverPrimitive.Positioner>
-                    </PopoverPrimitive.Portal>
-                  </Popover>
-                </div>
-              </TooltipProvider>
-            )}
-          </div>
-        </div>
-      </motion.div>
-
-      <AlertDialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>Delete Message</AlertDialogTitle>
-            <AlertDialogDescription>
-              Are you sure you want to delete this message? This action cannot be undone.
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel onClick={() => haptic.trigger("light")}>Cancel</AlertDialogCancel>
-            <AlertDialogAction
-              onClick={handleDelete}
-              disabled={deleteMutation.isPending}
-              className="bg-red-600 hover:bg-red-700 text-white"
-            >
-              Delete
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
-    </motion.div>
-  )
-}
-
-// ─── Decrypted Photo Thumbnail Wrapper ───────────────────────────────
-interface TaggedPhotoThumbnailProps {
-  photo: any
-  dek: CryptoKey | null
-  isFullFill?: boolean
-}
-
-function TaggedPhotoThumbnail({ photo, dek, isFullFill = false }: TaggedPhotoThumbnailProps) {
-  const isEncrypted = !!photo.encryption_iv && !!photo.encryption_tag
-  const { url: decryptedUrl, error: decryptionError } = useDecryptedPhoto(
-    photo.thumb_url,
-    photo.encryption_iv || "",
-    photo.encryption_tag || "",
-    dek
-  )
-
-  const displayUrl = isEncrypted ? decryptedUrl : photo.thumb_url
-
-  if (decryptionError) {
-    return (
-      <div className="w-10 h-10 rounded-lg bg-neutral-800 border border-neutral-700 flex items-center justify-center text-amber-500">
-        <Warning size={16} />
-      </div>
-    )
-  }
-
-  if (isFullFill) {
-    return displayUrl ? (
-      <img src={displayUrl} alt="Tagged photo" className="w-full h-full object-cover" />
-    ) : (
-      <div className="w-full h-full bg-neutral-800 animate-pulse flex items-center justify-center">
-        <span className="text-[10px] text-muted-foreground">Decrypting...</span>
-      </div>
-    )
-  }
-
-  return (
-    <div className="w-10 h-10 rounded-lg overflow-hidden border border-border relative shrink-0">
-      {displayUrl ? (
-        <img src={displayUrl} alt="Preview" className="w-full h-full object-cover" />
-      ) : (
-        <div className="w-full h-full bg-neutral-800 animate-pulse" />
-      )}
-    </div>
-  )
-}
-
-// ─── Photo Picker Modal Dialog ───────────────────────────────────────
-interface PhotoPickerModalProps {
-  photos: any[]
-  dek: CryptoKey | null
-  initialSelected: any[]
-  onSelect: (photos: any[]) => void
-  onClose: () => void
-}
-
-function PhotoPickerModal({
-  photos,
-  dek,
-  initialSelected,
-  onSelect,
-  onClose
-}: PhotoPickerModalProps) {
-  const [selected, setSelected] = useState<any[]>(initialSelected)
-  const [visibleLimit, setVisibleLimit] = useState(24)
-
-  const toggleSelect = (photo: any) => {
-    if (selected.some((p) => p.id === photo.id)) {
-      setSelected((prev) => prev.filter((p) => p.id !== photo.id))
-    } else {
-      setSelected((prev) => [...prev, photo])
-    }
-  }
-
-  const handleScroll = (e: React.UIEvent<HTMLDivElement>) => {
-    const target = e.currentTarget
-    if (visibleLimit >= photos.length) return
-    // Check if scrolled near the bottom (within 100px)
-    if (target.scrollHeight - target.scrollTop - target.clientHeight < 100) {
-      setVisibleLimit((prev) => Math.min(prev + 24, photos.length))
-    }
-  }
-
-  const visiblePhotos = photos.slice(0, visibleLimit)
-
-  return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-background/80 backdrop-blur-sm animate-in fade-in duration-200">
-      <div className="bg-card border border-border rounded-2xl w-full max-w-lg shadow-2xl flex flex-col max-h-[70vh] overflow-hidden">
-        {/* Header */}
-        <div className="flex items-center justify-between px-4 py-3 border-b border-border">
-          <div className="flex flex-col">
-            <span className="font-semibold text-sm">Select Photos to Tag</span>
-            <span className="text-[10px] text-muted-foreground">{selected.length} selected</span>
-          </div>
-          <div className="flex items-center gap-2">
-            <Button
-              type="button"
-              size="sm"
-              onClick={() => onSelect(selected)}
-              className="bg-primary text-primary-foreground hover:bg-primary/90 text-xs font-bold rounded-full px-3 py-1 cursor-pointer h-7"
-            >
-              Done
-            </Button>
-            <button
-              onClick={onClose}
-              className="text-muted-foreground hover:text-foreground hover:bg-muted p-1 rounded-full cursor-pointer transition-colors"
-            >
-              <X size={16} weight="bold" />
-            </button>
-          </div>
-        </div>
-
-        {/* Photos Grid List */}
-        <div className="flex-1 overflow-y-auto p-4" onScroll={handleScroll}>
-          {photos.length === 0 ? (
-            <div className="text-center py-8 text-xs text-muted-foreground">
-              No photos have been uploaded to this event yet.
-            </div>
-          ) : (
-            <div className="space-y-4">
-              <div className="grid grid-cols-3 gap-3">
-                {visiblePhotos.map((photo) => {
-                  const isSelected = selected.some((p) => p.id === photo.id)
-                  return (
-                    <div
-                      key={photo.id}
-                      onClick={() => toggleSelect(photo)}
-                      className={`rounded-lg overflow-hidden aspect-square border cursor-pointer hover:scale-[1.02] active:scale-[0.98] transition-all relative group bg-muted ${isSelected ? "border-primary border-2" : "border-border"
-                        }`}
-                    >
-                      <TaggedPhotoThumbnail photo={photo} dek={dek} isFullFill />
-                      {isSelected && (
-                        <div className="absolute inset-0 bg-primary/10 flex items-center justify-center">
-                          <div className="bg-primary text-primary-foreground rounded-full p-1 shadow-lg">
-                            <Check size={12} weight="bold" />
-                          </div>
-                        </div>
-                      )}
-                    </div>
-                  )
-                })}
-              </div>
-              {visibleLimit < photos.length && (
-                <div className="text-center py-2 text-xs text-muted-foreground animate-pulse">
-                  Loading more photos...
-                </div>
-              )}
-            </div>
-          )}
-        </div>
-      </div>
-    </div>
-  )
-}
-
-// ─── Replying Message Preview Component ──────────────────────────────
-interface ReplyingMessagePreviewProps {
-  msg: ChatMessageData
-  dek: CryptoKey | null
-  hasPhotoLayout?: boolean
-}
-
-function ReplyingMessagePreview({ msg, dek, hasPhotoLayout = false }: ReplyingMessagePreviewProps) {
-  const [decryptedText, setDecryptedText] = useState("")
-  const [decrypting, setDecrypting] = useState(true)
-
-  useEffect(() => {
-    let active = true
-    const decrypt = async () => {
-      if (!dek) {
-        setDecrypting(false)
-        setDecryptedText("")
-        return
-      }
-      try {
-        setDecrypting(true)
-        const text = await decryptTextMessage(msg.message_text, msg.encryption_iv, msg.encryption_tag, dek)
-        if (active) {
-          setDecryptedText(text)
-        }
-      } catch (err) {
-        console.error("Failed to decrypt reply preview:", err)
-      } finally {
-        if (active) {
-          setDecrypting(false)
-        }
-      }
-    }
-    decrypt()
-    return () => {
-      active = false
-    }
-  }, [msg.message_text, msg.encryption_iv, msg.encryption_tag, dek])
-
-  if (decrypting) {
-    return <p className={hasPhotoLayout ? "text-[13px] text-muted-foreground italic truncate" : "text-xs text-muted-foreground italic truncate"}>Decrypting...</p>
-  }
-
-  if (hasPhotoLayout) {
-    return (
-      <p className="text-[13px] text-zinc-300 truncate leading-snug">
-        {decryptedText || (msg.photos && msg.photos.length > 0 ? "Tagged Photo" : "Encrypted message")}
-      </p>
-    )
-  }
-
-  return (
-    <p className="text-xs text-muted-foreground truncate leading-snug">
-      {decryptedText || (msg.photos && msg.photos.length > 0 ? `📷 Tagged Photo${msg.photos.length === 1 ? "" : "s"}` : "Encrypted message")}
-    </p>
-  )
-}
-
-// ─── Parent Message Text Decryption Component ───────────────────────
-interface ParentMessageTextProps {
-  parentMsg: ChatMessageParent
-  dek: CryptoKey | null
-}
-
-function ParentMessageText({ parentMsg, dek }: ParentMessageTextProps) {
-  const [decryptedText, setDecryptedText] = useState("")
-  const [decrypting, setDecrypting] = useState(true)
-
-  useEffect(() => {
-    let active = true
-    const decrypt = async () => {
-      if (!dek) {
-        setDecrypting(false)
-        setDecryptedText("")
-        return
-      }
-      try {
-        setDecrypting(true)
-        const text = await decryptTextMessage(parentMsg.message_text, parentMsg.encryption_iv, parentMsg.encryption_tag, dek)
-        if (active) {
-          setDecryptedText(text)
-        }
-      } catch (err) {
-        console.error("Failed to decrypt parent quote text:", err)
-      } finally {
-        if (active) {
-          setDecrypting(false)
-        }
-      }
-    }
-    decrypt()
-    return () => {
-      active = false
-    }
-  }, [parentMsg.message_text, parentMsg.encryption_iv, parentMsg.encryption_tag, dek])
-
-  if (decrypting) {
-    return <span className="italic opacity-60">Decrypting...</span>
-  }
-
-  return <span className="opacity-80 line-clamp-1 break-all">{decryptedText || "Encrypted message"}</span>
 }

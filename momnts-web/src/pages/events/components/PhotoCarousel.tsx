@@ -416,7 +416,6 @@ const PhotoCarousel = ({
           style={{ width: dialogStyle.width, height: dialogStyle.height }}
           showCloseButton={false}
           onKeyDown={handleKeyDown}
-          onOpenAutoFocus={(e) => e.preventDefault()}
         >
           {/* Hidden focus trap to prevent auto-focusing the first button and triggering its tooltip */}
           <div tabIndex={0} className="sr-only" />

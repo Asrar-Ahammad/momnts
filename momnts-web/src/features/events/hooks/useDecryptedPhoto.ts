@@ -81,7 +81,12 @@ export function useDecryptedPhoto(
   tag?: string,
   dek?: CryptoKey | null
 ) {
-  const [decryptedUrl, setDecryptedUrl] = useState<string>('')
+  const [decryptedUrl, setDecryptedUrl] = useState<string>(() => {
+    if (!photoUrl) return ''
+    if (!iv || !tag) return photoUrl
+    if (!dek) return ''
+    return decryptedCache.get(photoUrl) || ''
+  })
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<Error | null>(null)
 
