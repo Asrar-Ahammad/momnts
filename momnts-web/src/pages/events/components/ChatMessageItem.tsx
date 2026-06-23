@@ -765,7 +765,7 @@ function ChatMessageItemComponent({
                         </Button>
                       </TooltipTrigger>
                       <TooltipContent>
-                        Reply to message
+                        Reply
                       </TooltipContent>
                     </Tooltip>
 
@@ -801,7 +801,7 @@ function ChatMessageItemComponent({
                           </Button>
                         </TooltipTrigger>
                         <TooltipContent>
-                          Delete message
+                          Delete
                         </TooltipContent>
                       </Tooltip>
                     )}
