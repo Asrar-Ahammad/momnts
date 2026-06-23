@@ -170,7 +170,8 @@ function ChatMessageItemComponent({
   };
 
   const messageQuickEmojis = useMemo(() => {
-    let list = [...topEmojis];
+    const defaults = ["😑", "❤️", "👍", "👎", "🔥", "🥰", "👏"]
+    let list = [...defaults]
     const myReactedEmojis = msg.reactions
       ? Array.from(new Set(msg.reactions.filter((r) => r.user_id === currentUserId).map((r) => r.emoji)))
       : [];
@@ -182,8 +183,8 @@ function ChatMessageItemComponent({
         list.unshift(reactedEmoji);
       }
     }
-    return list.slice(0, topEmojis.length);
-  }, [topEmojis, msg.reactions, currentUserId]);
+    return list.slice(0, 7);
+  }, [msg.reactions, currentUserId]);
 
   // Determine sending status / seen status
   const statusIcon = useMemo(() => {
@@ -381,10 +382,10 @@ function ChatMessageItemComponent({
         if (isSelf && bubbleEl && inputEl) {
           const bubbleRect = bubbleEl.getBoundingClientRect()
           const inputRect = inputEl.getBoundingClientRect()
-          
+
           const deltaX = (inputRect.left + inputRect.width / 2) - (bubbleRect.left + bubbleRect.width / 2)
           const deltaY = (inputRect.top + inputRect.height / 2) - (bubbleRect.top + bubbleRect.height / 2)
-          
+
           setAnimationOrigin({ x: deltaX, y: deltaY, scale: 0.65, opacity: 0 })
           setIsReadyToAnimate(true)
         } else {
@@ -423,69 +424,69 @@ function ChatMessageItemComponent({
         scale: shouldRenderHidden ? animationOrigin.scale : 1
       }}
       transition={transitionAnimation}
-      className={`text-left cursor-pointer sm:cursor-auto px-4 py-2.5 rounded-[20px] text-[14px] leading-relaxed shadow-sm break-words relative overflow-hidden select-text ${isSelf
-          ? "bg-primary text-primary-foreground rounded-br-sm"
-          : "bg-white/5 border border-white/10 text-foreground rounded-bl-sm"
+      className={`text-left cursor-pointer sm:cursor-auto px-4 py-2.5 rounded-[20px] text-[14px] leading-relaxed break-words relative overflow-hidden select-text ${isSelf
+        ? "bg-primary text-primary-foreground rounded-br-sm shadow-sm"
+        : "bg-white/5 border border-white/10 text-foreground rounded-bl-sm shadow-md dark:shadow-sm"
         }`}
     >
-       {/* Parent Message Reply Quote Block */}
-       {msg.parent && (
-         <div className="ignore-drawer-click">
-           <ParentMessageQuote parent={msg.parent} dek={dek} isSelf={isSelf} />
-         </div>
-       )}
+      {/* Parent Message Reply Quote Block */}
+      {msg.parent && (
+        <div className="ignore-drawer-click">
+          <ParentMessageQuote parent={msg.parent} dek={dek} isSelf={isSelf} />
+        </div>
+      )}
 
-       {decrypting ? (
-         <span className="text-[13px] italic opacity-70 animate-pulse">Decrypting message...</span>
-       ) : decryptionError ? (
-         <span className="text-[13px] italic flex items-center gap-1.5 opacity-80 text-rose-300">
-           <Warning size={16} />
-           Unable to decrypt
-         </span>
-       ) : (
-         <span className="whitespace-pre-wrap block">
-           <AnimatePresence mode="popLayout" initial={false}>
-             <motion.span
-               key={decryptedText}
-               initial={{ opacity: 0, filter: "blur(2px)", y: -4 }}
-               animate={{ opacity: 1, filter: "blur(0px)", y: 0 }}
-               exit={{ opacity: 0, filter: "blur(2px)", y: 4 }}
-               transition={{ duration: 0.25, ease: "easeInOut" }}
-               className="block"
-             >
-               {decryptedText}
-             </motion.span>
-           </AnimatePresence>
-         </span>
-       )}
+      {decrypting ? (
+        <span className="text-[13px] italic opacity-70 animate-pulse">Decrypting message...</span>
+      ) : decryptionError ? (
+        <span className="text-[13px] italic flex items-center gap-1.5 opacity-80 text-rose-300">
+          <Warning size={16} />
+          Unable to decrypt
+        </span>
+      ) : (
+        <span className="whitespace-pre-wrap block">
+          <AnimatePresence mode="popLayout" initial={false}>
+            <motion.span
+              key={decryptedText}
+              initial={{ opacity: 0, filter: "blur(2px)", y: -4 }}
+              animate={{ opacity: 1, filter: "blur(0px)", y: 0 }}
+              exit={{ opacity: 0, filter: "blur(2px)", y: 4 }}
+              transition={{ duration: 0.25, ease: "easeInOut" }}
+              className="block"
+            >
+              {decryptedText}
+            </motion.span>
+          </AnimatePresence>
+        </span>
+      )}
 
-       {/* Tagged Photos Grid Preview inside Message Bubble */}
-       {msg.photos && msg.photos.length > 0 && (
-         <div className={`ignore-drawer-click mt-2.5 grid gap-1 rounded-xl border border-white/10 overflow-hidden shadow-sm max-w-full ${msg.photos.length === 1
-             ? "grid-cols-1 w-52"
-             : msg.photos.length === 2 || msg.photos.length === 4
-               ? "grid-cols-2 w-60"
-               : "grid-cols-3 w-72"
-           }`}>
-           {msg.photos.map((photo) => (
-             <div
-               key={photo.id}
-               onClick={(e) => {
-                 e.stopPropagation();
-                 onPhotoClick(photo.id, msg.photos)
-               }}
-               className={`relative group/photo w-full cursor-pointer overflow-hidden bg-muted ${msg.photos.length === 1 ? "aspect-[4/3]" : "aspect-square"
-                 }`}
-             >
-               <TaggedPhotoThumbnail photo={photo} dek={dek} isFullFill />
-               <div className="absolute inset-0 bg-black/40 opacity-0 group-hover/photo:opacity-100 transition-opacity flex items-center justify-center text-white select-none backdrop-blur-[2px]">
-                 <Eye size={16} />
-               </div>
-             </div>
-           ))}
-          </div>
-        )}
-     </motion.div>
+      {/* Tagged Photos Grid Preview inside Message Bubble */}
+      {msg.photos && msg.photos.length > 0 && (
+        <div className={`ignore-drawer-click mt-2.5 grid gap-1 rounded-xl border border-white/10 overflow-hidden shadow-sm max-w-full ${msg.photos.length === 1
+          ? "grid-cols-1 w-52"
+          : msg.photos.length === 2 || msg.photos.length === 4
+            ? "grid-cols-2 w-60"
+            : "grid-cols-3 w-72"
+          }`}>
+          {msg.photos.map((photo) => (
+            <div
+              key={photo.id}
+              onClick={(e) => {
+                e.stopPropagation();
+                onPhotoClick(photo.id, msg.photos)
+              }}
+              className={`relative group/photo w-full cursor-pointer overflow-hidden bg-muted ${msg.photos.length === 1 ? "aspect-[4/3]" : "aspect-square"
+                }`}
+            >
+              <TaggedPhotoThumbnail photo={photo} dek={dek} isFullFill />
+              <div className="absolute inset-0 bg-black/40 opacity-0 group-hover/photo:opacity-100 transition-opacity flex items-center justify-center text-white select-none backdrop-blur-[2px]">
+                <Eye size={16} />
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+    </motion.div>
   );
 
   const mobileActionsPopover = isLargeScreen ? (
@@ -513,321 +514,318 @@ function ChatMessageItemComponent({
 
   return (
     <motion.div
-        initial={rowInitial}
-        animate={rowAnimate}
-        exit={{
-          opacity: 0,
-          scale: 0.95,
-          transition: {
-            opacity: { duration: 0.1 },
-            scale: { duration: 0.1 }
-          }
+      initial={rowInitial}
+      animate={rowAnimate}
+      exit={{
+        opacity: 0,
+        scale: 0.95,
+        transition: {
+          opacity: { duration: 0.1 },
+          scale: { duration: 0.1 }
+        }
+      }}
+      transition={rowTransition}
+      className={`group flex w-full p-1 rounded-xl transition-colors duration-500 relative ${isSelf ? "justify-end" : "justify-start"}`}
+    >
+      {/* Reply Indicator (reveals when dragging row) */}
+      <motion.div
+        style={{
+          opacity: replyIconOpacity,
+          scale: replyIconScale,
+          x: replyIconX,
         }}
-        transition={rowTransition}
-        className={`group flex w-full p-1 rounded-xl transition-colors duration-500 relative ${isSelf ? "justify-end" : "justify-start"}`}
-      >
-        {/* Reply Indicator (reveals when dragging row) */}
-        <motion.div
-          style={{
-            opacity: replyIconOpacity,
-            scale: replyIconScale,
-            x: replyIconX,
-          }}
-          className={`absolute top-1/2 -translate-y-1/2 text-primary pointer-events-none flex items-center justify-center z-0 ${
-            isSelf ? "right-4" : "left-4"
+        className={`absolute top-1/2 -translate-y-1/2 text-primary pointer-events-none flex items-center justify-center z-0 ${isSelf ? "right-4" : "left-4"
           }`}
-        >
-          <div className="p-1.5 bg-primary/10 border border-primary/20 rounded-full flex items-center justify-center">
-            <ArrowBendUpLeft size={16} weight="bold" />
+      >
+        <div className="p-1.5 bg-primary/10 border border-primary/20 rounded-full flex items-center justify-center">
+          <ArrowBendUpLeft size={16} weight="bold" />
+        </div>
+      </motion.div>
+
+      {/* Draggable message row content */}
+      <motion.div
+        drag="x"
+        dragConstraints={{ left: 0, right: 0 }}
+        dragElastic={dragElastic}
+        style={{ x: dragX }}
+        onDrag={handleDrag}
+        onDragEnd={handleDragEnd}
+        onTap={(e: any, info: any) => {
+          if (isLargeScreen || isEditing) return
+
+          const target = e.target as HTMLElement
+          if (
+            target?.closest("button") ||
+            target?.closest("a") ||
+            target?.closest("[role='button']") ||
+            target?.closest(".ignore-drawer-click")
+          ) {
+            return
+          }
+
+          const x = info?.point?.x ?? e?.clientX ?? (e?.changedTouches?.[0]?.clientX) ?? 0
+          const y = info?.point?.y ?? e?.clientY ?? (e?.changedTouches?.[0]?.clientY) ?? 0
+          setClickCoords({ x, y })
+          setDropdownOpen(true)
+        }}
+        className={`flex gap-3 max-w-[95%] sm:max-w-[90%] relative z-10 touch-pan-y ${isSelf ? "flex-row-reverse" : "flex-row"}`}
+      >
+        {/* Sender Avatar */}
+        <Avatar className="w-8 h-8 shrink-0 select-none border border-white/10 shadow-sm mt-auto mb-1">
+          {msg.user?.selfie_url && <AvatarImage src={getCachedProfilePhoto(msg.user_id, msg.user.selfie_url)} alt={msg.user.name} className="object-cover" />}
+          <AvatarFallback className="bg-white/10 text-foreground text-[10px] font-bold">
+            {msg.user?.name ? msg.user.name.substring(0, 2).toUpperCase() : "?"}
+          </AvatarFallback>
+        </Avatar>
+
+        {/* Bubble & Actions Wrapper */}
+        <div className={`flex flex-col gap-1.5 ${isSelf ? "items-end" : "items-start"}`}>
+
+          {/* Name and Time Header */}
+          <div className={`flex items-center gap-1.5 text-[11px] px-1`}>
+            <span className="font-medium text-foreground/80 capitalize">{msg.user?.name || "Guest"}</span>
+            <span className="text-muted-foreground/60 font-medium">{formatTime(msg.created_at)}</span>
+            {msg.updated_at && new Date(msg.updated_at).getTime() - new Date(msg.created_at).getTime() > 1000 && (
+              <span className="text-[10px] text-muted-foreground/50 italic" title={`Edited at ${formatTime(msg.updated_at)}`}>(edited)</span>
+            )}
+            {statusIcon}
           </div>
-        </motion.div>
 
-        {/* Draggable message row content */}
-        <motion.div
-          drag="x"
-          dragConstraints={{ left: 0, right: 0 }}
-          dragElastic={dragElastic}
-          style={{ x: dragX }}
-          onDrag={handleDrag}
-          onDragEnd={handleDragEnd}
-          onTap={(e: any, info: any) => {
-            if (isLargeScreen || isEditing) return
+          <div className={`relative flex items-end gap-2 ${isSelf ? "flex-row-reverse" : "flex-row"}`}>
 
-            const target = e.target as HTMLElement
-            if (
-              target?.closest("button") || 
-              target?.closest("a") || 
-              target?.closest("[role='button']") ||
-              target?.closest(".ignore-drawer-click")
-            ) {
-              return
-            }
+            {isEditing ? (
+              <div
+                className={`px-4 py-2.5 rounded-[20px] text-[14px] leading-relaxed break-words relative overflow-hidden select-text ${isSelf
+                  ? "bg-primary text-primary-foreground rounded-br-sm shadow-sm"
+                  : "bg-white/5 border border-white/10 text-foreground rounded-bl-sm shadow-md dark:shadow-sm"
+                  }`}
+              >
+                {/* Parent Message Reply Quote Block */}
+                {msg.parent && (
+                  <ParentMessageQuote parent={msg.parent} dek={dek} isSelf={isSelf} />
+                )}
 
-            const x = info?.point?.x ?? e?.clientX ?? (e?.changedTouches?.[0]?.clientX) ?? 0
-            const y = info?.point?.y ?? e?.clientY ?? (e?.changedTouches?.[0]?.clientY) ?? 0
-            setClickCoords({ x, y })
-            setDropdownOpen(true)
-          }}
-          className={`flex gap-3 max-w-[95%] sm:max-w-[90%] relative z-10 touch-pan-y ${isSelf ? "flex-row-reverse" : "flex-row"}`}
-        >
-          {/* Sender Avatar */}
-          <Avatar className="w-8 h-8 shrink-0 select-none border border-white/10 shadow-sm mt-auto mb-1">
-            {msg.user?.selfie_url && <AvatarImage src={getCachedProfilePhoto(msg.user_id, msg.user.selfie_url)} alt={msg.user.name} className="object-cover" />}
-            <AvatarFallback className="bg-white/10 text-foreground text-[10px] font-bold">
-              {msg.user?.name ? msg.user.name.substring(0, 2).toUpperCase() : "?"}
-            </AvatarFallback>
-          </Avatar>
-
-          {/* Bubble & Actions Wrapper */}
-          <div className={`flex flex-col gap-1.5 ${isSelf ? "items-end" : "items-start"}`}>
-
-            {/* Name and Time Header */}
-            <div className={`flex items-center gap-1.5 text-[11px] px-1`}>
-              <span className="font-medium text-foreground/80 capitalize">{msg.user?.name || "Guest"}</span>
-              <span className="text-muted-foreground/60 font-medium">{formatTime(msg.created_at)}</span>
-              {msg.updated_at && new Date(msg.updated_at).getTime() - new Date(msg.created_at).getTime() > 1000 && (
-                <span className="text-[10px] text-muted-foreground/50 italic" title={`Edited at ${formatTime(msg.updated_at)}`}>(edited)</span>
-              )}
-              {statusIcon}
-            </div>
-
-            <div className={`relative flex items-end gap-2 ${isSelf ? "flex-row-reverse" : "flex-row"}`}>
-
-              {isEditing ? (
-                <div
-                  className={`px-4 py-2.5 rounded-[20px] text-[14px] leading-relaxed shadow-sm break-words relative overflow-hidden select-text ${isSelf
-                      ? "bg-primary text-primary-foreground rounded-br-sm"
-                      : "bg-white/5 border border-white/10 text-foreground rounded-bl-sm"
-                    }`}
-                >
-                  {/* Parent Message Reply Quote Block */}
-                  {msg.parent && (
-                    <ParentMessageQuote parent={msg.parent} dek={dek} isSelf={isSelf} />
-                  )}
-
-                  <form onSubmit={handleEditSubmit} className="flex flex-col gap-2 min-w-[200px] sm:min-w-[240px]">
-                    <textarea
-                      value={editText}
-                      onChange={(e) => setEditText(e.target.value)}
-                      className="w-full text-[13px] bg-primary-foreground/5 border border-primary-foreground/20 rounded-xl p-2.5 focus:outline-none focus:border-primary-foreground/40 text-primary-foreground resize-none"
-                      rows={2}
-                      maxLength={1000}
-                      autoFocus
-                      onFocus={(e) => {
-                        const val = e.currentTarget.value;
-                        e.currentTarget.setSelectionRange(val.length, val.length);
+                <form onSubmit={handleEditSubmit} className="flex flex-col gap-2 min-w-[200px] sm:min-w-[240px]">
+                  <textarea
+                    value={editText}
+                    onChange={(e) => setEditText(e.target.value)}
+                    className="w-full text-[13px] bg-primary-foreground/5 border border-primary-foreground/20 rounded-xl p-2.5 focus:outline-none focus:border-primary-foreground/40 text-primary-foreground resize-none"
+                    rows={2}
+                    maxLength={1000}
+                    autoFocus
+                    onFocus={(e) => {
+                      const val = e.currentTarget.value;
+                      e.currentTarget.setSelectionRange(val.length, val.length);
+                    }}
+                  />
+                  <div className="flex justify-end gap-2 mt-1">
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => setIsEditing(false)}
+                      className="text-primary-foreground/70 hover:text-primary-foreground hover:bg-primary-foreground/10 h-7 text-[11px] rounded-lg"
+                    >
+                      Cancel
+                    </Button>
+                    <Button
+                      type="submit"
+                      size="sm"
+                      disabled={!editText.trim() || updateMutation.isPending}
+                      className="bg-primary-foreground text-primary hover:bg-primary-foreground/90 h-7 text-[11px] rounded-lg font-bold"
+                    >
+                      {updateMutation.isPending ? "Saving..." : "Save"}
+                    </Button>
+                  </div>
+                </form>
+              </div>
+            ) : showActionsTooltip ? (
+              <Popover open={showActionsTooltip} onOpenChange={(open) => {
+                if (!open && onDismissTooltip) {
+                  onDismissTooltip();
+                }
+              }}>
+                <PopoverTrigger asChild>
+                  <div>
+                    {mobileActionsPopover}
+                  </div>
+                </PopoverTrigger>
+                <PopoverContent side="top" align={isSelf ? "end" : "start"} className="w-72 p-3 bg-neutral-900 border border-neutral-800 text-white rounded-xl shadow-xl z-50">
+                  <div className="flex flex-col gap-2">
+                    <p className="text-xs font-semibold">Message Actions</p>
+                    <p className="text-[11px] text-neutral-400">
+                      Hover on desktop or tap on mobile to react, reply, edit, or delete messages!
+                    </p>
+                    <Button
+                      size="sm"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        if (onDismissTooltip) onDismissTooltip();
                       }}
-                    />
-                    <div className="flex justify-end gap-2 mt-1">
-                      <Button
-                        type="button"
-                        variant="ghost"
-                        size="sm"
-                        onClick={() => setIsEditing(false)}
-                        className="text-primary-foreground/70 hover:text-primary-foreground hover:bg-primary-foreground/10 h-7 text-[11px] rounded-lg"
-                      >
-                        Cancel
-                      </Button>
-                      <Button
-                        type="submit"
-                        size="sm"
-                        disabled={!editText.trim() || updateMutation.isPending}
-                        className="bg-primary-foreground text-primary hover:bg-primary-foreground/90 h-7 text-[11px] rounded-lg font-bold"
-                      >
-                        {updateMutation.isPending ? "Saving..." : "Save"}
-                      </Button>
-                    </div>
-                  </form>
-                </div>
-              ) : showActionsTooltip ? (
-                <Popover open={showActionsTooltip} onOpenChange={(open) => {
-                  if (!open && onDismissTooltip) {
-                    onDismissTooltip();
-                  }
-                }}>
+                      className="h-6 text-[10px] self-end bg-primary hover:bg-primary/90 text-primary-foreground font-bold rounded-lg px-2 cursor-pointer"
+                    >
+                      Got it
+                    </Button>
+                  </div>
+                </PopoverContent>
+              </Popover>
+            ) : (
+              mobileActionsPopover
+            )}
+
+            {/* Reactions Display */}
+            <AnimatePresence>
+              {msg.reactions && msg.reactions.length > 0 && (
+                <Popover open={reactionDetailsOpen} onOpenChange={setReactionDetailsOpen}>
                   <PopoverTrigger asChild>
-                    <div>
-                      {mobileActionsPopover}
-                    </div>
+                    <motion.div
+                      initial={{ opacity: 0, scale: 0.8, y: 5 }}
+                      animate={{ opacity: 1, scale: 1, y: 0 }}
+                      exit={{ opacity: 0, scale: 0.8, y: 5 }}
+                      transition={{ type: "spring", stiffness: 350, damping: 25 }}
+                      className={`ignore-drawer-click absolute -bottom-3.5 ${isSelf ? "right-2" : "left-2"} flex items-center gap-1.5 text-[11px] px-2.5 py-1 rounded-full shadow-md transition-colors cursor-pointer select-none z-10 bg-white dark:bg-neutral-900 border border-neutral-200 dark:border-neutral-800 hover:bg-neutral-50 dark:hover:bg-neutral-800 ${hasAnyReactionFromSelf
+                          ? "text-primary"
+                          : "text-foreground"
+                        }`}
+                    >
+                      <div className="flex items-center gap-0.5">
+                        {uniqueEmojis.map((emoji) => (
+                          <span key={emoji} className="text-[13px] leading-none">{emoji}</span>
+                        ))}
+                      </div>
+                      <span className={`font-semibold ml-0.5 pr-0.5 leading-none ${hasAnyReactionFromSelf
+                          ? "text-primary"
+                          : "text-foreground/90"
+                        }`}>
+                        {totalReactionsCount}
+                      </span>
+                    </motion.div>
                   </PopoverTrigger>
-                  <PopoverContent side="top" align={isSelf ? "end" : "start"} className="w-72 p-3 bg-neutral-900 border border-neutral-800 text-white rounded-xl shadow-xl z-50">
-                    <div className="flex flex-col gap-2">
-                      <p className="text-xs font-semibold">Message Actions</p>
-                      <p className="text-[11px] text-neutral-400">
-                        Hover on desktop or tap on mobile to react, reply, edit, or delete messages!
-                      </p>
-                      <Button 
-                        size="sm" 
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          if (onDismissTooltip) onDismissTooltip();
-                        }}
-                        className="h-6 text-[10px] self-end bg-primary hover:bg-primary/90 text-primary-foreground font-bold rounded-lg px-2 cursor-pointer"
-                      >
-                        Got it
-                      </Button>
+                  <PopoverContent side="top" align={isSelf ? "end" : "start"} className="w-64 p-3 shadow-xl rounded-xl">
+                    <div className="flex gap-2 overflow-x-auto pb-2 mb-2 border-b scrollbar-none">
+                      <button onClick={() => setActiveReactionTab("All")} className={`px-2 py-1 rounded-md text-sm whitespace-nowrap transition-colors ${activeReactionTab === "All" ? "bg-muted font-medium" : "text-muted-foreground hover:bg-muted/50"}`}>
+                        All {msg.reactions.length}
+                      </button>
+                      {Object.entries(reactionsByEmoji).map(([emoji, data]) => (
+                        <button key={emoji} onClick={() => setActiveReactionTab(emoji)} className={`px-2 py-1 rounded-md text-sm flex items-center gap-1 whitespace-nowrap transition-colors ${activeReactionTab === emoji ? "bg-muted font-medium" : "text-muted-foreground hover:bg-muted/50"}`}>
+                          <span>{emoji}</span><span>{data.count}</span>
+                        </button>
+                      ))}
+                    </div>
+                    <div className="flex flex-col max-h-48 overflow-y-auto gap-1 pr-1 scrollbar-thin">
+                      {msg.reactions.filter(r => activeReactionTab === "All" || r.emoji === activeReactionTab).map(r => (
+                        <div
+                          key={r.id}
+                          className={`flex items-center justify-between p-2 rounded-lg group transition-colors ${r.user_id === currentUserId ? "cursor-pointer hover:bg-muted" : "hover:bg-muted/50"}`}
+                          onClick={() => {
+                            if (r.user_id === currentUserId) {
+                              haptic.trigger('light');
+                              toggleReactionMutation.mutate({ messageId: msg.id, emoji: r.emoji });
+                              setReactionDetailsOpen(false);
+                            }
+                          }}
+                        >
+                          <div className="flex items-center gap-3">
+                            <Avatar className="w-8 h-8">
+                              <AvatarImage src={getCachedProfilePhoto(r.user_id, r.user?.selfie_url || undefined)} />
+                              <AvatarFallback className="text-[10px]">{r.user?.name?.[0]}</AvatarFallback>
+                            </Avatar>
+                            <div className="flex flex-col">
+                              <span className="text-sm font-medium leading-tight">{r.user_id === currentUserId ? "You" : r.user?.name}</span>
+                              {r.user_id === currentUserId && <span className="text-[10px] text-muted-foreground group-hover:text-foreground transition-colors leading-tight">Click to remove</span>}
+                            </div>
+                          </div>
+                          <span className="text-lg">{r.emoji}</span>
+                        </div>
+                      ))}
                     </div>
                   </PopoverContent>
                 </Popover>
-              ) : (
-                mobileActionsPopover
               )}
+            </AnimatePresence>
 
-              {/* Reactions Display */}
-              <AnimatePresence>
-                {msg.reactions && msg.reactions.length > 0 && (
-                  <Popover open={reactionDetailsOpen} onOpenChange={setReactionDetailsOpen}>
-                    <PopoverTrigger asChild>
-                      <motion.div
-                        initial={{ opacity: 0, scale: 0.8, y: 5 }}
-                        animate={{ opacity: 1, scale: 1, y: 0 }}
-                        exit={{ opacity: 0, scale: 0.8, y: 5 }}
-                        transition={{ type: "spring", stiffness: 350, damping: 25 }}
-                        className={`ignore-drawer-click absolute -bottom-3.5 ${isSelf ? "right-2" : "left-2"} flex items-center gap-1.5 text-[11px] px-2.5 py-1 rounded-full shadow-md transition-colors cursor-pointer select-none z-10 bg-neutral-100 dark:bg-neutral-900 border border-neutral-200 dark:border-neutral-800 hover:bg-neutral-200 dark:hover:bg-neutral-800 ${
-                          hasAnyReactionFromSelf
-                            ? "text-primary"
-                            : "text-foreground"
-                        }`}
+            {/* Action Buttons (Reply / Pencil / Trash / React) */}
+            {!isEditing && (
+              <TooltipProvider>
+                <div className={`ignore-drawer-click hidden sm:flex transition-opacity items-center gap-1 absolute z-20 bottom-1.5 ${isSelf
+                  ? "right-full pr-3 flex-row-reverse"
+                  : "left-full pl-3 flex-row"
+                  } ${popoverOpen ? "opacity-100" : "opacity-0 group-hover:opacity-100"}`}>
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        onClick={() => onReply(msg)}
+                        className="h-8 w-8 rounded-full text-muted-foreground hover:text-foreground hover:bg-white/10 cursor-pointer"
                       >
-                        <div className="flex items-center gap-0.5">
-                          {uniqueEmojis.map((emoji) => (
-                            <span key={emoji} className="text-[13px] leading-none">{emoji}</span>
-                          ))}
-                        </div>
-                        <span className={`font-semibold ml-0.5 pr-0.5 leading-none ${
-                          hasAnyReactionFromSelf 
-                            ? "text-primary" 
-                            : "text-foreground/90"
-                        }`}>
-                          {totalReactionsCount}
-                        </span>
-                      </motion.div>
-                    </PopoverTrigger>
-                    <PopoverContent side="top" align={isSelf ? "end" : "start"} className="w-64 p-3 shadow-xl rounded-xl">
-                      <div className="flex gap-2 overflow-x-auto pb-2 mb-2 border-b scrollbar-none">
-                        <button onClick={() => setActiveReactionTab("All")} className={`px-2 py-1 rounded-md text-sm whitespace-nowrap transition-colors ${activeReactionTab === "All" ? "bg-muted font-medium" : "text-muted-foreground hover:bg-muted/50"}`}>
-                          All {msg.reactions.length}
-                        </button>
-                        {Object.entries(reactionsByEmoji).map(([emoji, data]) => (
-                          <button key={emoji} onClick={() => setActiveReactionTab(emoji)} className={`px-2 py-1 rounded-md text-sm flex items-center gap-1 whitespace-nowrap transition-colors ${activeReactionTab === emoji ? "bg-muted font-medium" : "text-muted-foreground hover:bg-muted/50"}`}>
-                            <span>{emoji}</span><span>{data.count}</span>
-                          </button>
-                        ))}
-                      </div>
-                      <div className="flex flex-col max-h-48 overflow-y-auto gap-1 pr-1 scrollbar-thin">
-                        {msg.reactions.filter(r => activeReactionTab === "All" || r.emoji === activeReactionTab).map(r => (
-                          <div
-                            key={r.id}
-                            className={`flex items-center justify-between p-2 rounded-lg group transition-colors ${r.user_id === currentUserId ? "cursor-pointer hover:bg-muted" : "hover:bg-muted/50"}`}
-                            onClick={() => {
-                              if (r.user_id === currentUserId) {
-                                haptic.trigger('light');
-                                toggleReactionMutation.mutate({ messageId: msg.id, emoji: r.emoji });
-                                setReactionDetailsOpen(false);
-                              }
-                            }}
-                          >
-                            <div className="flex items-center gap-3">
-                              <Avatar className="w-8 h-8">
-                                <AvatarImage src={getCachedProfilePhoto(r.user_id, r.user?.selfie_url || undefined)} />
-                                <AvatarFallback className="text-[10px]">{r.user?.name?.[0]}</AvatarFallback>
-                              </Avatar>
-                              <div className="flex flex-col">
-                                <span className="text-sm font-medium leading-tight">{r.user_id === currentUserId ? "You" : r.user?.name}</span>
-                                {r.user_id === currentUserId && <span className="text-[10px] text-muted-foreground group-hover:text-foreground transition-colors leading-tight">Click to remove</span>}
-                              </div>
-                            </div>
-                            <span className="text-lg">{r.emoji}</span>
-                          </div>
-                        ))}
-                      </div>
-                    </PopoverContent>
-                  </Popover>
-                )}
-              </AnimatePresence>
+                        <ArrowBendUpLeft size={15} />
+                      </Button>
+                    </TooltipTrigger>
+                    <TooltipContent>
+                      Reply
+                    </TooltipContent>
+                  </Tooltip>
 
-              {/* Action Buttons (Reply / Pencil / Trash / React) */}
-              {!isEditing && (
-                <TooltipProvider>
-                  <div className={`ignore-drawer-click hidden sm:flex transition-opacity items-center gap-1 absolute z-20 bottom-1.5 ${isSelf
-                      ? "right-full pr-3 flex-row-reverse"
-                      : "left-full pl-3 flex-row"
-                    } ${popoverOpen ? "opacity-100" : "opacity-0 group-hover:opacity-100"}`}>
+                  {canEdit && (
                     <Tooltip>
                       <TooltipTrigger asChild>
                         <Button
                           variant="ghost"
                           size="icon"
-                          onClick={() => onReply(msg)}
+                          onClick={() => setIsEditing(true)}
                           className="h-8 w-8 rounded-full text-muted-foreground hover:text-foreground hover:bg-white/10 cursor-pointer"
                         >
-                          <ArrowBendUpLeft size={15} />
+                          <Pencil size={15} />
                         </Button>
                       </TooltipTrigger>
                       <TooltipContent>
-                        Reply
+                        Edit message
                       </TooltipContent>
                     </Tooltip>
+                  )}
 
-                    {canEdit && (
-                      <Tooltip>
+                  {canDelete && (
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          onClick={() => { haptic.trigger("warning"); setDeleteDialogOpen(true); }}
+                          className="h-8 w-8 rounded-full text-muted-foreground hover:text-red-400 hover:bg-red-400/10 cursor-pointer"
+                          disabled={deleteMutation.isPending}
+                        >
+                          <Trash size={15} />
+                        </Button>
+                      </TooltipTrigger>
+                      <TooltipContent>
+                        Delete
+                      </TooltipContent>
+                    </Tooltip>
+                  )}
+
+                  <Tooltip>
+                    <Popover open={popoverOpen} onOpenChange={(open, eventDetails?: any) => {
+                      if (!open && isTransitioningToFullPickerRef.current) {
+                        eventDetails?.cancel?.()
+                        return
+                      }
+                      setPopoverOpen(open)
+                      if (!open) {
+                        setShowFullPicker(false)
+                      }
+                    }}>
+                      <PopoverTrigger asChild>
                         <TooltipTrigger asChild>
                           <Button
                             variant="ghost"
                             size="icon"
-                            onClick={() => setIsEditing(true)}
                             className="h-8 w-8 rounded-full text-muted-foreground hover:text-foreground hover:bg-white/10 cursor-pointer"
                           >
-                            <Pencil size={15} />
+                            <Smiley size={15} />
                           </Button>
                         </TooltipTrigger>
-                        <TooltipContent>
-                          Edit message
-                        </TooltipContent>
-                      </Tooltip>
-                    )}
-
-                    {canDelete && (
-                      <Tooltip>
-                        <TooltipTrigger asChild>
-                          <Button
-                            variant="ghost"
-                            size="icon"
-                            onClick={() => { haptic.trigger("warning"); setDeleteDialogOpen(true); }}
-                            className="h-8 w-8 rounded-full text-muted-foreground hover:text-red-400 hover:bg-red-400/10 cursor-pointer"
-                            disabled={deleteMutation.isPending}
-                          >
-                            <Trash size={15} />
-                          </Button>
-                        </TooltipTrigger>
-                        <TooltipContent>
-                          Delete
-                        </TooltipContent>
-                      </Tooltip>
-                    )}
-
-                    <Tooltip>
-                      <Popover open={popoverOpen} onOpenChange={(open, eventDetails?: any) => {
-                        if (!open && isTransitioningToFullPickerRef.current) {
-                          eventDetails?.cancel?.()
-                          return
-                        }
-                        setPopoverOpen(open)
-                        if (!open) {
-                          setShowFullPicker(false)
-                        }
-                      }}>
-                        <PopoverTrigger asChild>
-                          <TooltipTrigger asChild>
-                            <Button
-                              variant="ghost"
-                              size="icon"
-                              className="h-8 w-8 rounded-full text-muted-foreground hover:text-foreground hover:bg-white/10 cursor-pointer"
-                            >
-                              <Smiley size={15} />
-                            </Button>
-                          </TooltipTrigger>
-                        </PopoverTrigger>
+                      </PopoverTrigger>
                       <PopoverPrimitive.Portal>
                         <PopoverPrimitive.Positioner
                           side="top"
@@ -844,7 +842,7 @@ function ChatMessageItemComponent({
                                   animate={{ opacity: 1, scale: 1 }}
                                   exit={{ opacity: 0, scale: 0.95 }}
                                   transition={{ duration: 0.15 }}
-                                  className="bg-card border border-border shadow-xl p-2 flex flex-col justify-center items-center overflow-hidden w-[228px] h-[48px] rounded-full"
+                                  className="bg-card border border-border shadow-xl p-2 flex flex-col justify-center items-center overflow-hidden w-[300px] h-[48px] rounded-full"
                                 >
                                   <div className="flex items-center gap-1">
                                     {messageQuickEmojis.map((emoji) => {
@@ -857,48 +855,47 @@ function ChatMessageItemComponent({
                                             toggleReactionMutation.mutate({ messageId: msg.id, emoji })
                                             setPopoverOpen(false)
                                           }}
-                                          className={`h-8 w-8 rounded-full flex items-center justify-center text-lg hover:bg-muted transition-colors cursor-pointer ${
-                                            isReacted ? "bg-neutral-200/50 dark:bg-white/15 shadow-inner" : ""
-                                          }`}
+                                          className={`h-8 w-8 rounded-full flex items-center justify-center text-lg hover:bg-muted transition-colors cursor-pointer ${isReacted ? "bg-neutral-200/50 dark:bg-white/15 shadow-inner" : ""
+                                            }`}
                                         >
                                           {emoji}
                                         </button>
                                       );
                                     })}
                                     <button
-                                       onPointerDown={(e) => {
-                                         e.stopPropagation()
-                                         e.nativeEvent.stopImmediatePropagation()
-                                         isTransitioningToFullPickerRef.current = true
-                                       }}
-                                       onPointerUp={(e) => {
-                                         e.stopPropagation()
-                                         e.nativeEvent.stopImmediatePropagation()
-                                       }}
-                                       onMouseDown={(e) => {
-                                         e.stopPropagation()
-                                         e.nativeEvent.stopImmediatePropagation()
-                                         isTransitioningToFullPickerRef.current = true
-                                       }}
-                                       onMouseUp={(e) => {
-                                         e.stopPropagation()
-                                         e.nativeEvent.stopImmediatePropagation()
-                                       }}
-                                       onClick={(e) => {
-                                         e.preventDefault()
-                                         e.stopPropagation()
-                                         e.nativeEvent.stopImmediatePropagation()
-                                         haptic.trigger("light")
-                                         isTransitioningToFullPickerRef.current = true
-                                         setShowFullPicker(true)
-                                         setTimeout(() => {
-                                           isTransitioningToFullPickerRef.current = false
-                                         }, 500)
-                                       }}
-                                       className="h-8 w-8 rounded-full flex items-center justify-center hover:bg-muted transition-colors text-muted-foreground cursor-pointer"
-                                     >
-                                       <Plus size={16} />
-                                     </button>
+                                      onPointerDown={(e) => {
+                                        e.stopPropagation()
+                                        e.nativeEvent.stopImmediatePropagation()
+                                        isTransitioningToFullPickerRef.current = true
+                                      }}
+                                      onPointerUp={(e) => {
+                                        e.stopPropagation()
+                                        e.nativeEvent.stopImmediatePropagation()
+                                      }}
+                                      onMouseDown={(e) => {
+                                        e.stopPropagation()
+                                        e.nativeEvent.stopImmediatePropagation()
+                                        isTransitioningToFullPickerRef.current = true
+                                      }}
+                                      onMouseUp={(e) => {
+                                        e.stopPropagation()
+                                        e.nativeEvent.stopImmediatePropagation()
+                                      }}
+                                      onClick={(e) => {
+                                        e.preventDefault()
+                                        e.stopPropagation()
+                                        e.nativeEvent.stopImmediatePropagation()
+                                        haptic.trigger("light")
+                                        isTransitioningToFullPickerRef.current = true
+                                        setShowFullPicker(true)
+                                        setTimeout(() => {
+                                          isTransitioningToFullPickerRef.current = false
+                                        }, 500)
+                                      }}
+                                      className="h-8 w-8 rounded-full flex items-center justify-center hover:bg-muted transition-colors text-muted-foreground cursor-pointer"
+                                    >
+                                      <Plus size={16} />
+                                    </button>
                                   </div>
                                 </motion.div>
                               ) : (
@@ -915,19 +912,19 @@ function ChatMessageItemComponent({
                                 >
                                   <div className="w-[334px] h-[384px] flex flex-col">
                                     <EmojiPicker
-                                        onEmojiClick={(emojiData) => {
-                                          haptic.trigger("light")
-                                          toggleReactionMutation.mutate({ messageId: msg.id, emoji: emojiData.emoji })
-                                          setShowFullPicker(false)
-                                          setPopoverOpen(false)
-                                        }}
-                                        theme={resolvedTheme === "dark" ? "dark" : "light"}
-                                        lazyLoadEmojis={true}
-                                        width={334}
-                                        height={384}
-                                        previewConfig={{ showPreview: false }}
-                                        skinTonesDisabled={true}
-                                      />
+                                      onEmojiClick={(emojiData) => {
+                                        haptic.trigger("light")
+                                        toggleReactionMutation.mutate({ messageId: msg.id, emoji: emojiData.emoji })
+                                        setShowFullPicker(false)
+                                        setPopoverOpen(false)
+                                      }}
+                                      theme={resolvedTheme === "dark" ? "dark" : "light"}
+                                      lazyLoadEmojis={true}
+                                      width={334}
+                                      height={384}
+                                      previewConfig={{ showPreview: false }}
+                                      skinTonesDisabled={true}
+                                    />
                                   </div>
                                 </motion.div>
                               )}
@@ -942,10 +939,10 @@ function ChatMessageItemComponent({
                   </Tooltip>
                 </div>
               </TooltipProvider>
-              )}
-            </div>
+            )}
           </div>
-        </motion.div>
+        </div>
+      </motion.div>
 
       <AlertDialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
         <AlertDialogContent>

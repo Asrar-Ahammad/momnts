@@ -226,7 +226,7 @@ export default function EventChatRoom({
     }
 
     socket.on("chat:presence", handlePresence)
-    
+
     // Request current presence count immediately on mount
     socket.emit("chat:get-presence", { eventId })
 
@@ -644,7 +644,7 @@ export default function EventChatRoom({
   }
 
   return (
-    <div 
+    <div
       className="flex flex-col h-full w-full bg-background relative overflow-hidden"
       style={viewportStyle}
     >
@@ -728,7 +728,7 @@ export default function EventChatRoom({
                   }
 
                   const prevMsg = index > 0 ? messages[index - 1] : null
-                  const showDateTag = !prevMsg || 
+                  const showDateTag = !prevMsg ||
                     new Date(msg.created_at).toDateString() !== new Date(prevMsg.created_at).toDateString()
 
                   return (
@@ -892,8 +892,8 @@ export default function EventChatRoom({
                   onClick={() => selectAttendee(item)}
                   onMouseEnter={() => setActiveSuggestionIndex(index)}
                   className={`flex items-center justify-between px-3 py-2 rounded-lg text-left text-sm cursor-pointer transition-colors w-full ${isSelected
-                      ? "bg-primary/20 text-foreground border border-primary/30"
-                      : "text-muted-foreground hover:bg-white/10 hover:text-foreground"
+                    ? "bg-primary/20 text-foreground border border-primary/30"
+                    : "text-muted-foreground hover:bg-white/10 hover:text-foreground"
                     }`}
                 >
                   <div className="flex items-center gap-2">
