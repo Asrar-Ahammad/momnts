@@ -92,9 +92,27 @@ export function MobileMessageActions({
     }
   }
 
-  const isLeftHalf = clickCoords ? clickCoords.x < (typeof window !== "undefined" ? window.innerWidth / 2 : 200) : !isSelf
-  const side = clickCoords && clickCoords.y < 250 ? "bottom" : "top"
-  const align = isLeftHalf ? "start" : "end"
+  const [stableCoords, setStableCoords] = useState<{ x: number; y: number } | null>(clickCoords)
+
+  const isLeftHalfInitial = clickCoords ? clickCoords.x < (typeof window !== "undefined" ? window.innerWidth / 2 : 200) : !isSelf
+  const sideInitial = clickCoords && clickCoords.y < 250 ? "bottom" : "top"
+  const alignInitial = isLeftHalfInitial ? "start" : "end"
+
+  const [stableSide, setStableSide] = useState<"top" | "bottom">(sideInitial)
+  const [stableAlign, setStableAlign] = useState<"start" | "end">(alignInitial)
+
+  React.useEffect(() => {
+    if (dropdownOpen && clickCoords) {
+      setStableCoords(clickCoords)
+      const isLeft = clickCoords.x < (typeof window !== "undefined" ? window.innerWidth / 2 : 200)
+      setStableAlign(isLeft ? "start" : "end")
+      setStableSide(clickCoords.y < 250 ? "bottom" : "top")
+    }
+  }, [dropdownOpen, clickCoords])
+
+  const side = stableSide
+  const align = stableAlign
+  const isLeftHalf = align === "start"
 
   return (
     <>
@@ -129,8 +147,8 @@ export function MobileMessageActions({
         <div
           style={{
             position: "fixed",
-            left: clickCoords ? `${clickCoords.x}px` : "0px",
-            top: clickCoords ? `${clickCoords.y}px` : "0px",
+            left: stableCoords ? `${stableCoords.x}px` : "0px",
+            top: stableCoords ? `${stableCoords.y}px` : "0px",
             width: "1px",
             height: "1px",
             pointerEvents: "none",

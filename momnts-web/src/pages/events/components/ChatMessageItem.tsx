@@ -563,10 +563,15 @@ function ChatMessageItemComponent({
             return
           }
 
+          if (dropdownOpen) {
+            handleSetDropdownOpen(false)
+            return
+          }
+
           const x = info?.point?.x ?? e?.clientX ?? (e?.changedTouches?.[0]?.clientX) ?? 0
           const y = info?.point?.y ?? e?.clientY ?? (e?.changedTouches?.[0]?.clientY) ?? 0
           setClickCoords({ x, y })
-          setDropdownOpen(true)
+          handleSetDropdownOpen(true)
         }}
         className={`flex gap-3 max-w-[95%] sm:max-w-[90%] relative z-10 touch-pan-y ${isSelf ? "flex-row-reverse" : "flex-row"}`}
       >
