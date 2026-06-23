@@ -278,16 +278,17 @@ export function MobileMessageActions({
               onClick={(e) => e.stopPropagation()}
             >
               <div className="w-full flex justify-between items-center mb-1 px-1">
-                <span className="text-[12px] font-bold text-neutral-500 dark:text-neutral-400">Reactions</span>
+                <span className="text-[10px] font-bold text-neutral-500 dark:text-neutral-400">Reactions</span>
                 <button
                   onClick={() => setShowMobilePicker(false)}
-                  className="text-primary hover:underline text-[12px] font-bold cursor-pointer active:scale-95 transition-transform"
+                  className="text-primary hover:underline text-[10px] font-bold cursor-pointer active:scale-95 transition-transform"
                 >
                   Back
                 </button>
               </div>
               <div className="w-full flex justify-center overflow-hidden pb-1">
                 <EmojiPicker
+                  className="mobile-emoji-picker"
                   onEmojiClick={(emojiData) => {
                     haptic.trigger("light")
                     toggleReactionMutation.mutate({ messageId: msg.id, emoji: emojiData.emoji })
@@ -300,6 +301,7 @@ export function MobileMessageActions({
                   height={260}
                   previewConfig={{ showPreview: false }}
                   skinTonesDisabled={true}
+                  autoFocusSearch={false}
                 />
               </div>
             </div>

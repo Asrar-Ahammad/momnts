@@ -929,6 +929,7 @@ function ChatMessageItemComponent({
                                       height={384}
                                       previewConfig={{ showPreview: false }}
                                       skinTonesDisabled={true}
+                                      autoFocusSearch={false}
                                     />
                                   </div>
                                 </motion.div>
