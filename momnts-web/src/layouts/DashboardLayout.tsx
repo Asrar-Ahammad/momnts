@@ -252,7 +252,7 @@ const DashboardLayout = () => {
         style={{
           bottom: 'calc(1rem + env(safe-area-inset-bottom, 0px))'
         }}
-        className="fixed left-1/2 -translate-x-1/2 z-50 lg:hidden w-[85%] sm:w-[70%] md:w-[50%] max-w-[360px]"
+        className="fixed left-1/2 -translate-x-1/2 z-50 lg:hidden w-[85%] sm:w-[70%] md:w-[50%] max-w-90"
       >
         <nav className="flex items-center justify-around bg-background/80 backdrop-blur-md border border-neutral-200/50 dark:border-white/10 rounded-full p-2 shadow-2xl ring-1 ring-black/5 dark:ring-white/5">
           {navItems.map((item) => (
@@ -268,7 +268,7 @@ const DashboardLayout = () => {
               )}
             >
               <div className={cn(
-                "p-1.5 rounded-xl transition-all duration-300",
+                "p-1.5 rounded-full transition-all duration-300",
                 item.active ? "bg-neutral-100 dark:bg-neutral-800 scale-110" : ""
               )}>
                 {item.icon}
