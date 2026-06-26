@@ -114,6 +114,7 @@ function ChatMessageItemComponent({
   const [showFullPicker, setShowFullPicker] = useState(false)
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false)
   const isTransitioningToFullPickerRef = useRef(false)
+  const isDraggingRef = useRef(false)
   const [isLargeScreen, setIsLargeScreen] = useState(false)
 
   useEffect(() => {
@@ -251,6 +252,10 @@ function ChatMessageItemComponent({
   const hasTriggeredHaptic = useRef(false)
 
   const handleDrag = (event: any, info: any) => {
+    if (Math.abs(info.offset.x) > 10) {
+      isDraggingRef.current = true
+    }
+
     const thresholdCrossed = isSelf ? info.offset.x < -50 : info.offset.x > 50
     if (thresholdCrossed) {
       if (!hasTriggeredHaptic.current) {
@@ -268,6 +273,9 @@ function ChatMessageItemComponent({
       onReply(msg)
     }
     hasTriggeredHaptic.current = false
+    setTimeout(() => {
+      isDraggingRef.current = false
+    }, 100)
   }
 
   const dragElastic = isSelf ? { left: 0.65, right: 0.02 } : { left: 0.02, right: 0.65 }
@@ -525,7 +533,7 @@ function ChatMessageItemComponent({
         }
       }}
       transition={rowTransition}
-      className={`group flex w-full p-1 rounded-xl transition-colors duration-500 relative ${isSelf ? "justify-end" : "justify-start"}`}
+      className={`group flex w-full p-1 rounded-xl transition-colors duration-500 relative ${isSelf ? "justify-end" : "justify-start"} ${dropdownOpen && !isLargeScreen ? "z-[100001]" : ""}`}
     >
       {/* Reply Indicator (reveals when dragging row) */}
       <motion.div
@@ -551,7 +559,7 @@ function ChatMessageItemComponent({
         onDrag={handleDrag}
         onDragEnd={handleDragEnd}
         onTap={(e: any, info: any) => {
-          if (isLargeScreen || isEditing) return
+          if (isLargeScreen || isEditing || isDraggingRef.current) return
 
           const target = e.target as HTMLElement
           if (
@@ -573,7 +581,7 @@ function ChatMessageItemComponent({
           setClickCoords({ x, y })
           handleSetDropdownOpen(true)
         }}
-        className={`flex gap-3 max-w-[95%] sm:max-w-[90%] relative z-10 touch-pan-y ${isSelf ? "flex-row-reverse" : "flex-row"}`}
+        className={`flex gap-3 max-w-[95%] sm:max-w-[90%] relative touch-pan-y ${isSelf ? "flex-row-reverse" : "flex-row"} ${dropdownOpen && !isLargeScreen ? "z-[100002]" : "z-10"}`}
       >
         {/* Sender Avatar */}
         <Avatar className="w-8 h-8 shrink-0 select-none border border-white/10 shadow-sm mt-auto mb-1">

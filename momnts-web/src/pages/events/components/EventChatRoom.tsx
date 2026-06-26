@@ -648,6 +648,8 @@ export default function EventChatRoom({
       className="flex flex-col h-full w-full bg-background relative overflow-hidden"
       style={viewportStyle}
     >
+      {/* Portal target for mobile actions overlay */}
+      <div id="chat-overlay-portal-target" className="absolute inset-0 pointer-events-none z-20" />
 
       {/* E2EE Header Banner */}
       <div className="flex items-center justify-between px-5 py-3.5 border-b border-border bg-card/40 backdrop-blur-xl shrink-0 z-10">

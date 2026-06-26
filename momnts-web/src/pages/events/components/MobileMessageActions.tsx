@@ -55,6 +55,16 @@ export function MobileMessageActions({
 }: MobileMessageActionsProps) {
   const { resolvedTheme } = useTheme()
   const [showMobilePicker, setShowMobilePicker] = useState(false)
+  const [portalTarget, setPortalTarget] = useState<HTMLElement | null>(null)
+
+  React.useEffect(() => {
+    const target = document.getElementById("chat-overlay-portal-target")
+    if (target) {
+      setPortalTarget(target)
+    } else if (typeof document !== "undefined") {
+      setPortalTarget(document.body)
+    }
+  }, [])
 
   const mobileQuickEmojis = useMemo(() => {
     const defaults = ["😑", "❤️", "👍", "👎", "🔥", "🥰", "👏"]
@@ -117,13 +127,17 @@ export function MobileMessageActions({
   return (
     <>
       <AnimatePresence>
-        {dropdownOpen && typeof document !== "undefined" && createPortal(
+        {dropdownOpen && portalTarget && createPortal(
           <motion.div
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
             transition={{ duration: 0.15 }}
-            className="fixed inset-0 bg-black/20 backdrop-blur-[2px] z-[9999] cursor-pointer pointer-events-auto"
+            className={
+              portalTarget === (typeof document !== "undefined" ? document.body : null)
+                ? "fixed inset-0 bg-black/55 backdrop-blur-[3px] z-[99999] cursor-pointer pointer-events-auto"
+                : "absolute inset-0 bg-black/55 backdrop-blur-[3px] z-20 cursor-pointer pointer-events-auto"
+            }
             onClick={(e) => {
               e.preventDefault()
               e.stopPropagation()
@@ -131,7 +145,7 @@ export function MobileMessageActions({
               setDropdownOpen(false)
             }}
           />,
-          document.body
+          portalTarget
         )}
       </AnimatePresence>
       <Popover
@@ -161,7 +175,7 @@ export function MobileMessageActions({
         side={side}
         align={align}
         sideOffset={8}
-        className={`ignore-drawer-click bg-transparent border-none ring-0 p-0 shadow-none outline-none flex flex-col gap-2 z-[10000] w-[300px] max-w-[95vw] ${
+        className={`ignore-drawer-click bg-transparent border-none ring-0 p-0 shadow-none outline-none flex flex-col gap-2 z-[100000] w-[300px] max-w-[95vw] ${
           isLeftHalf ? "items-start" : "items-end"
         }`}
         onClick={(e) => {
