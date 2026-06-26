@@ -629,7 +629,6 @@ export default function EventChatRoom({
         } : undefined
       })
 
-      haptic.trigger("success")
       setInputText("")
       setExplicitMentions([])
       setSelectedPhotos([])
@@ -637,7 +636,6 @@ export default function EventChatRoom({
 
       setTimeout(() => scrollToBottom("smooth"), 100)
     } catch (err) {
-      haptic.trigger("error")
       toast.error("Failed to encrypt and send message.")
       console.error(err)
     }

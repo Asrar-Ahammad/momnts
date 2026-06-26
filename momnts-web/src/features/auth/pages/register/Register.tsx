@@ -255,7 +255,7 @@ const Register = () => {
                     toastId.current = null
                 }
             }
-        }, 500)
+        }, 2000)
         return () => clearTimeout(timer)
     }, [password, confirmPassword])
 

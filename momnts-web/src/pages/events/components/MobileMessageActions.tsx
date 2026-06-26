@@ -56,6 +56,18 @@ export function MobileMessageActions({
   const { resolvedTheme } = useTheme()
   const [showMobilePicker, setShowMobilePicker] = useState(false)
   const [portalTarget, setPortalTarget] = useState<HTMLElement | null>(null)
+  const [allowClicks, setAllowClicks] = useState(false)
+
+  React.useEffect(() => {
+    if (dropdownOpen) {
+      const timer = setTimeout(() => {
+        setAllowClicks(true)
+      }, 300)
+      return () => clearTimeout(timer)
+    } else {
+      setAllowClicks(false)
+    }
+  }, [dropdownOpen])
 
   React.useEffect(() => {
     const target = document.getElementById("chat-overlay-portal-target")
@@ -180,13 +192,15 @@ export function MobileMessageActions({
         }`}
         onClick={(e) => {
           e.stopPropagation()
+          if (!allowClicks) return
           setDropdownOpen(false)
         }}
       >
         <div 
-          className={`w-full flex flex-col gap-2 bg-transparent ${isLeftHalf ? "items-start" : "items-end"}`}
+          className={`w-full flex flex-col gap-2 bg-transparent ${isLeftHalf ? "items-start" : "items-end"} ${!allowClicks ? "pointer-events-none" : ""}`}
           onClick={(e) => {
             e.stopPropagation()
+            if (!allowClicks) return
             setDropdownOpen(false)
           }}
         >

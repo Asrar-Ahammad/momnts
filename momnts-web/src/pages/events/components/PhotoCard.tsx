@@ -25,6 +25,7 @@ interface PhotoCardProps {
   isFavourite?: boolean
   onToggleFavourite?: () => void
   dek?: CryptoKey | null
+  onLoadComplete?: (photoId: string) => void
 }
 
 // Global cache for loaded image URLs to prevent reload flashes when components remount (e.g. during sorting)
@@ -44,7 +45,8 @@ const PhotoCard = ({
   onDelete,
   isFavourite,
   onToggleFavourite,
-  dek
+  dek,
+  onLoadComplete
 }: PhotoCardProps) => {
   const isEncrypted = !!(photo.encryption_iv && photo.encryption_tag)
   const { url: decryptedThumbUrl, error: decryptionError } = useDecryptedPhoto(
@@ -89,6 +91,12 @@ const PhotoCard = ({
   }, [isInView, displayUrl])
 
   useEffect(() => {
+    if (imageLoaded || imageError) {
+      onLoadComplete?.(photo.id)
+    }
+  }, [imageLoaded, imageError, photo.id, onLoadComplete])
+
+  useEffect(() => {
     if (isInView) return
 
     const observer = new IntersectionObserver(
@@ -126,7 +134,7 @@ const PhotoCard = ({
         <div className={cn(
           "absolute top-3 right-3 z-10 w-6 h-6 rounded-full border-2 flex items-center justify-center transition-all duration-200",
           isSelected
-             ? "bg-neutral-900 dark:bg-white border-neutral-900 dark:border-white"
+            ? "bg-neutral-900 dark:bg-white border-neutral-900 dark:border-white"
             : "bg-black/20 border-white/50 backdrop-blur-sm"
         )}>
           {isSelected && <Check size={14} weight="bold" className="text-white dark:text-neutral-900" />}

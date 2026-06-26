@@ -77,7 +77,7 @@ const PhotoGrid = ({
   galleryColumns = 1,
   dek
 }: PhotoGridProps) => {
-  const [visibleCount, setVisibleCount] = useState(10)
+  const [visibleCount, setVisibleCount] = useState(20)
   const [isPageLoading, setIsPageLoading] = useState(false)
   const cols = useColumnCount(galleryColumns)
 
@@ -95,10 +95,9 @@ const PhotoGrid = ({
   const firstPhotoId = photos[0]?.id
 
   useEffect(() => {
-    setVisibleCount(10)
+    setVisibleCount(20)
     setIsPageLoading(false)
   }, [activeTab, event?.user_id, firstPhotoId])
-
 
   useEffect(() => {
     return () => {
@@ -126,12 +125,12 @@ const PhotoGrid = ({
           ) {
             setIsPageLoading(true)
             setTimeout(() => {
-              setVisibleCount((prev) => Math.min(prev + 10, photosLengthRef.current))
+              setVisibleCount((prev) => Math.min(prev + 20, photosLengthRef.current))
               setIsPageLoading(false)
-            }, 600)
+            }, 100)
           }
         },
-        { rootMargin: '100px' }
+        { rootMargin: '200px' }
       )
       observer.observe(node)
       observerInstanceRef.current = observer

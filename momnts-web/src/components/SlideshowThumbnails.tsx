@@ -11,6 +11,7 @@ interface SlideshowThumbnailsProps {
   setCurrentIndex: React.Dispatch<React.SetStateAction<number>>
   setIsSlideshowPlaying: React.Dispatch<React.SetStateAction<boolean>>
   resetControlsTimer: () => void
+  getSlideshowSrc?: (photo?: PhotoData) => string
 }
 
 export const SlideshowThumbnails = ({
@@ -21,6 +22,7 @@ export const SlideshowThumbnails = ({
   setCurrentIndex,
   setIsSlideshowPlaying,
   resetControlsTimer,
+  getSlideshowSrc,
 }: SlideshowThumbnailsProps) => {
   const ITEMS_PER_PAGE = 5
   const totalPages = Math.ceil(photos.length / ITEMS_PER_PAGE)
@@ -63,7 +65,11 @@ export const SlideshowThumbnails = ({
               )}
             >
               <img
-                src={photo.thumb_url || photo.display_url}
+                src={
+                  getSlideshowSrc
+                    ? (photo.encryption_iv && photo.encryption_tag ? getSlideshowSrc(photo) : (photo.thumb_url || photo.display_url))
+                    : (photo.thumb_url || photo.display_url)
+                }
                 alt={`Thumb ${actualIndex + 1}`}
                 className="w-full h-full object-cover"
               />

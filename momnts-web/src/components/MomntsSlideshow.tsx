@@ -13,6 +13,7 @@ import { SlideshowThumbnails } from './SlideshowThumbnails'
 import { SlideshowControls } from './SlideshowControls'
 import { useWebHaptics } from 'web-haptics/react'
 import { decryptPhoto } from '../lib/crypto/e2ee'
+import { getDEK } from '../lib/crypto/keyStore'
 import { apiFetch } from '../lib/apiFetch'
 import { getAuthHeaders } from '../lib/authHeaders'
 
@@ -52,6 +53,7 @@ export const MomntsSlideshow = ({
   const [loading, setLoading] = useState(true)
   const [currentIndex, setCurrentIndex] = useState(0)
   const [decryptedUrls, setDecryptedUrls] = useState<Record<string, string>>({})
+  const [resolvedDek, setResolvedDek] = useState<CryptoKey | null>(null)
 
   const getSlideshowSrc = useCallback((photo?: PhotoData) => {
     if (!photo) return 'data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="1" height="1"/>'
@@ -91,11 +93,25 @@ export const MomntsSlideshow = ({
 
   // Initialize and load photos
   useEffect(() => {
-    if (!open || !eventId) return
+    if (!open || !eventId) {
+      setResolvedDek(null)
+      return
+    }
 
     const fetchPhotos = async () => {
       try {
         setLoading(true)
+
+        let activeDek = dek
+        if (!activeDek) {
+          try {
+            activeDek = await getDEK(eventId)
+          } catch (err) {
+            console.error('Failed to get DEK from keystore:', err)
+          }
+        }
+        setResolvedDek(activeDek)
+
         const data = await photosApi.getEventPhotos(eventId)
         // Filter out processed photos if any, or just display all processed ones
         const processedPhotos = data.filter((p) => p.processed && p.is_visible)
@@ -104,7 +120,7 @@ export const MomntsSlideshow = ({
         setCurrentIndex(0)
         setShowIntro(true)
 
-        if (dek && activePhotos.length > 0) {
+        if (activeDek && activePhotos.length > 0) {
           const decs: Record<string, string> = {}
           for (const photo of activePhotos) {
             if (photo.encryption_iv && photo.encryption_tag) {
@@ -122,7 +138,7 @@ export const MomntsSlideshow = ({
                 const response = await apiFetch(fetchUrl, { headers })
                 if (!response.ok) throw new Error('Failed to fetch encrypted photo')
                 const buffer = await response.arrayBuffer()
-                const decryptedBuffer = await decryptPhoto(buffer, photo.encryption_iv, photo.encryption_tag, dek)
+                const decryptedBuffer = await decryptPhoto(buffer, photo.encryption_iv, photo.encryption_tag, activeDek)
                 const blob = new Blob([decryptedBuffer], { type: 'image/webp' })
                 decs[photo.id] = URL.createObjectURL(blob)
               } catch (e) {
@@ -134,7 +150,7 @@ export const MomntsSlideshow = ({
         }
 
         // Preload first 3 photos immediately in background (non-E2EE only)
-        if (!dek && activePhotos.length > 0) {
+        if (!activeDek && activePhotos.length > 0) {
           activePhotos.slice(0, 3).forEach((photo) => {
             const img = new Image()
             img.src = photo.display_url
@@ -399,6 +415,8 @@ export const MomntsSlideshow = ({
             photos={photos}
             handleClose={handleClose}
             handleStart={handleStart}
+            isLocked={photos.length > 0 && photos.some((p) => !!(p.encryption_iv && p.encryption_tag)) && !resolvedDek}
+            eventId={eventId}
           />
         )}
 
@@ -519,6 +537,7 @@ export const MomntsSlideshow = ({
                   setCurrentIndex={setCurrentIndex}
                   setIsSlideshowPlaying={setIsSlideshowPlaying}
                   resetControlsTimer={resetControlsTimer}
+                  getSlideshowSrc={getSlideshowSrc}
                 />
               )}
             </SlideshowControls>

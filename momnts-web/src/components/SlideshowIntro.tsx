@@ -1,4 +1,5 @@
 import React from 'react'
+import { useNavigate } from 'react-router'
 import { motion } from 'framer-motion'
 import { MusicNotes, MapPin, CalendarBlank, Images } from '@phosphor-icons/react'
 import { PhotoData } from '../features/events/services/photos.api'
@@ -10,6 +11,8 @@ interface SlideshowIntroProps {
   photos: PhotoData[]
   handleClose: () => void
   handleStart: () => void
+  isLocked?: boolean
+  eventId?: string
 }
 
 export const SlideshowIntro = ({
@@ -19,7 +22,10 @@ export const SlideshowIntro = ({
   photos,
   handleClose,
   handleStart,
+  isLocked = false,
+  eventId,
 }: SlideshowIntroProps) => {
+  const navigate = useNavigate()
   return (
     <motion.div
       initial={{ opacity: 0 }}
@@ -67,9 +73,15 @@ export const SlideshowIntro = ({
           </div>
         </div>
 
-        <p className="text-sm text-neutral-400 max-w-sm mx-auto leading-relaxed pt-2">
-          Turn up your sound! Enjoy a gorgeous fullscreen slideshow synced to nostalgic ambient vibes.
-        </p>
+        {isLocked ? (
+          <p className="text-sm text-amber-400 max-w-sm mx-auto leading-relaxed pt-2 flex items-center justify-center gap-2">
+            🔒 This Memory Lane is end-to-end encrypted. You need to unlock the event first to view its photos.
+          </p>
+        ) : (
+          <p className="text-sm text-neutral-400 max-w-sm mx-auto leading-relaxed pt-2">
+            Turn up your sound! Enjoy a gorgeous fullscreen slideshow synced to nostalgic ambient vibes.
+          </p>
+        )}
 
         <div className="pt-6 flex flex-col sm:flex-row items-center justify-center gap-4">
           {photos.length === 0 ? (
@@ -82,6 +94,24 @@ export const SlideshowIntro = ({
                 Back to Dashboard
               </button>
             </div>
+          ) : isLocked ? (
+            <>
+              <button
+                onClick={() => {
+                  handleClose()
+                  navigate(`/events/${eventId}`)
+                }}
+                className="w-full sm:w-auto px-10 py-4 rounded-full bg-purple-600 hover:bg-purple-700 text-white text-sm font-bold tracking-wider hover:shadow-xl hover:shadow-purple-500/20 hover:scale-102 active:scale-98 transition-all duration-300 cursor-pointer"
+              >
+                Unlock Event
+              </button>
+              <button
+                onClick={handleClose}
+                className="w-full sm:w-auto px-8 py-4 rounded-full bg-white/5 hover:bg-white/10 border border-white/5 text-sm font-semibold text-neutral-300 hover:text-white transition-all cursor-pointer"
+              >
+                Close
+              </button>
+            </>
           ) : (
             <>
               <button
