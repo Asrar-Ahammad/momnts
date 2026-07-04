@@ -125,9 +125,9 @@ const EventSettingsModal = ({
           <DialogDescription className="sr-only">Update event details and permissions.</DialogDescription>
 
           {/* Left Panel: Sidebar */}
-          <div className="w-full sm:w-[220px] bg-neutral-50/80 dark:bg-neutral-900/30 border-b sm:border-b-0 sm:border-r border-neutral-100 dark:border-neutral-800 flex flex-col shrink-0">
+          <div className="w-full sm:w-55 bg-neutral-50/80 dark:bg-neutral-900/30 border-b sm:border-b-0 sm:border-r border-neutral-100 dark:border-neutral-800 flex flex-col shrink-0">
             {/* Sidebar Title */}
-            <div className="px-5 py-4 sm:py-5 border-b border-neutral-100 dark:border-neutral-800 shrink-0">
+            <div className="px-5 py-4 sm:py-0 sm:h-[88px] flex flex-col justify-center border-b border-neutral-100 dark:border-neutral-800 shrink-0">
               <h3 className="text-xl font-bold font-sirage text-neutral-900 dark:text-neutral-100 leading-none">Settings</h3>
               <p className="text-[10px] text-neutral-400 dark:text-neutral-500 font-medium mt-1">Manage your event</p>
             </div>
@@ -160,7 +160,7 @@ const EventSettingsModal = ({
           {/* Right Panel: Content Area */}
           <div className="flex-1 flex flex-col min-h-0 bg-white dark:bg-neutral-950">
             {/* Content Header */}
-            <div className="px-6 py-4 sm:py-5 border-b border-neutral-100 dark:border-neutral-800 shrink-0 pr-12">
+            <div className="px-6 py-4 sm:py-0 sm:h-[88px] flex flex-col justify-center border-b border-neutral-100 dark:border-neutral-800 shrink-0 pr-12">
               <h4 className="text-base font-bold text-neutral-900 dark:text-neutral-100 capitalize">
                 {activeTab === 'general' ? 'General Information' : activeTab === 'background' ? 'Card Background' : activeTab === 'permissions' ? 'Permissions & Access' : 'Danger Zone'}
               </h4>

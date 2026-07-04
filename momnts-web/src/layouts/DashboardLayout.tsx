@@ -138,7 +138,6 @@ const DashboardLayout = () => {
             >
               Momnts
             </Link>
-            <Badge variant="secondary" className='ml-2 select-none text-neutral-600 dark:text-neutral-300 text-[8px] hidden lg:inline-flex'>v 1.0</Badge>
             <Link
               to="/pricing"
               className={`ml-1.5 select-none px-2.5 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider transition-all shrink-0 hidden lg:inline-flex ${isPro

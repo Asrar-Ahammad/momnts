@@ -671,11 +671,21 @@ body.slideshow-active header {
 }
 
 ::view-transition-old(root) {
-  z-index: 1;
+  z-index: 9999;
+  animation: theme-suck-in 0.7s cubic-bezier(0.77, 0, 0.175, 1) forwards;
 }
 
 ::view-transition-new(root) {
-  z-index: 9999;
+  z-index: 1;
+}
+
+@keyframes theme-suck-in {
+  0% {
+    clip-path: circle(150vmax at var(--click-x, 50%) var(--click-y, 50%));
+  }
+  100% {
+    clip-path: circle(0px at var(--click-x, 50%) var(--click-y, 50%));
+  }
 }
 
 /* html5-qrcode: hide default UI chrome, keep only the video feed */
@@ -756,4 +766,11 @@ body.slideshow-active header {
   height: 16px !important;
   width: 16px !important;
   background-size: 16px !important;
+}
+
+/* ─── Profile Page: Banner gradient animation ───────────────────────── */
+@keyframes profile-gradient-shift {
+  0%,
+  100% { background-position: 0% 50%; }
+  50%  { background-position: 100% 50%; }
 }

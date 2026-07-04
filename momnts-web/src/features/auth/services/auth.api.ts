@@ -9,6 +9,7 @@ export interface User {
   email: string
   email_verified: boolean
   selfie_url?: string
+  banner_url?: string
   theme?: string
   custom_accent_color?: string
   created_at?: string
