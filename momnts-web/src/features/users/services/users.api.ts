@@ -53,5 +53,37 @@ export const usersApi = {
     }
 
     return response.json()
+  },
+
+  async updateBanner(file: File): Promise<{ message: string; banner_url: string }> {
+    const formData = new FormData()
+    formData.append('banner', file)
+
+    const response = await apiFetch(`${API_URL}/api/users/banner`, {
+      method: "PUT",
+      body: formData,
+      headers: authHeaders(),
+    })
+
+    if (!response.ok) {
+      const error = await response.json()
+      throw new Error(error.message || "Failed to update banner")
+    }
+
+    return response.json()
+  },
+
+  async deleteBanner(): Promise<{ message: string }> {
+    const response = await apiFetch(`${API_URL}/api/users/banner`, {
+      method: "DELETE",
+      headers: authHeaders(),
+    })
+
+    if (!response.ok) {
+      const error = await response.json()
+      throw new Error(error.message || "Failed to delete banner")
+    }
+
+    return response.json()
   }
 }

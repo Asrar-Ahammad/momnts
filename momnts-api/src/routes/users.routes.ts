@@ -1,7 +1,7 @@
 import { Router } from 'express'
 import { authenticate } from '../middleware/auth.middleware.js'
 import { upload } from '../lib/multer.js'
-import { updateSelfieController, updateProfileController, deleteSelfieController } from '../controllers/users.controller.js'
+import { updateSelfieController, updateProfileController, deleteSelfieController, updateBannerController, deleteBannerController } from '../controllers/users.controller.js'
 
 const usersRouter = Router()
 
@@ -25,5 +25,19 @@ usersRouter.delete('/selfie', authenticate, deleteSelfieController)
  * @access Private
  */
 usersRouter.put('/profile', authenticate, updateProfileController)
+
+/**
+ * @route PUT /api/users/banner
+ * @description Update user profile banner image
+ * @access Private
+ */
+usersRouter.put('/banner', authenticate, upload.single('banner'), updateBannerController)
+
+/**
+ * @route DELETE /api/users/banner
+ * @description Delete user profile banner image
+ * @access Private
+ */
+usersRouter.delete('/banner', authenticate, deleteBannerController)
 
 export { usersRouter }

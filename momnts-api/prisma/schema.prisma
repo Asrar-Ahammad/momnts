@@ -22,6 +22,7 @@ model User {
   email_verified   Boolean                     @default(false)
   selfie_url       String?
   selfie_embedding Unsupported("vector(512)")?
+  banner_url       String?
   theme            String?                     @default("dark")
   custom_accent_color String?
   clerk_user_id    String?                     @unique

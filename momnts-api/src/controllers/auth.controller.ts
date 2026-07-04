@@ -144,14 +144,18 @@ function parseUserAgent(userAgent: string | undefined) {
 }
 
 // ─── User response shape helper ──────────────────────────────────────
-async function userResponse(user: { id: string; name: string; email: string; email_verified: boolean; selfie_url: string | null; created_at: Date }) {
+async function userResponse(user: { id: string; name: string; email: string; email_verified: boolean; selfie_url: string | null; banner_url?: string | null; theme?: string | null; custom_accent_color?: string | null; created_at: Date }) {
   const selfie_url = user.selfie_url ? await presignStoredUrl(user.selfie_url, 86400) : null;
+  const banner_url = user.banner_url ? await presignStoredUrl(user.banner_url, 86400) : null;
   return {
     id: user.id,
     username: user.name,
     email: user.email,
     email_verified: user.email_verified,
     selfie_url,
+    banner_url,
+    theme: user.theme ?? 'dark',
+    custom_accent_color: user.custom_accent_color ?? undefined,
     created_at: user.created_at,
   };
 }
@@ -600,6 +604,7 @@ async function getMeController(req: any, res: any) {
         email: true,
         email_verified: true,
         selfie_url: true,
+        banner_url: true,
         created_at: true,
       },
     });

@@ -23,41 +23,30 @@ export function ThemeToggle() {
       return;
     }
 
-    const x = e.clientX || window.innerWidth / 2;
-    const y = e.clientY || window.innerHeight / 2;
+    const btn = document.getElementById("theme-toggle-btn");
+    let x = e.clientX || window.innerWidth / 2;
+    let y = e.clientY || window.innerHeight / 2;
+
+    if (btn) {
+      const rect = btn.getBoundingClientRect();
+      x = rect.left + rect.width / 2;
+      y = rect.top + rect.height / 2;
+    }
+
+    document.documentElement.style.setProperty("--click-x", `${x}px`);
+    document.documentElement.style.setProperty("--click-y", `${y}px`);
 
     const transition = doc.startViewTransition(() => {
       flushSync(() => {
         setTheme(newTheme);
       });
     });
-
-    transition.ready.then(() => {
-      const radius = Math.hypot(
-        Math.max(x, window.innerWidth - x),
-        Math.max(y, window.innerHeight - y)
-      );
-
-      document.documentElement.animate(
-        {
-          clipPath: [
-            `circle(0px at ${x}px ${y}px)`,
-            `circle(${radius}px at ${x}px ${y}px)`,
-          ],
-        },
-        {
-          duration: 500,
-          easing: "ease-in-out",
-          pseudoElement: "::view-transition-new(root)",
-        }
-      );
-    });
   };
 
   return (
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
-        <Button variant="outline" size="icon">
+        <Button id="theme-toggle-btn" variant="outline" size="icon">
           <Sun className="h-[1.2rem] w-[1.2rem] rotate-0 scale-100 transition-all dark:-rotate-90 dark:scale-0" />
           <Moon className="absolute h-[1.2rem] w-[1.2rem] rotate-90 scale-0 transition-all dark:rotate-0 dark:scale-100" />
           <span className="sr-only">Toggle theme</span>

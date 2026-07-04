@@ -103,7 +103,7 @@ const DevicesTab = () => {
   }
 
   return (
-    <div className="bg-card text-card-foreground border border-border rounded-[32px] p-6 sm:p-8 shadow-sm">
+    <div className="glass-card rounded-3xl p-6 sm:p-8">
       <div className="mb-8">
         <h3 className="text-xl font-bold select-none text-neutral-900 dark:text-neutral-100 mb-2">
           Signed-in Devices
