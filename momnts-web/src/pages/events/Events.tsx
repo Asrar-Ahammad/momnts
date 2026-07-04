@@ -1,15 +1,16 @@
 import { useState, useEffect, useRef, useCallback } from 'react'
+import { motion } from 'framer-motion'
 import { Button } from '../../components/ui/button'
 import { Input } from '../../components/ui/input'
 import { Popover, PopoverContent, PopoverTrigger } from '../../components/ui/popover'
 import { Calendar } from '../../components/ui/calendar'
 import { format } from 'date-fns'
-import { 
-  CalendarIcon, 
-  Ticket, 
-  Faders, 
-  CaretDown, 
-  Crown, 
+import {
+  CalendarIcon,
+  Ticket,
+  Faders,
+  CaretDown,
+  Crown,
   User,
   SquaresFour,
   Rows,
@@ -17,25 +18,25 @@ import {
   CircleNotch,
   MagnifyingGlassIcon,
   PlusIcon,
-  ArrowsDownUpIcon
+  ArrowsDownUpIcon,
+  CalendarBlank,
 } from '@phosphor-icons/react'
-import { Tabs, TabsList, TabsTrigger } from '../../components/ui/tabs'
-import { 
-  DropdownMenu, 
-  DropdownMenuContent, 
-  DropdownMenuItem, 
-  DropdownMenuLabel, 
-  DropdownMenuSeparator, 
-  DropdownMenuTrigger, 
-  DropdownMenuGroup 
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+  DropdownMenuGroup,
 } from '../../components/ui/dropdown-menu'
-import { 
-  Dialog, 
-  DialogContent, 
-  DialogHeader, 
-  DialogTitle, 
-  DialogDescription, 
-  DialogFooter 
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+  DialogFooter,
 } from '../../components/ui/dialog'
 import { eventsApi, EventData } from '../../features/events/services/events.api'
 import { toast } from 'sonner'
@@ -54,7 +55,13 @@ const Events = () => {
   const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('desc')
   const { events, isLoading: loading } = useEvents()
   const queryClient = useQueryClient()
-  const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid')
+  const [viewMode, setViewMode] = useState<'grid' | 'list'>(() => {
+    return (localStorage.getItem('momnts_events_viewMode') as 'grid' | 'list') || 'grid'
+  })
+
+  useEffect(() => {
+    localStorage.setItem('momnts_events_viewMode', viewMode)
+  }, [viewMode])
 
   // Role Filter State
   const [roleFilter, setRoleFilter] = useState<'ALL' | 'ORGANIZER' | 'ATTENDEE'>('ALL')
@@ -87,7 +94,7 @@ const Events = () => {
     if (code) {
       setInitialJoinCode(code)
       setJoinModalOpen(true)
-      
+
       // Clean up URL
       window.history.replaceState({}, '', window.location.pathname)
     }
@@ -197,326 +204,370 @@ const Events = () => {
 
   const getRoleFilterIcon = () => {
     switch (roleFilter) {
-      case 'ORGANIZER': return <Crown size={16} weight="bold" />
-      case 'ATTENDEE': return <User size={16} weight="bold" />
-      default: return <CakeIcon size={16} weight="bold" />
+      case 'ORGANIZER': return <Crown size={13} weight="bold" />
+      case 'ATTENDEE': return <User size={13} weight="bold" />
+      default: return <CakeIcon size={13} weight="bold" />
     }
   }
 
+  const hasActiveFilters = !!(searchQuery || dateRange.from || dateRange.to || sortOrder !== 'desc' || roleFilter !== 'ALL')
+
   return (
-    <div className="space-y-6 pt-8">
-      {/* Header Row */}
-      <div className="flex flex-col md:flex-row items-start justify-between gap-2 px-6">
-        <h1 className="text-6xl font-bold font-sirage select-none">Events</h1>
-        <div className="flex items-center gap-3">
-          <Button variant="outline" className="cursor-pointer px-4 rounded-full group flex items-center justify-center gap-2" onClick={() => { haptic.trigger("light"); setCreateModalOpen(true); }}>
-            <PlusIcon size={16} weight="bold" className="" />
-            Create Event
-          </Button>
-          <Button className="cursor-pointer rounded-full px-4 bg-black dark:bg-white dark:hover:bg-white/80 group flex items-center justify-center gap-2" onClick={() => { haptic.trigger("light"); setJoinModalOpen(true); }}>
-            <Ticket size={16} weight="fill" className="" />
-            Join Event
-          </Button>
+    <div className="pt-7 pb-12 space-y-5">
+
+      {/* ════════════════════════════════════════════════════
+          PAGE HEADER
+         ════════════════════════════════════════════════════ */}
+      <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-3 px-5 sm:px-6">
+        <div>
+          <h1 className="text-5xl sm:text-6xl font-bold font-sirage select-none tracking-tight leading-none">
+            Events
+          </h1>
+          {!loading && (
+            <p className="text-xs text-neutral-500 dark:text-neutral-500 mt-2 font-medium tabular-nums">
+              {filteredEvents.length} event{filteredEvents.length !== 1 ? 's' : ''}
+              {hasActiveFilters && ' · filtered'}
+            </p>
+          )}
+        </div>
+
+        {/* Action buttons */}
+        <div className="flex items-center gap-2.5">
+          <button
+            onClick={() => { haptic.trigger("light"); setCreateModalOpen(true) }}
+            className="ev-cta-secondary flex items-center gap-2 px-4 py-2 rounded-full text-sm font-semibold cursor-pointer"
+          >
+            <PlusIcon size={14} weight="bold" />
+            <span>Create Event</span>
+          </button>
+          <button
+            onClick={() => { haptic.trigger("light"); setJoinModalOpen(true) }}
+            className="ev-cta-primary flex items-center gap-2 px-4 py-2 rounded-full text-sm font-semibold cursor-pointer"
+          >
+            <Ticket size={14} weight="fill" />
+            <span>Join Event</span>
+          </button>
         </div>
       </div>
 
-      {/* Search and Filter Row */}
-      <div className="flex items-center flex-wrap gap-2 px-6">
-        <div className="flex-1 max-w-md relative">
-          <div className="relative">
-            <MagnifyingGlassIcon className="absolute left-3 top-1/2 -translate-y-1/2 text-neutral-400" size={18} />
+      {/* ════════════════════════════════════════════════════
+          FILTER BAR
+         ════════════════════════════════════════════════════ */}
+      <div className="px-5 sm:px-6">
+        <div className="flex items-center gap-2 flex-wrap">
+
+          {/* Search */}
+          <div className="flex-1 min-w-[120px] max-w-xs relative ev-search rounded-full">
+            <MagnifyingGlassIcon
+              className="absolute left-3 top-1/2 -translate-y-1/2 text-neutral-500 dark:text-neutral-400 pointer-events-none"
+              size={15}
+            />
             <Input
               ref={searchInputRef}
-              placeholder="Search events..."
+              placeholder="Search events…"
               value={searchQuery}
               onChange={(e) => {
                 setSearchQuery(e.target.value)
                 setShowSuggestions(true)
               }}
               onFocus={() => setShowSuggestions(true)}
-              onBlur={() => {
-                setTimeout(() => setShowSuggestions(false), 200)
-              }}
-              className="pl-9 pr-4 sm:pl-10 sm:pr-12 w-full rounded-full placeholder:text-sm"
+              onBlur={() => setTimeout(() => setShowSuggestions(false), 200)}
+              className="pl-8 pr-9 h-9 bg-transparent border-0 shadow-none rounded-full
+                placeholder:text-neutral-500 dark:placeholder:text-neutral-500 text-sm focus-visible:ring-0"
             />
-            <kbd className="absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none hidden sm:inline-flex h-5 items-center rounded border border-neutral-200 bg-neutral-100 px-1.5 font-mono text-[11px] font-medium text-neutral-500 dark:border-neutral-700 dark:bg-neutral-800 dark:text-neutral-400">
+            <kbd className="absolute right-2.5 top-1/2 -translate-y-1/2 pointer-events-none hidden sm:inline-flex h-5 items-center rounded border border-neutral-700 dark:border-neutral-700 px-1.5 font-mono text-[10px] font-medium text-neutral-500">
               /
             </kbd>
-          </div>
-          {showSuggestions && searchQuery.trim() !== '' && (
-            <div className="absolute top-full mt-2 w-full bg-card text-card-foreground border border-border rounded-xl shadow-lg z-50 overflow-hidden">
-              {events
-                .filter(e => e.name.toLowerCase().includes(searchQuery.toLowerCase()))
-                .slice(0, 5)
-                .map((event) => (
-                  <div
-                    key={event.id}
-                    onClick={() => {
-                      setSearchQuery(event.name)
-                      setShowSuggestions(false)
-                    }}
-                    className="px-4 py-2 hover:bg-muted cursor-pointer text-sm flex items-center gap-2"
-                  >
-                    <span className="truncate">{event.name}</span>
-                  </div>
-                ))}
+            {/* Suggestions */}
+            {showSuggestions && searchQuery.trim() !== '' && (
+              <div className="absolute top-full mt-1.5 w-full bg-neutral-900 dark:bg-neutral-900 border border-neutral-800 rounded-xl shadow-2xl z-50 overflow-hidden">
+                {events
+                  .filter(e => e.name.toLowerCase().includes(searchQuery.toLowerCase()))
+                  .slice(0, 5)
+                  .map((event) => (
+                    <div
+                      key={event.id}
+                      onClick={() => { setSearchQuery(event.name); setShowSuggestions(false) }}
+                      className="px-4 py-2.5 hover:bg-neutral-800 cursor-pointer text-sm text-neutral-200 transition-colors flex items-center gap-2"
+                    >
+                      <MagnifyingGlassIcon size={13} className="text-neutral-500 shrink-0" />
+                      <span className="truncate">{event.name}</span>
+                    </div>
+                  ))}
                 {events.filter(e => e.name.toLowerCase().includes(searchQuery.toLowerCase())).length === 0 && (
                   <div className="px-4 py-3 text-sm text-neutral-500">
                     No matching events found.
                   </div>
                 )}
-            </div>
-          )}
-        </div>
-
-        {/* Mobile Filters */}
-        <div className="md:hidden">
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-              <Button variant="outline" size="sm" onClick={() => haptic.trigger("light")} className="flex items-center gap-1.5 cursor-pointer">
-                <Faders size={16} weight="bold" />
-                <span>Filters</span>
-                {(searchQuery || dateRange.from || dateRange.to || sortOrder !== 'desc' || roleFilter !== 'ALL') && (
-                  <span className="w-2 h-2 rounded-full bg-neutral-900 dark:bg-white" />
-                )}
-              </Button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="end" className="w-60 rounded-2xl p-1.5">
-              <DropdownMenuGroup>
-                <DropdownMenuLabel className="text-[10px] uppercase tracking-wider text-neutral-400 dark:text-neutral-500 font-semibold px-2.5 pt-1.5 pb-1">
-                  Sort
-                </DropdownMenuLabel>
-                <DropdownMenuItem
-                  onClick={() => setSortOrder(sortOrder === 'asc' ? 'desc' : 'asc')}
-                  className="cursor-pointer py-2 px-2.5 rounded-lg flex items-center justify-between"
-                >
-                  <span className="flex items-center gap-2">
-                    <ArrowsDownUpIcon size={16} />
-                    Sort by Date
-                  </span>
-                  <span className="text-xs text-neutral-500 font-medium font-mono uppercase">
-                    {sortOrder === 'desc' ? 'Newest' : 'Oldest'}
-                  </span>
-                </DropdownMenuItem>
-              </DropdownMenuGroup>
-
-              <DropdownMenuSeparator />
-              <DropdownMenuGroup>
-                <DropdownMenuLabel className="text-[10px] uppercase tracking-wider text-neutral-400 dark:text-neutral-500 font-semibold px-2.5 pt-1.5 pb-1">
-                  Filter by Date
-                </DropdownMenuLabel>
-                <DropdownMenuItem
-                  onClick={() => setIsMobileCalendarOpen(true)}
-                  className="cursor-pointer py-2 px-2.5 rounded-lg flex items-center gap-2"
-                >
-                  <CalendarIcon size={16} />
-                  <span>
-                    {dateRange.from && dateRange.to
-                      ? `${format(dateRange.from, 'MMM dd')} - ${format(dateRange.to, 'MMM dd')}`
-                      : 'Filter by Date'
-                    }
-                  </span>
-                </DropdownMenuItem>
-              </DropdownMenuGroup>
-
-              <DropdownMenuSeparator />
-              <DropdownMenuGroup>
-                <DropdownMenuLabel className="text-[10px] uppercase tracking-wider text-neutral-400 dark:text-neutral-500 font-semibold px-2.5 pt-1.5 pb-1">
-                  Type
-                </DropdownMenuLabel>
-                <DropdownMenuItem
-                  onClick={() => setRoleFilter('ALL')}
-                  className={`cursor-pointer py-2 px-2.5 rounded-lg flex items-center gap-2 ${roleFilter === 'ALL' ? 'bg-neutral-100 dark:bg-neutral-800' : ''}`}
-                >
-                  <CakeIcon size={16} weight="bold" />
-                  All Events
-                </DropdownMenuItem>
-                <DropdownMenuItem
-                  onClick={() => setRoleFilter('ORGANIZER')}
-                  className={`cursor-pointer py-2 px-2.5 rounded-lg flex items-center gap-2 ${roleFilter === 'ORGANIZER' ? 'bg-neutral-100 dark:bg-neutral-800' : ''}`}
-                >
-                  <Crown size={16} weight="fill" className="text-amber-500" />
-                  Organizing
-                </DropdownMenuItem>
-                <DropdownMenuItem
-                  onClick={() => setRoleFilter('ATTENDEE')}
-                  className={`cursor-pointer py-2 px-2.5 rounded-lg flex items-center gap-2 ${roleFilter === 'ATTENDEE' ? 'bg-neutral-100 dark:bg-neutral-800' : ''}`}
-                >
-                  <User size={16} weight="fill" className="text-blue-500" />
-                  Attending
-                </DropdownMenuItem>
-              </DropdownMenuGroup>
-
-              {(searchQuery || dateRange.from || dateRange.to || sortOrder !== 'desc' || roleFilter !== 'ALL') && (
-                <>
-                  <DropdownMenuSeparator />
-                  <DropdownMenuItem
-                    onClick={handleResetFilters}
-                    className="cursor-pointer py-2 px-2.5 rounded-lg flex items-center gap-2 text-red-500 hover:text-red-600 focus:text-red-600"
-                  >
-                    <Faders size={16} weight="bold" />
-                    Reset Filters
-                  </DropdownMenuItem>
-                </>
-              )}
-            </DropdownMenuContent>
-          </DropdownMenu>
-        </div>
-
-        {/* Desktop Filters */}
-        <div className="hidden md:flex items-center gap-2">
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={() => { haptic.trigger("light"); setSortOrder(sortOrder === 'asc' ? 'desc' : 'asc'); }}
-            className="flex items-center gap-2 cursor-pointer"
-          >
-            <ArrowsDownUpIcon size={16} weight="bold" />
-            Sort by Date
-          </Button>
-
-          <Popover open={isCalendarOpen} onOpenChange={(open) => { haptic.trigger("light"); setIsCalendarOpen(open); }}>
-            <PopoverTrigger>
-              <Button variant="outline" size="sm" className="flex items-center gap-2 cursor-pointer">
-                <CalendarIcon size={16} weight="bold" />
-                {dateRange.from && dateRange.to
-                  ? `${format(dateRange.from, 'MMM dd')} - ${format(dateRange.to, 'MMM dd')}`
-                  : 'Filter by Date'
-                }
-              </Button>
-            </PopoverTrigger>
-            <PopoverContent className="w-auto p-0" align="end">
-              <Calendar
-                mode="range"
-                selected={{
-                  from: dateRange.from,
-                  to: dateRange.to
-                }}
-                onSelect={(range) => {
-                  setDateRange({ from: range?.from, to: range?.to })
-                }}
-                numberOfMonths={2}
-              />
-            </PopoverContent>
-          </Popover>
-
-          <Popover open={isRoleFilterOpen} onOpenChange={(open) => { haptic.trigger("light"); setIsRoleFilterOpen(open); }}>
-            <PopoverTrigger>
-              <Button variant="outline" size="sm" className="flex items-center gap-2 cursor-pointer">
-                {getRoleFilterIcon()}
-                {getRoleFilterLabel()}
-                <CaretDown size={12} weight="bold" />
-              </Button>
-            </PopoverTrigger>
-            <PopoverContent className="w-full p-1 rounded-2xl" align="end">
-              <div className="flex flex-col gap-1">
-                <Button
-                  variant={roleFilter === 'ALL' ? 'default' : 'ghost'}
-                  size="sm"
-                  onClick={() => {
-                    setRoleFilter('ALL')
-                    setIsRoleFilterOpen(false)
-                  }}
-                  className="justify-start cursor-pointer"
-                >
-                  <CakeIcon size={16} weight="bold" className="mr-2" />
-                  All Events
-                </Button>
-                <Button
-                  variant={roleFilter === 'ORGANIZER' ? 'default' : 'ghost'}
-                  size="sm"
-                  onClick={() => {
-                    setRoleFilter('ORGANIZER')
-                    setIsRoleFilterOpen(false)
-                  }}
-                  className="justify-start cursor-pointer"
-                >
-                  <Crown size={16} weight="fill" className="mr-2" />
-                  Organizing
-                </Button>
-                <Button
-                  variant={roleFilter === 'ATTENDEE' ? 'default' : 'ghost'}
-                  size="sm"
-                  onClick={() => {
-                    setRoleFilter('ATTENDEE')
-                    setIsRoleFilterOpen(false)
-                  }}
-                  className="justify-start cursor-pointer"
-                >
-                  <User size={16} weight="fill" className="mr-2" />
-                  Attending
-                </Button>
               </div>
-            </PopoverContent>
-          </Popover>
+            )}
+          </div>
 
-          {(searchQuery || dateRange.from || dateRange.to || sortOrder !== 'desc' || roleFilter !== 'ALL') && (
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={() => { haptic.trigger("light"); handleResetFilters(); }}
-              className="flex items-center gap-2 text-neutral-500 hover:text-neutral-700 cursor-pointer"
+          {/* ── Mobile: single Filters dropdown ─────────── */}
+          <div className="md:hidden">
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <button
+                  onClick={() => haptic.trigger("light")}
+                  className={`ev-pill flex items-center gap-1.5 h-9 px-3.5 rounded-full text-sm font-medium cursor-pointer text-neutral-700 dark:text-neutral-300 ${hasActiveFilters ? 'ev-pill-active' : ''}`}
+                >
+                  <Faders size={14} weight="bold" />
+                  Filters
+                  {hasActiveFilters && <span className="w-1.5 h-1.5 rounded-full bg-white/60" />}
+                </button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end" className="w-60 rounded-2xl p-1.5">
+                <DropdownMenuGroup>
+                  <DropdownMenuLabel className="text-[10px] uppercase tracking-wider text-neutral-400 dark:text-neutral-500 font-semibold px-2.5 pt-1.5 pb-1">Sort</DropdownMenuLabel>
+                  <DropdownMenuItem
+                    onClick={() => setSortOrder(sortOrder === 'asc' ? 'desc' : 'asc')}
+                    className="cursor-pointer py-2 px-2.5 rounded-lg flex items-center justify-between"
+                  >
+                    <span className="flex items-center gap-2"><ArrowsDownUpIcon size={14} />Sort by Date</span>
+                    <span className="text-xs text-neutral-500 font-medium font-mono uppercase">{sortOrder === 'desc' ? 'Newest' : 'Oldest'}</span>
+                  </DropdownMenuItem>
+                </DropdownMenuGroup>
+
+                <DropdownMenuSeparator />
+                <DropdownMenuGroup>
+                  <DropdownMenuLabel className="text-[10px] uppercase tracking-wider text-neutral-400 dark:text-neutral-500 font-semibold px-2.5 pt-1.5 pb-1">Filter by Date</DropdownMenuLabel>
+                  <DropdownMenuItem
+                    onClick={() => setIsMobileCalendarOpen(true)}
+                    className="cursor-pointer py-2 px-2.5 rounded-lg flex items-center gap-2"
+                  >
+                    <CalendarIcon size={14} />
+                    <span>{dateRange.from && dateRange.to ? `${format(dateRange.from, 'MMM dd')} – ${format(dateRange.to, 'MMM dd')}` : 'Filter by Date'}</span>
+                  </DropdownMenuItem>
+                </DropdownMenuGroup>
+
+                <DropdownMenuSeparator />
+                <DropdownMenuGroup>
+                  <DropdownMenuLabel className="text-[10px] uppercase tracking-wider text-neutral-400 dark:text-neutral-500 font-semibold px-2.5 pt-1.5 pb-1">Type</DropdownMenuLabel>
+                  {(['ALL', 'ORGANIZER', 'ATTENDEE'] as const).map(r => (
+                    <DropdownMenuItem
+                      key={r}
+                      onClick={() => setRoleFilter(r)}
+                      className={`cursor-pointer py-2 px-2.5 rounded-lg flex items-center gap-2 ${roleFilter === r ? 'bg-neutral-100 dark:bg-neutral-800' : ''}`}
+                    >
+                      {r === 'ALL' && <CakeIcon size={14} weight="bold" />}
+                      {r === 'ORGANIZER' && <Crown size={14} weight="fill" className="text-amber-500" />}
+                      {r === 'ATTENDEE' && <User size={14} weight="fill" className="text-blue-500" />}
+                      {r === 'ALL' ? 'All Events' : r === 'ORGANIZER' ? 'Organizing' : 'Attending'}
+                    </DropdownMenuItem>
+                  ))}
+                </DropdownMenuGroup>
+
+                {hasActiveFilters && (
+                  <>
+                    <DropdownMenuSeparator />
+                    <DropdownMenuItem
+                      onClick={handleResetFilters}
+                      className="cursor-pointer py-2 px-2.5 rounded-lg flex items-center gap-2 text-red-500 hover:text-red-600 focus:text-red-600"
+                    >
+                      <Faders size={14} weight="bold" />
+                      Reset Filters
+                    </DropdownMenuItem>
+                  </>
+                )}
+              </DropdownMenuContent>
+            </DropdownMenu>
+          </div>
+
+          {/* ── Desktop filter pills ─────────────────────── */}
+          <div className="hidden md:flex items-center gap-2">
+            {/* Sort */}
+            <motion.button
+              whileTap={{ scale: 0.94 }}
+              whileHover={{ scale: 1.03 }}
+              transition={{ type: 'spring', stiffness: 400, damping: 20 }}
+              onClick={() => { haptic.trigger("light"); setSortOrder(sortOrder === 'asc' ? 'desc' : 'asc') }}
+              className="ev-pill flex items-center gap-1.5 h-9 px-3.5 rounded-full text-sm font-medium cursor-pointer text-neutral-700 dark:text-neutral-300"
             >
-              <Faders size={16} weight="bold" />
-              Reset Filters
-            </Button>
-          )}
+              <ArrowsDownUpIcon size={13} weight="bold" />
+              <span>{sortOrder === 'desc' ? 'Newest' : 'Oldest'}</span>
+            </motion.button>
+
+            {/* Date filter */}
+            <Popover open={isCalendarOpen} onOpenChange={(open) => { haptic.trigger("light"); setIsCalendarOpen(open) }}>
+              <PopoverTrigger asChild>
+                <motion.button
+                  whileTap={{ scale: 0.94 }}
+                  whileHover={{ scale: 1.03 }}
+                  transition={{ type: 'spring', stiffness: 400, damping: 20 }}
+                  className={`ev-pill flex items-center gap-1.5 h-9 px-3.5 rounded-full text-sm font-medium cursor-pointer text-neutral-700 dark:text-neutral-300 ${dateRange.from ? 'ev-pill-active' : ''}`}>
+                  <CalendarBlank size={13} weight="bold" />
+                  <span>{dateRange.from && dateRange.to ? `${format(dateRange.from, 'MMM dd')} – ${format(dateRange.to, 'MMM dd')}` : 'Date'}</span>
+                </motion.button>
+              </PopoverTrigger>
+              <PopoverContent className="w-auto p-0" align="start">
+                <Calendar
+                  mode="range"
+                  selected={{ from: dateRange.from, to: dateRange.to }}
+                  onSelect={(range) => setDateRange({ from: range?.from, to: range?.to })}
+                  numberOfMonths={2}
+                />
+              </PopoverContent>
+            </Popover>
+
+            {/* Role filter */}
+            <Popover open={isRoleFilterOpen} onOpenChange={(open) => { haptic.trigger("light"); setIsRoleFilterOpen(open) }}>
+              <PopoverTrigger asChild>
+                <motion.button
+                  whileTap={{ scale: 0.94 }}
+                  whileHover={{ scale: 1.03 }}
+                  transition={{ type: 'spring', stiffness: 400, damping: 20 }}
+                  className={`ev-pill flex items-center gap-1.5 h-9 px-3.5 rounded-full text-sm font-medium cursor-pointer text-neutral-700 dark:text-neutral-300 ${roleFilter !== 'ALL' ? 'ev-pill-active' : ''}`}>
+                  {getRoleFilterIcon()}
+                  <span>{getRoleFilterLabel()}</span>
+                  <CaretDown size={11} weight="bold" className="text-neutral-500" />
+                </motion.button>
+              </PopoverTrigger>
+              <PopoverContent className="w-full p-1 rounded-2xl" align="end">
+                <div className="flex flex-col gap-0.5">
+                  {(['ALL', 'ORGANIZER', 'ATTENDEE'] as const).map(r => (
+                    <Button key={r} variant={roleFilter === r ? 'default' : 'ghost'} size="sm" onClick={() => { setRoleFilter(r); setIsRoleFilterOpen(false) }} className="justify-start cursor-pointer">
+                      {r === 'ALL' && <CakeIcon size={13} weight="bold" className="mr-2" />}
+                      {r === 'ORGANIZER' && <Crown size={13} weight="fill" className="mr-2" />}
+                      {r === 'ATTENDEE' && <User size={13} weight="fill" className="mr-2" />}
+                      {r === 'ALL' ? 'All Events' : r === 'ORGANIZER' ? 'Organizing' : 'Attending'}
+                    </Button>
+                  ))}
+                </div>
+              </PopoverContent>
+            </Popover>
+
+            {/* Reset */}
+            {hasActiveFilters && (
+              <motion.button
+                whileTap={{ scale: 0.94 }}
+                whileHover={{ scale: 1.03 }}
+                transition={{ type: 'spring', stiffness: 400, damping: 20 }}
+                onClick={() => { haptic.trigger("light"); handleResetFilters() }}
+                className="flex items-center gap-1.5 h-9 px-3 rounded-full text-sm font-medium cursor-pointer
+                  text-neutral-500 hover:text-red-500 dark:hover:text-red-400
+                  hover:bg-red-500/8 dark:hover:bg-red-500/10 transition-all duration-200"
+              >
+                <Faders size={13} weight="bold" />
+                Reset
+              </motion.button>
+            )}
+          </div>
+
+          {/* ── View toggle — sliding pill indicator ─────── */}
+          <div className="ml-auto flex items-center ev-toggle-wrap rounded-full p-0.5 relative">
+            {/* Sliding background pill — animates between Grid/List */}
+            <motion.div
+              className="absolute inset-y-0.5 rounded-full ev-toggle-active z-0"
+              layoutId="ev-toggle-bg"
+              layout
+              style={{ left: viewMode === 'grid' ? '2px' : '50%', right: viewMode === 'list' ? '2px' : '50%' }}
+              transition={{ type: 'spring', stiffness: 500, damping: 35 }}
+            />
+            <motion.button
+              onClick={() => { haptic.trigger("selection"); setViewMode('grid') }}
+              whileTap={{ scale: 0.93 }}
+              transition={{ type: 'spring', stiffness: 400, damping: 20 }}
+              className={`relative z-10 flex items-center gap-1.5 h-8 px-3.5 rounded-full text-sm font-medium cursor-pointer transition-colors duration-200
+                ${viewMode === 'grid' ? 'text-neutral-900 dark:text-neutral-50' : 'text-neutral-500 dark:text-neutral-500'}`}
+            >
+              <SquaresFour size={16} weight={viewMode === 'grid' ? 'fill' : 'regular'} />
+              <span className="hidden lg:inline">Grid</span>
+            </motion.button>
+            <motion.button
+              onClick={() => { haptic.trigger("selection"); setViewMode('list') }}
+              whileTap={{ scale: 0.93 }}
+              transition={{ type: 'spring', stiffness: 400, damping: 20 }}
+              className={`relative z-10 flex items-center gap-1.5 h-8 px-3.5 rounded-full text-sm font-medium cursor-pointer transition-colors duration-200
+                ${viewMode === 'list' ? 'text-neutral-900 dark:text-neutral-50' : 'text-neutral-500 dark:text-neutral-500'}`}
+            >
+              <Rows size={16} weight={viewMode === 'list' ? 'fill' : 'regular'} />
+              <span className="hidden lg:inline">List</span>
+            </motion.button>
+          </div>
+
         </div>
-
-        <Tabs value={viewMode} onValueChange={(v) => { haptic.trigger("selection"); setViewMode(v as 'grid' | 'list'); }} className="ml-auto">
-          <TabsList className="rounded-full h-10 bg-card border border-border shadow-sm">
-            <TabsTrigger value="grid" className="rounded-full px-4 h-8 data-[state=active]:bg-primary data-[state=active]:!text-primary-foreground data-[state=active]:shadow-md flex items-center justify-center transition-colors">
-              <SquaresFour size={18} weight={viewMode === 'grid' ? "fill" : "regular"} className="lg:mr-2" />
-              <span className='hidden lg:flex'>Grid</span>
-            </TabsTrigger>
-            <TabsTrigger value="list" className="rounded-full px-4 h-8 data-[state=active]:bg-primary data-[state=active]:!text-primary-foreground data-[state=active]:shadow-md flex items-center justify-center transition-colors">
-              <Rows size={18} weight={viewMode === 'list' ? "fill" : "regular"} className="lg:mr-2" />
-              <span className='hidden lg:flex'>List</span>
-            </TabsTrigger>
-          </TabsList>
-        </Tabs>
       </div>
 
-      {/* Events Grid/List */}
-      <div className={viewMode === 'grid' 
-        ? "grid grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-6 px-4 sm:px-6" 
-        : "flex flex-col gap-4 px-4 sm:px-6"
-      }>
-        {visibleEvents.map((event) => (
-          viewMode === 'grid' 
-            ? <EventCard key={event.id} event={event} />
-            : <EventListItem key={event.id} event={event} />
-        ))}
-      </div>
+      {/* ════════════════════════════════════════════════════
+          LOADING SKELETON
+         ════════════════════════════════════════════════════ */}
+      {loading && (
+        <div className="grid grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-4 px-5 sm:px-6">
+          {[...Array(6)].map((_, i) => (
+            <div
+              key={i}
+              className="w-full aspect-square sm:aspect-video rounded-2xl sm:rounded-[26px]
+                bg-neutral-800/50 animate-pulse"
+              style={{ animationDelay: `${i * 70}ms` }}
+            />
+          ))}
+        </div>
+      )}
 
+      {/* ════════════════════════════════════════════════════
+          GRID / LIST
+         ════════════════════════════════════════════════════ */}
+      {!loading && filteredEvents.length > 0 && (
+        <div className={viewMode === 'grid'
+          ? "grid grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-4 px-5 sm:px-6"
+          : "flex flex-col gap-2 px-5 sm:px-6"
+        }>
+          {visibleEvents.map((event, i) => (
+            viewMode === 'grid'
+              ? <EventCard key={event.id} event={event} index={i} />
+              : <EventListItem key={event.id} event={event} index={i} />
+          ))}
+        </div>
+      )}
+
+      {/* Infinite scroll sentinel */}
       {visibleCount < filteredEvents.length ? (
-        <div ref={observerRef} className="w-full flex justify-center items-center py-8 pb-24">
+        <div ref={observerRef} className="w-full flex justify-center items-center py-8">
           {isPageLoading && (
             <div className="flex flex-col items-center gap-2">
-              <CircleNotch size={32} className="animate-spin text-neutral-400 dark:text-neutral-500" />
-              <span className="text-xs text-neutral-400 dark:text-neutral-500 font-medium">Loading more events...</span>
+              <CircleNotch size={28} className="animate-spin text-neutral-400 dark:text-neutral-600" />
+              <span className="text-xs text-neutral-500 font-medium">Loading more…</span>
             </div>
           )}
         </div>
       ) : (
-        <div className="h-24" />
+        <div className="h-6" />
       )}
 
-      {loading && (
-        <div className="text-center py-12">
-          <p className="text-neutral-500">Loading events...</p>
-        </div>
-      )}
-
+      {/* ════════════════════════════════════════════════════
+          EMPTY STATE
+         ════════════════════════════════════════════════════ */}
       {!loading && filteredEvents.length === 0 && (
-        <div className="text-center py-12">
-          <p className="text-neutral-500">
-            {searchQuery || dateRange.from ? 'No events found matching your filters.' : 'No events yet. Create or join an event!'}
-          </p>
+        <div className="px-5 sm:px-6">
+          <div className="ev-empty rounded-3xl py-20 flex flex-col items-center gap-5 text-center">
+            <div className="w-16 h-16 rounded-2xl bg-neutral-800/60 flex items-center justify-center">
+              <CakeIcon size={28} className="text-neutral-500" weight="thin" />
+            </div>
+            <div>
+              <p className="text-base font-semibold text-neutral-200 dark:text-neutral-200">
+                {searchQuery || dateRange.from ? 'No events match your filters' : 'No events yet'}
+              </p>
+              <p className="text-sm text-neutral-500 mt-1">
+                {searchQuery || dateRange.from
+                  ? 'Try a different search or clear your filters.'
+                  : 'Create an event or join one with an invite code.'}
+              </p>
+            </div>
+            {hasActiveFilters && (
+              <button
+                onClick={handleResetFilters}
+                className="ev-cta-secondary px-5 py-2 rounded-full text-sm font-semibold cursor-pointer"
+              >
+                Clear filters
+              </button>
+            )}
+          </div>
         </div>
       )}
 
-      {/* Modals */}
+      {/* ════════════════════════════════════════════════════
+          MODALS
+         ════════════════════════════════════════════════════ */}
       <CreateEventModal
         open={createModalOpen}
         onOpenChange={setCreateModalOpen}
@@ -535,43 +586,27 @@ const Events = () => {
         <DialogContent className="sm:max-w-sm rounded-3xl p-6">
           <DialogHeader>
             <DialogTitle className="text-xl font-bold">Select Date Range</DialogTitle>
-            <DialogDescription>
-              Filter events within a range of dates.
-            </DialogDescription>
+            <DialogDescription>Filter events within a range of dates.</DialogDescription>
           </DialogHeader>
           <div className="flex justify-center py-4">
             <Calendar
               mode="range"
-              selected={{
-                from: dateRange.from,
-                to: dateRange.to
-              }}
-              onSelect={(range) => {
-                setDateRange({ from: range?.from, to: range?.to })
-              }}
+              selected={{ from: dateRange.from, to: dateRange.to }}
+              onSelect={(range) => setDateRange({ from: range?.from, to: range?.to })}
               numberOfMonths={1}
             />
           </div>
           <DialogFooter className="flex flex-row justify-end gap-2">
             {dateRange.from && (
               <Button
-                variant="ghost"
-                size="sm"
-                onClick={() => {
-                  setDateRange({ from: undefined, to: undefined })
-                  setIsMobileCalendarOpen(false)
-                }}
+                variant="ghost" size="sm"
+                onClick={() => { setDateRange({ from: undefined, to: undefined }); setIsMobileCalendarOpen(false) }}
                 className="text-red-500 hover:text-red-600 cursor-pointer"
               >
                 Clear
               </Button>
             )}
-            <Button
-              variant="default"
-              size="sm"
-              onClick={() => setIsMobileCalendarOpen(false)}
-              className="cursor-pointer"
-            >
+            <Button variant="default" size="sm" onClick={() => setIsMobileCalendarOpen(false)} className="cursor-pointer">
               Apply
             </Button>
           </DialogFooter>

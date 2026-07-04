@@ -1,28 +1,22 @@
-import { useState, useEffect } from 'react'
+import { useState, useMemo } from 'react'
 import { useNavigate } from 'react-router'
 import { useAuth } from '../../features/auth/hooks/useAuth'
 import { useEvents } from '../../features/events/hooks/useEvents'
-import { EventCard } from '../events/components/EventCard'
 import { CreateEventModal, JoinEventModal } from '../events/components'
-import { Button } from '../../components/ui/button'
-import { Skeleton } from '../../components/ui/skeleton'
 import { useQueryClient } from '@tanstack/react-query'
-import { cn } from '../../lib/utils'
-import { motion } from 'framer-motion'
 import { MomntsSlideshow } from '../../components/MomntsSlideshow'
-import { EventData } from '../../features/events/services/events.api'
 import { MomntCard } from './components/MomntCard'
+import { cn } from '../../lib/utils'
 import {
-  CameraPlus,
   PlusCircle,
   Ticket,
-  X,
-  MusicNotes,
-  CaretLeft,
-  CaretRight
+  CameraPlus,
+  ArrowRight,
+  CalendarBlank,
+  Images
 } from '@phosphor-icons/react'
 import { useWebHaptics } from 'web-haptics/react'
-
+import { format } from 'date-fns'
 
 const Home = () => {
   const navigate = useNavigate()
@@ -31,7 +25,6 @@ const Home = () => {
   const queryClient = useQueryClient()
   const haptic = useWebHaptics()
 
-  const [showSelfieBanner, setShowSelfieBanner] = useState(true)
   const [createModalOpen, setCreateModalOpen] = useState(false)
   const [joinModalOpen, setJoinModalOpen] = useState(false)
   const [selectedSlideshowEvent, setSelectedSlideshowEvent] = useState<{
@@ -41,257 +34,237 @@ const Home = () => {
     date: string
   } | null>(null)
 
-
-
-
   const handleEventsUpdate = () => {
     queryClient.invalidateQueries({ queryKey: ['events'] })
   }
 
-  const upcomingEvents = events
-    .filter((event) => new Date(event.date) > new Date())
-    .sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime())
-    .slice(0, 3)
+  const upcomingEvents = useMemo(() => 
+    events
+      .filter((event) => new Date(event.date) > new Date())
+      .sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime()),
+    [events]
+  )
 
-  const pastEvents = events
-    .filter((event) => new Date(event.date) <= new Date())
-    .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
-    .slice(0, 3)
+  const pastEvents = useMemo(() => 
+    events
+      .filter((event) => new Date(event.date) <= new Date())
+      .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime()),
+    [events]
+  )
 
-  const recentEvent = events.length > 0 ? events[0] : null
+  const featuredEvent = useMemo(() => {
+    return pastEvents.find(e => (e._count?.photos || 0) > 0 && e.encryption_mode !== 'E2EE') || pastEvents[0]
+  }, [pastEvents])
+
+  const spotlightPhoto = featuredEvent?.photos?.[0]?.display_url || featuredEvent?.photos?.[0]?.thumb_url
 
   if (!isLoading && events.length === 0) {
     return (
-      <div className="max-w-5xl mx-auto px-4 py-12 flex flex-col items-center justify-center min-h-[60vh] text-center">
-        <div className="w-20 h-20 bg-neutral-100 dark:bg-neutral-800 select-none rounded-full flex items-center justify-center text-4xl mb-6">
-          📸
+      <div className="max-w-5xl mx-auto px-4 pt-12 lg:pt-16 pb-16 flex flex-col items-center justify-center min-h-[70vh] text-center">
+        <div className="w-24 h-24 bg-neutral-900 border border-white/5 rounded-[2rem] flex items-center justify-center text-5xl mb-8 shadow-2xl bento-tile">
+          🍱
         </div>
-        <h2 className="text-2xl font-bold text-neutral-900 dark:text-neutral-100 mb-2 select-none">No events yet</h2>
-        <p className="text-neutral-500 dark:text-neutral-400 max-w-sm mb-8 select-none">
-          Create your first event or join one with an invite code.
+        <h1 className="text-4xl font-sirage font-bold text-neutral-900 dark:text-neutral-50 mb-4 tracking-tight">
+          Welcome to Momnts
+        </h1>
+        <p className="text-lg text-neutral-500 dark:text-neutral-400 max-w-md mb-12">
+          Your photo journey starts here. Create an event or join one to begin capturing memories.
         </p>
-        <div className="flex flex-col sm:flex-row gap-4 w-full sm:w-auto">
-          <Button
-            className="rounded-full h-12 px-8 bg-neutral-900 dark:bg-neutral-100 dark:text-neutral-900"
+        <div className="flex flex-row gap-3 w-full sm:w-auto mt-4 px-4 sm:px-0">
+          <button
+            className="flex-1 h-14 px-2 sm:px-8 rounded-full bg-neutral-900 dark:bg-white text-white dark:text-neutral-900 flex items-center justify-center gap-2 font-bold hover:scale-105 transition-transform whitespace-nowrap text-sm sm:text-base"
             onClick={() => { haptic.trigger("medium"); setCreateModalOpen(true) }}
           >
-            <PlusCircle size={20} weight="bold" className="mr-2" />
-            Create Event
-          </Button>
-          <Button
-            variant="outline"
-            className="rounded-full h-12 px-8 border-neutral-200 dark:border-neutral-700"
+            <PlusCircle size={22} weight="fill" /> Create
+          </button>
+          <button
+            className="flex-1 h-14 px-2 sm:px-8 rounded-full border border-neutral-200 dark:border-neutral-800 flex items-center justify-center gap-2 font-bold hover:bg-neutral-50 dark:hover:bg-neutral-900 transition-colors whitespace-nowrap text-sm sm:text-base"
             onClick={() => { haptic.trigger("medium"); setJoinModalOpen(true) }}
           >
-            <Ticket size={20} weight="bold" className="mr-2" />
-            Join Event
-          </Button>
+            <Ticket size={22} weight="fill" /> Join
+          </button>
         </div>
-
-        <CreateEventModal
-          open={createModalOpen}
-          onOpenChange={setCreateModalOpen}
-          onEventCreated={handleEventsUpdate}
-        />
-        <JoinEventModal
-          open={joinModalOpen}
-          onOpenChange={setJoinModalOpen}
-          onEventJoined={handleEventsUpdate}
-        />
+        <CreateEventModal open={createModalOpen} onOpenChange={setCreateModalOpen} onEventCreated={handleEventsUpdate} />
+        <JoinEventModal open={joinModalOpen} onOpenChange={setJoinModalOpen} onEventJoined={handleEventsUpdate} />
       </div>
     )
   }
 
   return (
-    <div className="max-w-5xl mx-auto px-4 py-8 space-y-10 pb-24">
-      {/* 1. Greeting header */}
-      <div className="space-y-1">
-        <h1 className="text-6xl font-bold font-sirage text-neutral-900 dark:text-neutral-100 select-none">
-          Hey <span className="capitalize">{user?.username || 'there'}</span>!
-        </h1>
-        <p className="text-neutral-500 dark:text-neutral-400 select-none">
-          Here's what's happening with your events.
-        </p>
-      </div>
-
-      {/* 2. Selfie prompt banner */}
-      {showSelfieBanner && !user?.selfie_url && (
-        <div className="relative overflow-hidden bg-amber-50 dark:bg-amber-950/30 border border-amber-100 dark:border-amber-900/50 rounded-2xl p-6 flex items-start gap-4">
-          <div className="p-3 bg-amber-100 dark:bg-amber-900/50 rounded-xl text-amber-600 dark:text-amber-400">
-            <CameraPlus size={24} weight="bold" />
-          </div>
-          <div className="flex-1 space-y-1">
-            <h3 className="font-bold text-amber-900 dark:text-amber-100 select-none">Add your photo</h3>
-            <p className="text-sm text-amber-800/80 dark:text-amber-200/80 max-w-lg select-none">
-              Upload a selfie so Momnts can find you in event photos.
+    <div className="max-w-7xl mx-auto px-4 lg:px-8 pt-6 md:pt-8 lg:pt-12 pb-16">
+      
+      {/* ── BENTO GRID ────────────────────────────────────────── */}
+      <div className="grid grid-cols-1 md:grid-cols-3 auto-rows-auto gap-4 md:gap-6">
+        
+        {/* 1. Welcome Hero (Top Left, 2-col) */}
+        <div className="bento-tile md:col-span-2 p-8 md:p-10 flex flex-col justify-between min-h-[280px]">
+          <div>
+            <h1 className="text-4xl md:text-5xl font-sirage font-bold text-neutral-900 dark:text-white tracking-tight mb-2">
+              Hi, <span className="capitalize">{user?.username || 'there'}</span>.
+            </h1>
+            <p className="text-neutral-600 dark:text-neutral-400 text-lg">
+              {upcomingEvents.length > 0 
+                ? `You have ${upcomingEvents.length} events coming up.` 
+                : "Let's capture some new memories today."}
             </p>
-            <Button
-              size="sm"
-              className="mt-3 bg-amber-600 hover:bg-amber-700 text-white rounded-lg"
-              onClick={() => navigate('/profile')}
-            >
-              Upload Selfie
-            </Button>
           </div>
-          <button
-            onClick={() => { haptic.trigger("light"); setShowSelfieBanner(false) }}
-            className="text-amber-900/50 dark:text-amber-100/50 hover:text-amber-900 dark:hover:text-amber-100"
-          >
-            <X size={20} weight="bold" />
-          </button>
+          
+          <div className="flex flex-row gap-3 mt-8">
+            <button
+              onClick={() => { haptic.trigger("light"); setCreateModalOpen(true) }}
+              className="flex-1 h-12 px-2 sm:px-6 rounded-full bg-neutral-900 dark:bg-white text-white dark:text-neutral-900 hover:scale-105 transition-transform font-bold flex items-center justify-center gap-2 shadow-lg whitespace-nowrap text-sm sm:text-base"
+            >
+              <PlusCircle size={20} weight="fill" /> Create
+            </button>
+            <button
+              onClick={() => { haptic.trigger("light"); setJoinModalOpen(true) }}
+              className="flex-1 h-12 px-2 sm:px-6 rounded-full bg-neutral-100 dark:bg-white/10 text-neutral-900 dark:text-white hover:bg-neutral-200 dark:hover:bg-white/20 transition-colors font-bold flex items-center justify-center gap-2 whitespace-nowrap text-sm sm:text-base"
+            >
+              <Ticket size={20} weight="fill" /> Join
+            </button>
+          </div>
         </div>
-      )}
 
-      {/* 3. Quick actions */}
-      <div className="flex flex-col sm:flex-row gap-4">
-        <Button
-          className="rounded-full h-11 px-8 bg-neutral-900 dark:bg-neutral-100 dark:text-neutral-900 font-medium"
-          onClick={() => { haptic.trigger("medium"); setCreateModalOpen(true) }}
-        >
-          <PlusCircle size={20} weight="bold" className="mr-2" />
-          Create Event
-        </Button>
-        <Button
-          variant="outline"
-          className="rounded-full h-11 px-8 border-neutral-200 dark:border-neutral-700 font-medium"
-          onClick={() => { haptic.trigger("medium"); setJoinModalOpen(true) }}
-        >
-          <Ticket size={20} weight="bold" className="mr-2" />
-          Join Event
-        </Button>
-      </div>
-
-      {/* 3.5. Relive Your Momnts Memory Lanes */}
-      <div className="space-y-4 relative group/lane">
-        <div className="flex items-center justify-between gap-2">
-          
-          <h2 className="text-2xl font-sirage font-bold text-neutral-800 dark:text-neutral-200 select-none">
-            Momnts Memory Lanes
-          </h2>
-          
-          {events.length > 0 && (
-            <div className="flex items-center gap-2 opacity-0 group-hover/lane:opacity-100 transition-opacity">
-              <Button
-                variant="outline"
-                size="icon"
-                className="h-8 w-8 rounded-full border-neutral-200 dark:border-neutral-800 bg-white/50 dark:bg-neutral-900/50 backdrop-blur-sm"
-                onClick={() => {
-                  const el = document.getElementById('memory-lane-container')
-                  if (el) el.scrollBy({ left: -320, behavior: 'smooth' })
-                }}
-              >
-                <CaretLeft size={16} weight="bold" />
-              </Button>
-              <Button
-                variant="outline"
-                size="icon"
-                className="h-8 w-8 rounded-full border-neutral-200 dark:border-neutral-800 bg-white/50 dark:bg-neutral-900/50 backdrop-blur-sm"
-                onClick={() => {
-                  const el = document.getElementById('memory-lane-container')
-                  if (el) el.scrollBy({ left: 320, behavior: 'smooth' })
-                }}
-              >
-                <CaretRight size={16} weight="bold" />
-              </Button>
+        {/* 2. Smart Photo Tile (Top Right, 1-col) */}
+        {!user?.selfie_url ? (
+          <div 
+            onClick={() => { haptic.trigger("light"); navigate('/profile') }}
+            className="bento-tile p-8 flex flex-col items-center justify-center text-center cursor-pointer group min-h-[280px]"
+          >
+            <div className="w-16 h-16 rounded-full bg-amber-100 dark:bg-amber-500/20 text-amber-600 dark:text-amber-400 flex items-center justify-center mb-4 group-hover:scale-110 transition-transform">
+              <CameraPlus size={32} weight="fill" />
             </div>
+            <h3 className="font-bold text-neutral-900 dark:text-white text-lg">Add Selfie</h3>
+            <p className="text-sm text-neutral-500 mt-1">Enable auto-tagging.</p>
+          </div>
+        ) : spotlightPhoto ? (
+          <div className="bento-tile p-0 relative overflow-hidden min-h-[280px] group cursor-pointer" onClick={() => navigate(`/events/${featuredEvent.id}`)}>
+            <img src={spotlightPhoto} alt="Spotlight" className="absolute inset-0 w-full h-full object-cover group-hover:scale-110 transition-transform duration-1000" />
+            <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-transparent" />
+            <div className="absolute bottom-0 left-0 p-6 w-full">
+              <p className="text-white/70 text-xs font-bold uppercase tracking-wider mb-1">Spotlight</p>
+              <p className="text-white font-bold truncate">{featuredEvent.name}</p>
+            </div>
+          </div>
+        ) : (
+          <div className="bento-tile p-8 flex flex-col items-center justify-center text-center min-h-[280px]">
+             <CameraPlus size={48} className="text-neutral-200 dark:text-neutral-800 mb-4" />
+             <p className="text-neutral-400 font-medium text-sm">Your photos will appear here.</p>
+          </div>
+        )}
+
+        {/* 3. Memory Lanes Gallery (Middle Row, Full Width) */}
+        {pastEvents.length > 0 && (
+          <div className="bento-tile md:col-span-3 p-6 md:p-8">
+            <div className="flex items-center justify-between mb-6">
+              <h2 className="text-2xl font-sirage font-bold text-neutral-900 dark:text-white">Memory Lanes</h2>
+            </div>
+            
+            <div className="flex overflow-x-auto gap-4 pb-4 snap-x snap-mandatory scrollbar-hide -mx-6 px-6 md:-mx-8 md:px-8">
+              {pastEvents.map((event) => (
+                <div key={event.id} className="snap-start shrink-0">
+                  <MomntCard
+                    event={event}
+                    className="w-48 h-72" // Fixed size for horizontal scrolling
+                    onClick={() => {
+                      haptic.trigger("light");
+                      setSelectedSlideshowEvent({
+                        id: event.id,
+                        name: event.name,
+                        location: event.location,
+                        date: event.date
+                      })
+                    }}
+                  />
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {/* 4. Jump Back In (Bottom Left, 2-col) */}
+        {featuredEvent && (
+          <div 
+            onClick={() => { haptic.trigger("light"); navigate(`/events/${featuredEvent.id}`) }}
+            className="bento-tile md:col-span-2 p-0 relative overflow-hidden min-h-[350px] group cursor-pointer"
+          >
+            {spotlightPhoto ? (
+              <img src={spotlightPhoto} alt={featuredEvent.name} className="absolute inset-0 w-full h-full object-cover group-hover:scale-105 transition-transform duration-700" />
+            ) : (
+              <div className="absolute inset-0 bg-neutral-100 dark:bg-neutral-800 flex items-center justify-center">
+                <CameraPlus size={48} className="text-neutral-300 dark:text-neutral-700" />
+              </div>
+            )}
+            
+            <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/40 to-transparent" />
+            
+            <div className="absolute bottom-0 left-0 p-8 w-full flex items-end justify-between">
+              <div>
+                <span className="inline-block px-3 py-1 rounded-full bg-white/20 backdrop-blur-md text-white text-xs font-bold uppercase tracking-wider mb-3">
+                  Jump Back In
+                </span>
+                <h3 className="text-3xl font-sirage font-bold text-white mb-1">{featuredEvent.name}</h3>
+                <p className="text-white/70 font-medium">{format(new Date(featuredEvent.date), 'MMM d, yyyy')}</p>
+              </div>
+              <div className="w-14 h-14 rounded-full bg-white/20 backdrop-blur-md flex items-center justify-center text-white group-hover:bg-white group-hover:text-black transition-colors">
+                <Images size={24} weight="fill" />
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* 5. Up Next (Bottom Right, 1-col) */}
+        <div className="bento-tile md:col-span-1 p-6 flex flex-col min-h-[350px]">
+          <h2 className="text-xl font-sirage font-bold text-neutral-900 dark:text-white mb-6">Up Next</h2>
+          
+          <div className="flex flex-col gap-3 flex-1">
+            {upcomingEvents.length > 0 ? (
+              upcomingEvents.slice(0, 3).map(event => {
+                const eventPhoto = event.photos?.[0]?.thumb_url;
+                return (
+                  <div 
+                    key={event.id}
+                    onClick={() => navigate(`/events/${event.id}`)}
+                    className="flex items-center gap-4 p-3 rounded-2xl hover:bg-neutral-100 dark:hover:bg-white/5 cursor-pointer transition-colors"
+                  >
+                    <div className="w-14 h-14 shrink-0 rounded-xl overflow-hidden bg-neutral-200 dark:bg-neutral-800 relative">
+                      {eventPhoto ? (
+                        <img src={eventPhoto} alt={event.name} className="w-full h-full object-cover" />
+                      ) : (
+                         <div className="w-full h-full flex flex-col items-center justify-center text-neutral-500">
+                           <span className="text-[10px] font-bold uppercase">{format(new Date(event.date), 'MMM')}</span>
+                           <span className="text-lg font-black leading-none">{format(new Date(event.date), 'd')}</span>
+                         </div>
+                      )}
+                    </div>
+                    <div className="min-w-0 flex-1">
+                      <p className="font-bold text-neutral-900 dark:text-white truncate">{event.name}</p>
+                      <p className="text-xs text-neutral-500 truncate">{event.location}</p>
+                    </div>
+                  </div>
+                )
+              })
+            ) : (
+              <div className="flex-1 flex flex-col items-center justify-center text-center text-neutral-500 p-4">
+                <CalendarBlank size={32} className="mb-2 opacity-50" />
+                <p className="text-sm font-medium">No upcoming events</p>
+              </div>
+            )}
+          </div>
+          
+          {upcomingEvents.length > 3 && (
+            <button className="mt-4 w-full py-3 rounded-xl bg-neutral-100 dark:bg-white/5 hover:bg-neutral-200 dark:hover:bg-white/10 transition-colors text-sm font-bold text-neutral-700 dark:text-neutral-300">
+              View all
+            </button>
           )}
         </div>
 
-        {isLoading ? (
-          <div className="flex gap-6 overflow-x-auto scrollbar-hide py-2">
-            <Skeleton className="h-72 w-48 rounded-2xl shrink-0 bg-neutral-200 dark:bg-neutral-800" />
-            <Skeleton className="h-72 w-48 rounded-2xl shrink-0 bg-neutral-200 dark:bg-neutral-800" />
-            <Skeleton className="h-72 w-48 rounded-2xl shrink-0 bg-neutral-200 dark:bg-neutral-800" />
-          </div>
-        ) : events.length > 0 ? (
-          <div id="memory-lane-container" className="flex gap-6 overflow-x-auto scrollbar-hide py-2 px-1 scroll-smooth snap-x snap-mandatory">
-            {events.map((event) => (
-              <div key={event.id} className="snap-start shrink-0">
-                <MomntCard
-                  event={event}
-                  onClick={() => {
-                    setSelectedSlideshowEvent({
-                      id: event.id,
-                      name: event.name,
-                      location: event.location,
-                      date: event.date
-                    })
-                  }}
-                />
-              </div>
-            ))}
-          </div>
-        ) : (
-          <p className="text-sm text-neutral-500 italic">No events available for Momnts</p>
-        )}
       </div>
 
-      {/* 4. Continue where you left off */}
-      {isLoading ? (
-        <div className="space-y-4">
-          <h2 className="text-2xl font-sirage font-semibold text-neutral-800 dark:text-neutral-200 select-none">Continue where you left off</h2>
-          <Skeleton className="h-64 w-full rounded-2xl" />
-        </div>
-      ) : recentEvent ? (
-        <div className="space-y-4">
-          <h2 className="text-2xl font-sirage font-semibold text-neutral-800 dark:text-neutral-200 select-none">Continue where you left off</h2>
-          <EventCard event={recentEvent} />
-        </div>
-      ) : null}
+      {/* ── MODALS ────────────────────────────────────────────── */}
+      <CreateEventModal open={createModalOpen} onOpenChange={setCreateModalOpen} onEventCreated={handleEventsUpdate} />
+      <JoinEventModal open={joinModalOpen} onOpenChange={setJoinModalOpen} onEventJoined={handleEventsUpdate} />
 
-      {/* 5. Upcoming events */}
-      <div className="space-y-4">
-        <h2 className="text-2xl font-sirage font-semibold text-neutral-800 dark:text-neutral-200 select-none">Upcoming Events</h2>
-        {isLoading ? (
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
-            <Skeleton className="h-64 rounded-2xl" />
-            <Skeleton className="h-64 rounded-2xl" />
-            <Skeleton className="h-64 rounded-2xl" />
-          </div>
-        ) : upcomingEvents.length > 0 ? (
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
-            {upcomingEvents.map((event) => (
-              <EventCard key={event.id} event={event} />
-            ))}
-          </div>
-        ) : (
-          <p className="text-sm text-neutral-500 italic select-none">No upcoming events</p>
-        )}
-      </div>
-
-      {/* 6. Past events */}
-      {isLoading ? (
-        <div className="space-y-4">
-          <h2 className="text-2xl font-sirage font-semibold text-neutral-800 dark:text-neutral-200 select-none">Past Events</h2>
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
-            <Skeleton className="h-64 rounded-2xl" />
-            <Skeleton className="h-64 rounded-2xl" />
-            <Skeleton className="h-64 rounded-2xl" />
-          </div>
-        </div>
-      ) : pastEvents.length > 0 ? (
-        <div className="space-y-4">
-          <h2 className="text-2xl font-sirage font-semibold text-neutral-800 dark:text-neutral-200 select-none">Past Events</h2>
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
-            {pastEvents.map((event) => (
-              <EventCard key={event.id} event={event} />
-            ))}
-          </div>
-        </div>
-      ) : null}
-
-      <CreateEventModal
-        open={createModalOpen}
-        onOpenChange={setCreateModalOpen}
-        onEventCreated={handleEventsUpdate}
-      />
-      <JoinEventModal
-        open={joinModalOpen}
-        onOpenChange={setJoinModalOpen}
-        onEventJoined={handleEventsUpdate}
-      />
-
-      {/* 7. Fullscreen Cinematic Slideshow */}
       <MomntsSlideshow
         open={selectedSlideshowEvent !== null}
         onOpenChange={(open) => {
@@ -303,7 +276,6 @@ const Home = () => {
         eventDate={selectedSlideshowEvent?.date || ''}
       />
     </div>
-
   )
 }
 

@@ -1,3 +1,4 @@
+import { lazy, Suspense } from 'react'
 import { createBrowserRouter, Outlet, ScrollRestoration } from 'react-router'
 import { AuthProvider } from './features/auth/auth.context'
 import Protected from './features/auth/components/Protected'
@@ -5,10 +6,10 @@ import DashboardLayout from './layouts/DashboardLayout'
 import Register from './features/auth/pages/register/Register'
 import Login from './features/auth/pages/login/Login'
 import VerifyEmail from './features/auth/pages/verify-email/VerifyEmail'
-import Home from './pages/home/Home'
-import Events from './pages/events/Events'
-import EventDetails from './pages/events/EventDetails'
-import Profile from './pages/profile/Profile'
+const Home = lazy(() => import('./pages/home/Home'))
+const Events = lazy(() => import('./pages/events/Events'))
+const EventDetails = lazy(() => import('./pages/events/EventDetails'))
+const Profile = lazy(() => import('./pages/profile/Profile'))
 import LandingPage from './pages/landing_page/LandingPage'
 import PrivacyPolicy from './pages/legal/PrivacyPolicy'
 import TermsAndConditions from './pages/legal/TermsAndConditions'
@@ -68,19 +69,19 @@ export const router = createBrowserRouter([
         children: [
           {
             path: "/dashboard",
-            element: <Home />,
+            element: <Suspense fallback={null}><Home /></Suspense>,
           },
           {
             path: "/events",
-            element: <Events />,
+            element: <Suspense fallback={null}><Events /></Suspense>,
           },
           {
             path: "/events/:eventId",
-            element: <EventDetails />,
+            element: <Suspense fallback={null}><EventDetails /></Suspense>,
           },
           {
             path: "/profile",
-            element: <Profile />,
+            element: <Suspense fallback={null}><Profile /></Suspense>,
           },
         ],
       },

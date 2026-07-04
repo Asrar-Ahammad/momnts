@@ -11,6 +11,7 @@ import { useWebHaptics } from 'web-haptics/react'
 
 interface EventCardProps {
   event: EventData
+  index?: number
 }
 
 const gradientThemes = [
@@ -31,7 +32,7 @@ const getThemeForEvent = (eventId: string) => {
 
 const coverPhotoCache = new Map<string, string>();
 
-export const EventCard = ({ event }: EventCardProps) => {
+export const EventCard = ({ event, index = 0 }: EventCardProps) => {
   const navigate = useNavigate()
   const theme = getThemeForEvent(event.id)
   const isOrganizer = event.user_role === 'ORGANIZER'
@@ -91,45 +92,46 @@ export const EventCard = ({ event }: EventCardProps) => {
     return () => { mounted = false; };
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [event.id, initialCover, event.encryption_mode]);
+
   return (
     <motion.div
-      whileHover={{ y: -8 }}
-      transition={{ type: 'spring', stiffness: 300, damping: 20 }}
+      initial={{ opacity: 0, y: 20, scale: 0.97 }}
+      animate={{ opacity: 1, y: 0, scale: 1 }}
+      transition={{ duration: 0.42, delay: index * 0.055, ease: [0.22, 1, 0.36, 1] }}
+      whileHover={{ y: -5 }}
       onClick={() => { haptic.trigger("light"); navigate(`/events/${event.id}`) }}
       onKeyDown={handleKeyDown}
       tabIndex={0}
       role="button"
       aria-label={`View details for event: ${event.name}`}
-      className="group cursor-pointer w-full relative rounded-[24px] sm:rounded-[32px] overflow-hidden shadow-sm hover:shadow-2xl border border-neutral-100 dark:border-neutral-800 transition-[box-shadow,border-color] duration-300 focus:outline-none focus:ring-2 focus:ring-neutral-400 dark:focus:ring-neutral-500 aspect-square sm:aspect-video"
+      className={cn(
+        "group cursor-pointer w-full relative rounded-2xl sm:rounded-[26px] overflow-hidden",
+        "aspect-square sm:aspect-video",
+        "transition-shadow duration-500",
+        "hover:shadow-[0_20px_60px_rgba(0,0,0,0.5)] dark:hover:shadow-[0_20px_60px_rgba(0,0,0,0.7)]",
+        "focus:outline-none focus:ring-2 focus:ring-white/30 focus:ring-offset-2 focus:ring-offset-background"
+      )}
     >
-      {/* Background Section */}
+      {/* ── Background: photo or animated gradient ────────── */}
       <div className="absolute inset-0 z-0">
         {coverPhoto && event.encryption_mode !== 'E2EE' ? (
-          <img 
-            src={coverPhoto} 
-            alt={event.name} 
+          <img
+            src={coverPhoto}
+            alt={event.name}
             loading="lazy"
-            className="absolute inset-0 w-full h-full object-cover transition-transform duration-700 group-hover:scale-110"
+            className="absolute inset-0 w-full h-full object-cover transition-transform duration-700 ease-out group-hover:scale-[1.07]"
           />
         ) : (
           <div className={cn("absolute inset-0 bg-gradient-to-br", event.encryption_mode === 'E2EE' ? 'from-purple-700 via-indigo-700 to-violet-800' : theme.bg)}>
             {/* Organic Animated Waves for gradient fallback */}
             <div className="absolute inset-0 overflow-hidden pointer-events-none">
-              <motion.div 
-                animate={{ 
-                  x: [-20, 20], 
-                  y: [-10, 10],
-                  rotate: [0, 5, 0]
-                }}
+              <motion.div
+                animate={{ x: [-20, 20], y: [-10, 10], rotate: [0, 5, 0] }}
                 transition={{ duration: 8, repeat: Infinity, repeatType: 'reverse' }}
                 className="absolute top-20 -left-20 w-[140%] h-[120%] bg-white/10 rounded-[45%] blur-3xl"
               />
-              <motion.div 
-                animate={{ 
-                  x: [20, -20], 
-                  y: [10, -10],
-                  rotate: [0, -5, 0]
-                }}
+              <motion.div
+                animate={{ x: [20, -20], y: [10, -10], rotate: [0, -5, 0] }}
                 transition={{ duration: 10, repeat: Infinity, repeatType: 'reverse', delay: 1 }}
                 className="absolute top-10 -right-20 w-[120%] h-[100%] bg-white/5 rounded-[40%] blur-3xl"
               />
@@ -138,87 +140,85 @@ export const EventCard = ({ event }: EventCardProps) => {
         )}
       </div>
 
-      {/* Top Status & Role Badges */}
-      <div className="absolute top-2.5 sm:top-4 left-2.5 sm:left-4 right-2.5 sm:right-4 flex justify-between items-center z-20">
-        <div className="flex items-center gap-1 sm:gap-1.5 px-2 sm:px-3 py-1 sm:py-1.5 rounded-full bg-black/20 backdrop-blur-md border border-white/20 text-white text-[8px] sm:text-[10px] font-bold uppercase tracking-widest">
-          {isOrganizer ? <Crown weight="fill" className="text-amber-300 text-[10px] sm:text-xs" /> : <User weight="bold" />}
+      {/* ── Deep gradient overlay — natural, no visible box ── */}
+      <div className="ev-card-gradient absolute inset-0 z-10 pointer-events-none" />
+
+      {/* ── Top badges — glass chips ───────────────────────── */}
+      <div className="absolute top-3 sm:top-4 left-3 sm:left-4 right-3 sm:right-4 flex justify-between items-center z-20">
+        <div className="ev-chip flex items-center gap-1 sm:gap-1.5 px-2 sm:px-2.5 py-1 sm:py-1.5 rounded-full text-white text-[8px] sm:text-[10px] font-semibold uppercase tracking-widest">
+          {isOrganizer
+            ? <Crown weight="fill" size={10} className="text-amber-300 sm:text-xs" />
+            : <User weight="bold" size={10} />
+          }
           {isOrganizer ? 'Organizer' : 'Attendee'}
         </div>
-        
+
         <div className={cn(
-          "flex items-center gap-1 sm:gap-1.5 px-2 sm:px-3 py-1 sm:py-1.5 rounded-full backdrop-blur-md border text-[8px] sm:text-[10px] font-bold uppercase tracking-widest",
-          event.is_active 
-            ? "bg-emerald-500/30 border-emerald-500/30 text-emerald-100" 
-            : "bg-red-500/30 border-red-500/30 text-red-100"
+          "ev-chip flex items-center gap-1 sm:gap-1.5 px-2 sm:px-2.5 py-1 sm:py-1.5 rounded-full text-[8px] sm:text-[10px] font-semibold uppercase tracking-widest",
+          event.is_active ? "text-emerald-200" : "text-red-200"
         )}>
-          <span className={cn("h-1 sm:h-1.5 w-1 sm:w-1.5 rounded-full animate-pulse", event.is_active ? "bg-emerald-400" : "bg-red-400")} />
+          <span className={cn(
+            "h-1.5 w-1.5 rounded-full shrink-0",
+            event.is_active ? "bg-emerald-400 animate-pulse" : "bg-red-400"
+          )} />
           {event.is_active ? 'Live' : 'Closed'}
         </div>
       </div>
 
-      {/* Gradient Overlay at the bottom */}
-      <div className="absolute bottom-0 inset-x-0 h-2/3 z-10 pointer-events-none bg-linear-to-t from-black to-transparent" />
+      {/* ── Bottom content — floating text over gradient ────── */}
+      <div className="absolute bottom-0 inset-x-0 z-20 p-3.5 sm:p-5">
+        {/* Event name */}
+        <h2 className="text-sm sm:text-lg font-bold text-white tracking-tight leading-snug capitalize line-clamp-1 mb-1.5 sm:mb-2 flex items-center gap-1.5">
+          <span className="truncate drop-shadow-sm">{event.name}</span>
+          {event.encryption_mode === 'E2EE' && (
+            <span className="ev-chip inline-flex items-center justify-center rounded-full p-1 shrink-0">
+              <Lock size={9} weight="fill" className="text-white" />
+            </span>
+          )}
+        </h2>
 
-      {/* Bottom Content Area */}
-      <div className="absolute bottom-0 inset-x-0 z-20 p-3.5 sm:p-6">
-        <div className="mb-2 sm:mb-4 flex flex-col sm:flex-row sm:justify-between items-start sm:items-end gap-1.5 sm:gap-4">
-            <h2 className="text-sm sm:text-xl font-black text-white tracking-tight leading-tight capitalize line-clamp-1 sm:line-clamp-2 drop-shadow-lg group-hover:text-white transition-colors flex-1 pb-0.5 w-full sm:w-auto flex items-center gap-1.5">
-              <span className="truncate">{event.name}</span>
-              {event.encryption_mode === 'E2EE' && (
-                <span className="inline-flex items-center justify-center bg-purple-600/40 text-white rounded-full p-1 shrink-0 shadow-md backdrop-blur-xs border border-white/20">
-                  <Lock size={12} weight="fill" className="text-white" />
-                </span>
-              )}
-            </h2>
-            
-            <div className="flex flex-row flex-wrap sm:flex-col items-center sm:items-end gap-1.5 sm:gap-2 shrink-0">
-              <div className="flex items-center gap-1 sm:gap-2 text-neutral-200 text-[10px] sm:text-sm font-medium">
-                <MapPin size={10} weight="bold" className="text-white shrink-0" />
-                <span className="capitalize line-clamp-1">{event.location}</span>
-              </div>
-              <div className="flex items-center gap-1 sm:gap-2 text-neutral-200 text-[10px] sm:text-sm font-medium">
-                <CalendarDots size={10} weight="bold" className="text-white shrink-0" />
-                <span>{format(new Date(event.date), 'MMM dd, yyyy')}</span>
-              </div>
-            </div>
+        {/* Location + date */}
+        <div className="flex items-center gap-2 sm:gap-4 mb-3 sm:mb-4 overflow-hidden">
+          <div className="flex items-center gap-1 text-white/60 text-[10px] sm:text-xs font-medium min-w-0 shrink">
+            <MapPin size={10} weight="bold" className="text-white/40 shrink-0" />
+            <span className="capitalize truncate">{event.location}</span>
+          </div>
+          <div className="flex items-center gap-1 text-white/60 text-[10px] sm:text-xs font-medium shrink-0">
+            <CalendarDots size={10} weight="bold" className="text-white/40 shrink-0" />
+            <span>{format(new Date(event.date), 'MMM dd, yyyy')}</span>
+          </div>
         </div>
 
-        {/* Footer Metrics & Action */}
-        <div className="flex items-center justify-between pt-2.5 sm:pt-4 border-t border-white/20">
-          <div className="flex items-center gap-2">
-            <div className="flex -space-x-1.5 sm:-space-x-2.5">
-              {event.event_access?.slice(0, 3).map((access) => (
-                <div key={access.user.id} className="relative">
-                  <div className="w-5 h-5 sm:w-8 sm:h-8 rounded-full border border-neutral-900 bg-neutral-800 flex items-center justify-center overflow-hidden shadow-sm">
-                    {access.user.selfie_url ? (
-                      <img 
-                        src={access.user.selfie_url} 
-                        alt={access.user.name} 
-                        loading="lazy"
-                        className="w-full h-full object-cover transition-transform duration-300 group-hover:scale-110" 
-                      />
-                    ) : (
-                      <div className="bg-neutral-800 w-full h-full flex items-center justify-center">
-                        <User size={10} weight="bold" className="text-neutral-400" />
-                      </div>
-                    )}
-                  </div>
-                </div>
-              ))}
-              {(event._count?.event_access || event.event_access?.length || 0) > 3 && (
-                <div className="w-5 h-5 sm:w-8 sm:h-8 rounded-full border border-neutral-900 bg-neutral-800 flex items-center justify-center text-[8px] sm:text-[10px] font-bold text-neutral-400 shadow-sm">
-                  +{(event._count?.event_access || event.event_access?.length || 0) - Math.min(3, event.event_access?.length || 0)}
-                </div>
-              )}
-            </div>
+        {/* Footer: avatars + gallery CTA */}
+        <div className="flex items-center justify-between">
+          {/* Stacked avatars */}
+          <div className="flex -space-x-1.5 sm:-space-x-2">
+            {event.event_access?.slice(0, 3).map((access) => (
+              <div key={access.user.id} className="w-5 h-5 sm:w-7 sm:h-7 rounded-full border border-white/20 bg-neutral-900 flex items-center justify-center overflow-hidden shrink-0">
+                {access.user.selfie_url ? (
+                  <img
+                    src={access.user.selfie_url}
+                    alt={access.user.name}
+                    loading="lazy"
+                    className="w-full h-full object-cover"
+                  />
+                ) : (
+                  <User size={9} weight="bold" className="text-white/40" />
+                )}
+              </div>
+            ))}
+            {(event._count?.event_access || event.event_access?.length || 0) > 3 && (
+              <div className="w-5 h-5 sm:w-7 sm:h-7 rounded-full border border-white/20 bg-neutral-900 flex items-center justify-center text-[7px] sm:text-[9px] font-semibold text-white/50 shrink-0">
+                +{(event._count?.event_access || event.event_access?.length || 0) - Math.min(3, event.event_access?.length || 0)}
+              </div>
+            )}
           </div>
 
-          <Button 
-            className="rounded-full h-8 sm:h-10 px-3 sm:px-5 bg-white text-neutral-900 hover:bg-neutral-200 hover:scale-105 transition-all duration-300 shadow-lg shadow-black/20 group/btn hidden sm:flex"
-          >
-            <span className="mr-2">Gallery</span>
-            <ArrowRight size={14} weight="bold" className="group-hover/btn:translate-x-1 transition-transform" />
-          </Button>
+          {/* Gallery CTA — glass pill (hidden on smallest screens) */}
+          <div className="ev-gallery-btn hidden sm:flex items-center gap-1.5 rounded-full px-3.5 py-1.5 cursor-pointer">
+            <span className="text-white text-xs font-semibold">Gallery</span>
+            <ArrowRight size={12} weight="bold" className="text-white group-hover:translate-x-0.5 transition-transform duration-300" />
+          </div>
         </div>
       </div>
     </motion.div>

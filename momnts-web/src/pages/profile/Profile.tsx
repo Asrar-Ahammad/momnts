@@ -250,7 +250,7 @@ const Profile = () => {
   // ─── Render ────────────────────────────────────────────────────────────
 
   return (
-    <div className="max-w-screen-xl md:max-w-3xl mx-auto pb-24">
+    <div className="max-w-screen-xl md:max-w-3xl mx-auto pb-12">
 
       {/* ── Hero: Banner + Avatar + Header ──────────────────────────────── */}
       <div className="rounded-none sm:rounded-3xl overflow-hidden mb-8 border-y sm:border-x border-neutral-100 dark:border-neutral-800 shadow-sm">

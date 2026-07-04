@@ -23,9 +23,10 @@ const getThemeForMomnt = (eventId: string) => {
 interface MomntCardProps {
   event: EventData
   onClick: () => void
+  className?: string
 }
 
-export const MomntCard = ({ event, onClick }: MomntCardProps) => {
+export const MomntCard = ({ event, onClick, className }: MomntCardProps) => {
   const photoCount = event._count?.photos || 0
   const isE2EE = event.encryption_mode === 'E2EE'
   const coverPhoto = isE2EE ? null : (event.photos?.[0]?.thumb_url || event.photos?.[0]?.display_url || null)
@@ -51,7 +52,8 @@ export const MomntCard = ({ event, onClick }: MomntCardProps) => {
       onClick={handleCardClick}
       className={cn(
         "shrink-0 w-48 h-72 rounded-2xl relative overflow-hidden shadow-md hover:shadow-xl border border-neutral-200/10 cursor-pointer flex flex-col justify-between p-5 text-white select-none group transition-all",
-        coverPhoto ? "bg-neutral-900" : cn("bg-gradient-to-br", isE2EE ? "from-purple-900 via-indigo-950 to-neutral-950" : theme.bg)
+        coverPhoto ? "bg-neutral-900" : cn("bg-gradient-to-br", isE2EE ? "from-purple-900 via-indigo-950 to-neutral-950" : theme.bg),
+        className
       )}
     >
       {/* Event Photo Cover Background */}

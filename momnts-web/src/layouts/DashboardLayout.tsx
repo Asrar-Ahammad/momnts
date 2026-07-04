@@ -5,7 +5,7 @@ import { cn } from '../lib/utils'
 import { ThemeToggle } from '../components/theme-toggle'
 import NotificationsPopover from '../components/NotificationsPopover'
 import { useAuth } from '../features/auth/hooks/useAuth'
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { Badge } from '../components/ui/badge'
 import { useWebHaptics } from 'web-haptics/react'
 import { useSubscription } from '../features/subscription/hooks/useSubscription'
@@ -17,8 +17,8 @@ const DashboardLayout = () => {
   const { user } = useAuth()
   const haptic = useWebHaptics()
   const { isPro } = useSubscription()
-  const [prevPath, setPrevPath] = useState(location.pathname)
-  const [direction, setDirection] = useState(0)
+  const prevPathRef = useRef(location.pathname)
+  const directionRef = useRef(0)
   const [isSlideshowOpen, setIsSlideshowOpen] = useState(false)
 
   // Apply custom preset theme globally
@@ -50,35 +50,15 @@ const DashboardLayout = () => {
     return 0
   }
 
-  // Calculate direction during render to sync with AnimatePresence
-  if (location.pathname !== prevPath) {
-    const prevIndex = getPathIndex(prevPath)
+  // Calculate direction without causing mid-render state updates
+  if (location.pathname !== prevPathRef.current) {
+    const prevIndex = getPathIndex(prevPathRef.current)
     const nextIndex = getPathIndex(location.pathname)
-    const newDirection = nextIndex > prevIndex ? 1 : -1
-
-    setDirection(newDirection)
-    setPrevPath(location.pathname)
+    directionRef.current = nextIndex > prevIndex ? 1 : -1
+    prevPathRef.current = location.pathname
   }
 
-  const slideVariants = {
-    enter: (direction: number) => ({
-      x: direction > 0 ? '100%' : '-100%',
-      opacity: 0,
-      scale: 0.98
-    }),
-    center: {
-      x: 0,
-      opacity: 1,
-      scale: 1,
-      zIndex: 1
-    },
-    exit: (direction: number) => ({
-      x: direction > 0 ? '-100%' : '100%',
-      opacity: 0,
-      scale: 0.98,
-      zIndex: 0
-    })
-  }
+
 
   const navItems = [
     {
@@ -219,24 +199,7 @@ const DashboardLayout = () => {
           !isEventDetailsPage && "lg:pt-[104px]"
         )}
       >
-        <AnimatePresence initial={false} custom={direction} mode="popLayout">
-          <motion.div
-            key={location.pathname}
-            custom={direction}
-            variants={slideVariants}
-            initial="enter"
-            animate="center"
-            exit="exit"
-            transition={{
-              x: { type: "spring", stiffness: 200, damping: 25, mass: 0.8 },
-              opacity: { duration: 0.2 },
-              scale: { duration: 0.2 }
-            }}
-            className="w-full h-full"
-          >
-            <Outlet />
-          </motion.div>
-        </AnimatePresence>
+        <Outlet />
       </main>
 
       {/* Mobile Floating Bottom Bar */}
