@@ -1,4 +1,4 @@
-import { Outlet, useNavigate, useLocation, Link } from 'react-router';
+import { useNavigate, useLocation, Link, useOutlet } from 'react-router';
 import { LightningIcon, UserCircleDashedIcon, UserIcon, CakeIcon, HouseIcon } from "@phosphor-icons/react"
 import { motion, AnimatePresence } from 'framer-motion'
 import { cn } from '../lib/utils'
@@ -20,6 +20,7 @@ const DashboardLayout = () => {
   const prevPathRef = useRef(location.pathname)
   const directionRef = useRef(0)
   const [isSlideshowOpen, setIsSlideshowOpen] = useState(false)
+  const outlet = useOutlet()
 
   // Apply custom preset theme globally
   usePresetTheme()
@@ -194,12 +195,23 @@ const DashboardLayout = () => {
       <main
         id="dashboard-main"
         className={cn(
-          "flex-1 overflow-x-hidden overflow-y-auto pb-24 lg:pb-8 relative",
+          "flex-1 overflow-x-hidden overflow-y-auto pb-48 lg:pb-20 relative",
           "pt-[calc(72px+env(safe-area-inset-top,0px))]",
           !isEventDetailsPage && "lg:pt-[104px]"
         )}
       >
-        <Outlet />
+        <AnimatePresence mode="wait">
+          <motion.div
+            key={location.pathname}
+            initial={{ opacity: 0, y: 10 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -10 }}
+            transition={{ duration: 0.2 }}
+            className="w-full h-full"
+          >
+            {outlet}
+          </motion.div>
+        </AnimatePresence>
       </main>
 
       {/* Mobile Floating Bottom Bar */}

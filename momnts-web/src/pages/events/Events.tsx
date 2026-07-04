@@ -213,7 +213,7 @@ const Events = () => {
   const hasActiveFilters = !!(searchQuery || dateRange.from || dateRange.to || sortOrder !== 'desc' || roleFilter !== 'ALL')
 
   return (
-    <div className="pt-7 pb-12 space-y-5">
+    <div className="pt-7 pb-24 space-y-5">
 
       {/* ════════════════════════════════════════════════════
           PAGE HEADER

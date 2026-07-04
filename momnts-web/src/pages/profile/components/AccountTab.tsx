@@ -133,7 +133,7 @@ const AccountTab = ({
               variant="outline"
               size="sm"
               onClick={() => { haptic.trigger("medium"); onChangePassword() }}
-              className="rounded-xl font-semibold border-neutral-200 dark:border-neutral-800 hover:bg-neutral-100 dark:hover:bg-neutral-800 cursor-pointer"
+              className="rounded-full font-semibold border-neutral-200 dark:border-neutral-800 hover:bg-neutral-100 dark:hover:bg-neutral-800 cursor-pointer"
             >
               Change
             </Button>
@@ -152,7 +152,7 @@ const AccountTab = ({
                 </div>
               </div>
               <AlertDialog>
-                <AlertDialogTrigger className="inline-flex items-center justify-center rounded-xl text-sm font-semibold border border-orange-200 dark:border-orange-900/50 hover:bg-orange-50 dark:hover:bg-orange-900/20 text-orange-600 dark:text-orange-400 h-9 px-3 cursor-pointer transition-colors outline-none bg-transparent">
+                <AlertDialogTrigger className="inline-flex items-center justify-center rounded-full text-sm font-semibold border border-orange-200 dark:border-orange-900/50 hover:bg-orange-50 dark:hover:bg-orange-900/20 text-orange-600 dark:text-orange-400 h-9 px-3 cursor-pointer transition-colors outline-none bg-transparent">
                   Delete
                 </AlertDialogTrigger>
               <AlertDialogContent className="rounded-3xl border-neutral-200 dark:border-neutral-800">
@@ -186,7 +186,7 @@ const AccountTab = ({
               </div>
             </div>
             <AlertDialog>
-              <AlertDialogTrigger className="inline-flex items-center justify-center rounded-xl text-sm font-semibold border border-red-200 dark:border-red-900/50 hover:bg-red-50 dark:hover:bg-red-900/20 text-red-600 dark:text-red-400 h-9 px-3 cursor-pointer transition-colors outline-none bg-transparent">
+              <AlertDialogTrigger className="inline-flex items-center justify-center rounded-full text-sm font-semibold border border-red-200 dark:border-red-900/50 hover:bg-red-50 dark:hover:bg-red-900/20 text-red-600 dark:text-red-400 h-9 px-3 cursor-pointer transition-colors outline-none bg-transparent">
                 Logout
               </AlertDialogTrigger>
             <AlertDialogContent className="rounded-3xl border-neutral-200 dark:border-neutral-800">

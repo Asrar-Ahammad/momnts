@@ -34,6 +34,13 @@ const Home = () => {
     date: string
   } | null>(null)
 
+  const greeting = useMemo(() => {
+    const hour = new Date().getHours()
+    if (hour >= 5 && hour < 12) return 'Good morning'
+    if (hour >= 12 && hour < 17) return 'Good afternoon'
+    return 'Good evening'
+  }, [])
+
   const handleEventsUpdate = () => {
     queryClient.invalidateQueries({ queryKey: ['events'] })
   }
@@ -60,7 +67,7 @@ const Home = () => {
 
   if (!isLoading && events.length === 0) {
     return (
-      <div className="max-w-5xl mx-auto px-4 pt-12 lg:pt-16 pb-16 flex flex-col items-center justify-center min-h-[70vh] text-center">
+      <div className="max-w-5xl mx-auto px-4 pt-12 lg:pt-16 pb-24 flex flex-col items-center justify-center min-h-[70vh] text-center">
         <div className="w-24 h-24 bg-neutral-900 border border-white/5 rounded-[2rem] flex items-center justify-center text-5xl mb-8 shadow-2xl bento-tile">
           🍱
         </div>
@@ -91,7 +98,7 @@ const Home = () => {
   }
 
   return (
-    <div className="max-w-7xl mx-auto px-4 lg:px-8 pt-6 md:pt-8 lg:pt-12 pb-16">
+    <div className="max-w-7xl mx-auto px-4 lg:px-8 pt-6 md:pt-8 lg:pt-12 pb-24">
       
       {/* ── BENTO GRID ────────────────────────────────────────── */}
       <div className="grid grid-cols-1 md:grid-cols-3 auto-rows-auto gap-4 md:gap-6">
@@ -99,10 +106,10 @@ const Home = () => {
         {/* 1. Welcome Hero (Top Left, 2-col) */}
         <div className="bento-tile md:col-span-2 p-8 md:p-10 flex flex-col justify-between min-h-[280px]">
           <div>
-            <h1 className="text-4xl md:text-5xl font-sirage font-bold text-neutral-900 dark:text-white tracking-tight mb-2">
-              Hi, <span className="capitalize">{user?.username || 'there'}</span>.
+            <h1 className="text-3xl md:text-5xl font-sirage font-bold text-neutral-900 dark:text-white tracking-tight mb-2">
+              {greeting}, <span className="capitalize">{user?.username || 'there'}</span>
             </h1>
-            <p className="text-neutral-600 dark:text-neutral-400 text-lg">
+            <p className="text-neutral-600 dark:text-neutral-400 text-sm md:text-lg">
               {upcomingEvents.length > 0 
                 ? `You have ${upcomingEvents.length} events coming up.` 
                 : "Let's capture some new memories today."}
