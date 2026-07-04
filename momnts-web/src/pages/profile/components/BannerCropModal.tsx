@@ -10,6 +10,7 @@ import {
 import { Button } from '../../../components/ui/button'
 import { Slider } from '../../../components/ui/slider'
 import { CircleNotch, Selection, MagnifyingGlassPlus } from '@phosphor-icons/react'
+import { toast } from 'sonner'
 
 interface BannerCropModalProps {
   image: string | null
@@ -93,6 +94,7 @@ const BannerCropModal = ({ image, open, onOpenChange, onCropComplete, isUploadin
       onCropComplete(croppedImage)
     } catch (e) {
       console.error(e)
+      toast.error('Failed to crop banner image')
     }
   }
 

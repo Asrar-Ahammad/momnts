@@ -38,12 +38,14 @@ const ProfileBanner = ({ bannerUrl, onBannerUpdate }: ProfileBannerProps) => {
     // Validate file type
     if (!file.type.startsWith('image/')) {
       toast.error('Please select an image file')
+      e.target.value = ''
       return
     }
 
     // Validate file size (max 10MB)
     if (file.size > 10 * 1024 * 1024) {
       toast.error('Image must be smaller than 10MB')
+      e.target.value = ''
       return
     }
 

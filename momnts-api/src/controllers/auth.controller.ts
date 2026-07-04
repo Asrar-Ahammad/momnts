@@ -154,7 +154,7 @@ async function userResponse(user: { id: string; name: string; email: string; ema
     email_verified: user.email_verified,
     selfie_url,
     banner_url,
-    theme: user.theme ?? 'dark',
+    theme: user.theme ?? undefined,
     custom_accent_color: user.custom_accent_color ?? undefined,
     created_at: user.created_at,
   };
@@ -472,6 +472,9 @@ async function refreshUserController(req: Request, res: Response) {
             email: true,
             email_verified: true,
             selfie_url: true,
+            banner_url: true,
+            theme: true,
+            custom_accent_color: true,
             created_at: true,
           }
         }
@@ -605,6 +608,8 @@ async function getMeController(req: any, res: any) {
         email_verified: true,
         selfie_url: true,
         banner_url: true,
+        theme: true,
+        custom_accent_color: true,
         created_at: true,
       },
     });
@@ -740,6 +745,9 @@ async function verifyOtpController(req: any, res: any) {
         email: true,
         email_verified: true,
         selfie_url: true,
+        banner_url: true,
+        theme: true,
+        custom_accent_color: true,
         created_at: true,
       },
     });

@@ -191,16 +191,18 @@ const Profile = () => {
     }
   }
 
-  const handleSaveTheme = async (newTheme: string, newColor?: string) => {
-    if (!user) return
+  const handleSaveTheme = async (newTheme: string, newColor?: string): Promise<boolean> => {
+    if (!user) return false
     try {
       setIsUpdatingTheme(true)
       const colorToSave = newColor || user?.custom_accent_color
       await usersApi.updateProfile(user.username, newTheme, colorToSave)
       setUser({ ...user, theme: newTheme, custom_accent_color: colorToSave })
       haptic.trigger('success')
+      return true
     } catch {
       toast.error('Failed to update theme')
+      return false
     } finally {
       setIsUpdatingTheme(false)
     }

@@ -2,12 +2,11 @@ import { Gear, CircleNotch } from '@phosphor-icons/react'
 import { Switch } from '../../../components/ui/switch'
 import { useState, useEffect } from 'react'
 import { motion } from 'motion/react'
-import { useWebHaptics } from 'web-haptics/react'
 
 interface SettingsTabProps {
   // Theme
   currentTheme: string
-  onSaveTheme: (theme: string, color?: string) => void
+  onSaveTheme: (theme: string, color?: string) => Promise<boolean>
   isUpdatingTheme: boolean
   // Haptics
   hapticsEnabled: boolean
@@ -30,7 +29,6 @@ const SettingsTab = ({
   hapticsEnabled,
   onHapticsToggle,
 }: SettingsTabProps) => {
-  const haptic = useWebHaptics()
   const [loadingThemeId, setLoadingThemeId] = useState<string | null>(null)
 
   useEffect(() => {
@@ -60,7 +58,15 @@ const SettingsTab = ({
     // @ts-ignore - View Transitions API
     if (!document.startViewTransition) {
       updateDOMTheme()
-      onSaveTheme(tId)
+      onSaveTheme(tId).then((success) => {
+        if (!success) {
+          if (currentTheme !== 'system' && currentTheme !== 'light' && currentTheme !== 'dark' && currentTheme !== 'default') {
+            document.documentElement.setAttribute('data-preset', currentTheme)
+          } else {
+            document.documentElement.removeAttribute('data-preset')
+          }
+        }
+      })
       return
     }
 
@@ -69,8 +75,15 @@ const SettingsTab = ({
       updateDOMTheme()
     })
 
-    transition.finished.finally(() => {
-      onSaveTheme(tId)
+    transition.finished.finally(async () => {
+      const success = await onSaveTheme(tId)
+      if (!success) {
+        if (currentTheme !== 'system' && currentTheme !== 'light' && currentTheme !== 'dark' && currentTheme !== 'default') {
+          document.documentElement.setAttribute('data-preset', currentTheme)
+        } else {
+          document.documentElement.removeAttribute('data-preset')
+        }
+      }
     })
   }
 

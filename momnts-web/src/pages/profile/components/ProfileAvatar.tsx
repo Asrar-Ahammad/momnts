@@ -1,6 +1,5 @@
 import { User, ShieldCheck, Camera, CameraPlus, CircleNotch } from '@phosphor-icons/react'
 import { Tooltip, TooltipTrigger, TooltipContent } from '../../../components/ui/tooltip'
-import { useWebHaptics } from 'web-haptics/react'
 
 interface ProfileAvatarProps {
   selfieUrl?: string
@@ -10,14 +9,22 @@ interface ProfileAvatarProps {
 }
 
 const ProfileAvatar = ({ selfieUrl, username, isUpdatingSelfie, onSelfieClick }: ProfileAvatarProps) => {
-  const haptic = useWebHaptics()
 
   return (
     <div className="relative group w-28 h-28 sm:w-32 sm:h-32">
       {/* Avatar circle */}
       <div 
-        className="w-full h-full rounded-full overflow-hidden bg-neutral-100 dark:bg-neutral-800 border-4 border-white dark:border-neutral-950 shadow-xl relative ring-1 ring-neutral-200/50 dark:ring-neutral-700/50 cursor-pointer"
-        onClick={() => { if (!isUpdatingSelfie) { haptic.trigger("medium"); onSelfieClick(); } }}
+        role="button"
+        tabIndex={0}
+        aria-label="Upload profile picture"
+        className="w-full h-full rounded-full overflow-hidden bg-neutral-100 dark:bg-neutral-800 border-4 border-white dark:border-neutral-950 shadow-xl relative ring-1 ring-neutral-200/50 dark:ring-neutral-700/50 cursor-pointer focus:outline-none focus:ring-2 focus:ring-primary focus-visible:ring-offset-2 dark:focus-visible:ring-offset-neutral-950"
+        onClick={() => { if (!isUpdatingSelfie) { onSelfieClick(); } }}
+        onKeyDown={(e) => {
+          if ((e.key === 'Enter' || e.key === ' ') && !isUpdatingSelfie) {
+            e.preventDefault();
+            onSelfieClick();
+          }
+        }}
       >
         {selfieUrl ? (
           <img

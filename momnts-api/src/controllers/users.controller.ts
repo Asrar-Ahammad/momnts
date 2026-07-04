@@ -37,8 +37,6 @@ export async function updateSelfieController(req: AuthRequest, res: Response) {
       .jpeg({ quality: 90 })
       .toBuffer()
 
-    await unlink(req.file.path).catch(() => { })
-
     // 3. Upload new selfie to R2
     const r2Key = `selfies/${userId}/selfie-${Date.now()}.jpg`
     const selfieKey = await uploadToR2(r2Key, compressedSelfie, 'image/jpeg', { cacheControl: 'public, max-age=3600' })
@@ -74,12 +72,17 @@ export async function updateSelfieController(req: AuthRequest, res: Response) {
 
     // 5. Save new selfie URL + embedding to DB
     const vectorString = `[${embedding.join(',')}]`
-    await prisma.$executeRaw`
-      UPDATE "User"
-      SET selfie_url = ${selfieKey},
-          selfie_embedding = ${vectorString}::vector
-      WHERE id = ${userId}
-    `
+    try {
+      await prisma.$executeRaw`
+        UPDATE "User"
+        SET selfie_url = ${selfieKey},
+            selfie_embedding = ${vectorString}::vector
+        WHERE id = ${userId}
+      `
+    } catch (dbErr) {
+      await deleteFromR2(r2Key).catch(() => {})
+      throw dbErr
+    }
 
     // 6. NOW safe to delete old selfie from R2 (DB already points to new one)
     if (oldSelfieUrl) {
@@ -127,6 +130,10 @@ export async function updateSelfieController(req: AuthRequest, res: Response) {
   } catch (error: any) {
     console.error('Selfie update error:', error)
     return res.status(500).json({ message: error.message || "Internal server error" })
+  } finally {
+    if (req.file?.path) {
+      await unlink(req.file.path).catch(() => { })
+    }
   }
 }
 
@@ -239,21 +246,25 @@ export async function updateBannerController(req: AuthRequest, res: Response) {
 
     // 2. Compress banner (1920x480 cover crop, jpeg 85)
     const compressedBanner = await sharp(req.file.path)
+      .rotate()
       .resize(1920, 480, { fit: 'cover' })
       .jpeg({ quality: 85 })
       .toBuffer()
-
-    await unlink(req.file.path).catch(() => { })
 
     // 3. Upload to R2
     const r2Key = `banners/${userId}/banner-${Date.now()}.jpg`
     const bannerKey = await uploadToR2(r2Key, compressedBanner, 'image/jpeg', { cacheControl: 'public, max-age=3600' })
 
     // 4. Update DB
-    await prisma.user.update({
-      where: { id: userId },
-      data: { banner_url: bannerKey }
-    })
+    try {
+      await prisma.user.update({
+        where: { id: userId },
+        data: { banner_url: bannerKey }
+      })
+    } catch (dbErr) {
+      await deleteFromR2(r2Key).catch(() => {})
+      throw dbErr
+    }
 
     // 5. Delete old banner from R2
     if (oldBannerUrl) {
@@ -275,6 +286,10 @@ export async function updateBannerController(req: AuthRequest, res: Response) {
   } catch (error: any) {
     console.error('Banner update error:', error)
     return res.status(500).json({ message: error.message || "Internal server error" })
+  } finally {
+    if (req.file?.path) {
+      await unlink(req.file.path).catch(() => { })
+    }
   }
 }
 

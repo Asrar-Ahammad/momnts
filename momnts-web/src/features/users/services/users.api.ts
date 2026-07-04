@@ -1,4 +1,3 @@
-import { authHeaders, jsonAuthHeaders } from "../../../lib/authHeaders"
 import { apiFetch } from "../../../lib/apiFetch"
 
 const API_URL = import.meta.env.VITE_SERVER_URL || "http://localhost:3000"
@@ -11,7 +10,6 @@ export const usersApi = {
     const response = await apiFetch(`${API_URL}/api/users/selfie`, {
       method: "PUT",
       body: formData,
-      headers: authHeaders(),
     })
 
     if (!response.ok) {
@@ -25,7 +23,6 @@ export const usersApi = {
   async deleteSelfie(): Promise<{ message: string }> {
     const response = await apiFetch(`${API_URL}/api/users/selfie`, {
       method: "DELETE",
-      headers: authHeaders(),
     })
 
     if (!response.ok) {
@@ -43,7 +40,7 @@ export const usersApi = {
 
     const response = await apiFetch(`${API_URL}/api/users/profile`, {
       method: "PUT",
-      headers: jsonAuthHeaders(),
+      headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(body),
     })
 
@@ -62,7 +59,6 @@ export const usersApi = {
     const response = await apiFetch(`${API_URL}/api/users/banner`, {
       method: "PUT",
       body: formData,
-      headers: authHeaders(),
     })
 
     if (!response.ok) {
@@ -76,7 +72,6 @@ export const usersApi = {
   async deleteBanner(): Promise<{ message: string }> {
     const response = await apiFetch(`${API_URL}/api/users/banner`, {
       method: "DELETE",
-      headers: authHeaders(),
     })
 
     if (!response.ok) {
