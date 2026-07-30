@@ -1,6 +1,6 @@
 # Momnts — Identity-Based, AI-Powered Event Photo Sharing & Secure Collaboration
 
-#### Website link : Momnts[https://momnts.vercel.app]
+#### Website link : [Momnts](https://momnts.vercel.app)
 Momnts is a modern, full-stack, identity-based photo retrieval and collaboration platform designed for events. Organizers can create events with custom restrictions, while attendees join via secure invite codes. 
 
 The application supports two distinct operational modes:
